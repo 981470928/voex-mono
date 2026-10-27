@@ -72,6 +72,12 @@
 
 两种方式共用根目录的 <code>voex.config.json</code> 和同一套运行配置。配置只写在本地，不进入 Git。
 
+### 体验地址
+
+[点击此处体验](http://192.140.173.58/app/)
+
+[协同体验地址，需要登录](http://192.140.173.58/app/share#v1.4a006547b32e4b01.edit.JhmW96UerCsp45xPw7ZiRrCDBgcyjryp09qD2iuJ_n8)
+
 ## 快速开始
 
 仓库中的 [`prebuilt/`](prebuilt/) 已提前打包前端、Go 服务和协同服务，并提交到 Git。下载仓库后不需要安装 Go、pnpm，也不需要重新构建，**只需填写配置并执行一条启动命令**。
@@ -179,18 +185,18 @@ node scripts/dev.mjs
 
 `voex.config.json` 由 Git 忽略，可从 [`voex.config.example.json`](voex.config.example.json) 复制。JSON 不允许注释和末尾多余逗号。
 
-| 参数                | 要求及默认值                                                                               |
-| ------------------- | ------------------------------------------------------------------------------------------ |
-| `host`              | HTTP 监听地址，默认 `127.0.0.1`；允许局域网访问时可设 `0.0.0.0`                            |
-| `port`              | HTTP 端口，默认 `8080`，必须为 1–65535 的整数且未被占用                                    |
-| `database.host`     | 必填，MySQL 主机名或 IP，不含协议和端口                                                    |
-| `database.port`     | 默认 `3306`                                                                                |
-| `database.user`     | 必填，数据库用户名                                                                         |
-| `database.password` | 数据库密码；确实无密码的账号允许空字符串                                                   |
-| `database.name`     | 必填；正常启动时自动创建缺失数据库及表                                                     |
-| `pexelsKey`         | 可选，空字符串表示图库不可用；通过 `/api/public/config` 在运行时提供给前端                 |
-| `collaboration`     | 默认 `false`，按需启用多人协同                                                             |
-| `collaborationPort` | 协同内部端口，默认 `8091`，启用时不可与 HTTP 端口相同                                      |
+| 参数                | 要求及默认值                                                               |
+| ------------------- | -------------------------------------------------------------------------- |
+| `host`              | HTTP 监听地址，默认 `127.0.0.1`；允许局域网访问时可设 `0.0.0.0`            |
+| `port`              | HTTP 端口，默认 `8080`，必须为 1–65535 的整数且未被占用                    |
+| `database.host`     | 必填，MySQL 主机名或 IP，不含协议和端口                                    |
+| `database.port`     | 默认 `3306`                                                                |
+| `database.user`     | 必填，数据库用户名                                                         |
+| `database.password` | 数据库密码；确实无密码的账号允许空字符串                                   |
+| `database.name`     | 必填；正常启动时自动创建缺失数据库及表                                     |
+| `pexelsKey`         | 可选，空字符串表示图库不可用；通过 `/api/public/config` 在运行时提供给前端 |
+| `collaboration`     | 默认 `false`，按需启用多人协同                                             |
+| `collaborationPort` | 协同内部端口，默认 `8091`，启用时不可与 HTTP 端口相同                      |
 
 HTTP 端口和数据库端口是两个不同参数。脚本不会安装或启动 MySQL；正常启动仅创建缺失数据库、表和工作区锁记录，不自动改动已有表的列结构。`--check` 不执行数据库初始化。启用协同前还需满足 [协同说明](server/docs/COLLABORATION.md) 中的数据结构要求。
 
