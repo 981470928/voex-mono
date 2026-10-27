@@ -1,0 +1,2 @@
+# Generated quick-deployment artifacts (see scripts/package.mjs).
+prebuilt/** -text -diff

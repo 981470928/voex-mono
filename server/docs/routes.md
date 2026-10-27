@@ -85,6 +85,7 @@
 | ---- | ---- | ---------- | ---- |
 | GET | `/api/health/live` | 公开进程存活检查，返回 `{status:"ok"}`，不代表数据库可用。 | `internal/handler/health.go` |
 | GET | `/api/health/ready` | 公开就绪检查，核对数据库连接与存储目录；成功返回 `{status:"ok"}`，未就绪为 503。 | `internal/handler/health.go` |
+| GET | `/api/public/config` | 公开运行时配置，当前返回 `{pexelsKey}`；供预置前端读取 Pexels Key，不缓存。 | `internal/handler/public.go` |
 
 ## 原业务接口与删除语义
 

@@ -32,13 +32,17 @@ export default defineConfig(({ command, mode }) => {
       proxy: {
         '/api/collab/ws': {
           target:
-            loadEnv(mode, process.cwd(), 'VITE_').VITE_COLLAB_PROXY_TARGET || 'ws://127.0.0.1:8091',
+            process.env.VITE_COLLAB_PROXY_TARGET ||
+            loadEnv(mode, process.cwd(), 'VITE_').VITE_COLLAB_PROXY_TARGET ||
+            'ws://127.0.0.1:8091',
           ws: true,
           changeOrigin: true,
         },
         '/api': {
           target:
-            loadEnv(mode, process.cwd(), 'VITE_').VITE_API_PROXY_TARGET || 'http://127.0.0.1:8090',
+            process.env.VITE_API_PROXY_TARGET ||
+            loadEnv(mode, process.cwd(), 'VITE_').VITE_API_PROXY_TARGET ||
+            'http://127.0.0.1:8090',
           changeOrigin: true,
         },
       },

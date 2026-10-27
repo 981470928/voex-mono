@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getPexelsKey } from './app-config-api';
 
 export type PexelsOrientation = '' | 'landscape' | 'portrait' | 'square';
 
@@ -28,7 +29,13 @@ export async function getPexelsPhotos(
   filters: { query: string; orientation: PexelsOrientation; color: string; page: number },
   signal: AbortSignal
 ): Promise<PexelsPage> {
-  const key = import.meta.env.VITE_PEXELS_API_KEY?.trim();
+  let key = '';
+  try {
+    key = await getPexelsKey();
+  } catch {
+    // Older standalone deployments may only have the build-time value.
+  }
+  key ||= import.meta.env.VITE_PEXELS_API_KEY?.trim() ?? '';
   if (!key) throw new Error('图库暂未配置，请联系管理员');
   const query = filters.query.trim() || (filters.orientation || filters.color ? '自然' : '');
   try {

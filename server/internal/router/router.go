@@ -34,6 +34,7 @@ func New(s *service.Service, logger *log.Logger) *Router {
 	optional.Use(middleware.Authentication(s, true))
 	h.RegisterAuthRoutes(public, protected)
 	h.RegisterHealthRoutes(public)
+	h.RegisterPublicRoutes(public)
 	h.RegisterAIRoutes(protected)
 	h.RegisterTeamRoutes(public, protected)
 	h.RegisterWorkspaceRoutes(protected)

@@ -15,6 +15,15 @@ bin/
 coverage/
 *.tsbuildinfo
 .eslintcache
+/.pnpm-store/
+
+# MathJax vendor bundle downloaded by the local scripts
+/web/public/vendor/
+
+# Prebuilt artifacts for quick deployment are committed on purpose.
+!prebuilt/
+!prebuilt/**
+/prebuilt.old/
 
 # Logs and operating-system files
 logs/
