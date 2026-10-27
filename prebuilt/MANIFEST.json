@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "createdAt": "2026-10-27T03:59:17.295Z",
+  "createdAt": "2026-10-27T06:18:04.370Z",
   "platforms": [
     "linux-amd64",
     "linux-arm64",
@@ -16,27 +16,27 @@
   "server": {
     "linux-amd64": {
       "path": "server/voex-server-linux-amd64.gz",
-      "sha256": "ca9575e8bc262126975ac4c7c42b90409c1f11877c83d5196c806213ac6da0cf",
-      "binarySha256": "20c59d8532270b556b990262380902795d24c75fc84f7ee3189a70a4dbe6b78e",
-      "size": 9244314
+      "sha256": "7873134fd5a11280d56bee0bd908e4eb0161ddb8b9a7668c2f16773cd7a98f13",
+      "binarySha256": "627929c3f460974b55d25f21854e68782e5007d2c55213f3b3173167314194e1",
+      "size": 9244469
     },
     "linux-arm64": {
       "path": "server/voex-server-linux-arm64.gz",
-      "sha256": "e686d4f42e9370debfee067b1151066be5b3868c97715bdd18caaab50a628333",
-      "binarySha256": "923ac0a3a1483035d5f3e06e607d04ae4f0fb2e1b947c2797c2713056fe5ba2a",
-      "size": 8298078
+      "sha256": "e18da1bf8bad8ef9e8967943f5a47018ce8a1c6231edfcca8c44684543904899",
+      "binarySha256": "9cd4eb8358823689d8bb2cb69fbc79eddd5f5600776a2124dfddb1e5f552d462",
+      "size": 8298459
     },
     "windows-amd64": {
       "path": "server/voex-server-windows-amd64.gz",
-      "sha256": "99669cbb47b6c96efc6b4f10429c925c6ef3768802d293d0ff7142d32d3f7163",
-      "binarySha256": "f0f666c3f81e562f3f8a46fd4aff3d2e09ce12b71490014639bed605a6c32826",
-      "size": 9390973
+      "sha256": "f01fc2effecd019f759371b2533c033b2af0ccec048d3b0db21c3c2c8c149e64",
+      "binarySha256": "d3a044e5ecf4429d38b3ff3a2a3fa909b037f7ddd99d203e340bf843b1cc51da",
+      "size": 9390981
     },
     "windows-arm64": {
       "path": "server/voex-server-windows-arm64.gz",
-      "sha256": "9b9b0600e6c87c1cb35b33e8a58938834e4825d81d83fa2f9df2251a830b52e1",
-      "binarySha256": "0238abafff56a4684de08ec5407411c046113b93fbc51669ca0d27eec39b90ef",
-      "size": 8309622
+      "sha256": "f59ba00d2112f026c51a7b90e563b5dad042fbdc48ace4192b339980e3bfa509",
+      "binarySha256": "85422c174f95807762ff68e3a3b8bb47bffa0eb168d73ff4cdb7882fc30f29fd",
+      "size": 8309913
     }
   }
 }

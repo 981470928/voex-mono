@@ -95,7 +95,8 @@ func deploymentHandler(api http.Handler, cfg config.Config) (http.Handler, func(
 			proxy.ServeHTTP(w, r)
 			return
 		}
-		if r.URL.Path == "/api" || strings.HasPrefix(r.URL.Path, "/api/") {
+		if r.URL.Path == "/api" || strings.HasPrefix(r.URL.Path, "/api/") ||
+			strings.HasPrefix(r.URL.Path, "/internal/collab/") {
 			api.ServeHTTP(w, r)
 			return
 		}
