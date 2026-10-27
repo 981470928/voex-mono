@@ -52,7 +52,6 @@ export async function ensureConfig() {
   };
   if (result.collaboration) {
     result.collaborationPort = Number(await ask('协同内部端口', '8091'));
-    result.publicUrl = await ask('浏览器访问地址（协议、域名和端口）', `http://localhost:${result.port}`);
   }
   const config = normalize(result);
   await writeConfig(config);

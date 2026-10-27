@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url';
 import {
   ROOT, LOCAL, BINARY, exists, runtimeCheck, requireGo, loadConfig,
   databaseReachable, prepareRuntime, ensureVendor, exec, execPnpm,
-  origin, collaborationOrigins, available, fail,
+  origin, available, fail,
 } from './common.mjs';
 import { runServices } from './services.mjs';
 
@@ -79,7 +79,6 @@ export async function startDev({ check = false } = {}) {
         VOEX_COLLAB_PORT: String(config.collaborationPort),
         VOEX_COLLAB_API_URL: origin(config),
         VOEX_COLLAB_SECRET_FILE: env.VOEX_COLLAB_SECRET_FILE,
-        VOEX_COLLAB_ORIGINS: collaborationOrigins(config.publicUrl, origin(config, devPort)),
       },
     };
   }

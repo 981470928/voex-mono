@@ -22,9 +22,8 @@ dist/server.js is a self-contained ESM bundle. Production needs Node 22.18+ and 
 | VOEX_COLLAB_PORT | 8091 by default |
 | VOEX_COLLAB_API_URL | http://127.0.0.1:8090 by default |
 | VOEX_COLLAB_SECRET_FILE | Required private secret file shared with Go |
-| VOEX_COLLAB_ORIGINS | Required comma-separated exact browser origins |
 
-The secret needs at least 32 bytes. Missing secrets or origins fail startup. Never place authentication or sharing tokens in URLs. Hocuspocus authentication messages carry a JSON envelope with ticket and client_id (the local Y.Doc client ID). Node verifies the ticket through Go and binds presence to that explicit local ID. Legacy raw tickets can still sync document content, but cannot claim presence IDs. Provider/server are pinned to 3.4.4 and Yjs to 13.6.33.
+The secret needs at least 32 bytes. A missing secret fails startup. Never place authentication or sharing tokens in URLs. Hocuspocus authentication messages carry a JSON envelope with ticket and client_id (the local Y.Doc client ID). Node verifies the ticket through Go and binds presence to that explicit local ID. Legacy raw tickets can still sync document content, but cannot claim presence IDs. Provider/server are pinned to 3.4.4 and Yjs to 13.6.33.
 
 ## Durability protocol
 

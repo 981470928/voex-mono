@@ -36,7 +36,8 @@ export default defineConfig(({ command, mode }) => {
             loadEnv(mode, process.cwd(), 'VITE_').VITE_COLLAB_PROXY_TARGET ||
             'ws://127.0.0.1:8091',
           ws: true,
-          changeOrigin: true,
+          // 保留浏览器原始 Host，协同服务据此与 Origin 比对同源。
+          changeOrigin: false,
         },
         '/api': {
           target:

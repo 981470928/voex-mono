@@ -5,7 +5,7 @@ import { gunzip as gunzipBuffer } from 'node:zlib';
 import { promisify } from 'node:util';
 import {
   ROOT, LOCAL, PREBUILT, BINARY, TARGET, exists, runtimeCheck,
-  databaseReachable, prepareRuntime, filesDigest, digest, exec, origin, collaborationOrigins, fail,
+  databaseReachable, prepareRuntime, filesDigest, digest, exec, origin, fail,
 } from './common.mjs';
 import { runServices } from './services.mjs';
 import { ensureConfig as configure } from './setup.mjs';
@@ -98,7 +98,6 @@ export async function startPrebuilt({ check = false } = {}) {
         VOEX_COLLAB_PORT: String(config.collaborationPort),
         VOEX_COLLAB_API_URL: origin(config),
         VOEX_COLLAB_SECRET_FILE: env.VOEX_COLLAB_SECRET_FILE,
-        VOEX_COLLAB_ORIGINS: collaborationOrigins(config.publicUrl),
       },
     };
   }

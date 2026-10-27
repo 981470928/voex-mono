@@ -37,7 +37,7 @@ VOEX_COLLAB_SECRET_FILE=/home/server/.secrets/collab-key
 VOEX_COLLAB_WS_URL=/api/collab/ws
 ~~~
 
-Node 使用单独的 collab/.env，内容参考 deploy/collaboration/collab.env.example。Node.js 至少满足当前项目要求，服务器当前为 24.x；前后端依赖均使用 lockfile。VOEX_COLLAB_ORIGINS 必须配置浏览器实际的 scheme/host/port，不包含路径、不使用通配符。
+Node 使用单独的 collab/.env，内容参考 deploy/collaboration/collab.env.example。Node.js 至少满足当前项目要求，服务器当前为 24.x；前后端依赖均使用 lockfile。协同进程在 WebSocket 升级时比对 `Origin` 与 `Host` 是否为同一 host:port，无需配置浏览器地址；反向代理必须原样转发 `Host`。
 
 生成共享密钥时不得覆盖已有文件：
 

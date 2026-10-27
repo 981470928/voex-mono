@@ -61,22 +61,10 @@ export function normalize(raw) {
     pexelsKey: text(raw.pexelsKey ?? '', 'pexelsKey', true).trim(),
     collaboration: raw.collaboration ?? false,
     collaborationPort: portNumber(raw.collaborationPort ?? 8091, 'collaborationPort'),
-    publicUrl: raw.publicUrl ?? '',
   };
   if (typeof result.collaboration !== 'boolean') throw new Error('collaboration 必须是 true 或 false。');
   if (result.collaboration && result.port === result.collaborationPort)
     throw new Error('HTTP 与协同端口不能相同。');
-  if (result.collaboration) {
-    let url;
-    try {
-      url = new URL(result.publicUrl);
-    } catch {
-      throw new Error('启用协同时必须填写 publicUrl，例如 http://localhost:8080。');
-    }
-    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.pathname !== '/' || url.search || url.hash)
-      throw new Error('publicUrl 只允许 http(s) 的域名和端口，不包含路径、凭据或参数。');
-    result.publicUrl = url.origin;
-  } else result.publicUrl = '';
   return result;
 }
 
@@ -100,22 +88,10 @@ function loopback(config) {
   if (config.host === '::') return '::1';
   return config.host;
 }
+
+/** Loopback http origin for the configured listen address. */
 export function origin(config, port = config.port) {
   return `http://${net.isIP(loopback(config)) === 6 ? `[${loopback(config)}]` : loopback(config)}:${port}`;
-}
-
-/** Allow localhost and IPv4 loopback aliases at the same scheme and port. */
-export function collaborationOrigins(...values) {
-  const origins = new Set();
-  for (const value of values.filter(Boolean)) {
-    const url = new URL(value);
-    origins.add(url.origin);
-    if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
-      url.hostname = url.hostname === 'localhost' ? '127.0.0.1' : 'localhost';
-      origins.add(url.origin);
-    }
-  }
-  return [...origins].join(',');
 }
 
 /** Spawn wrapper that handles Windows command shims. */
