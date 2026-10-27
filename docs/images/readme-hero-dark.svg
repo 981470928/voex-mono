@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-labelledby="title desc">
+  <title id="title">Voex — 从一个想法，到一份共同完成的文档。</title>
+  <desc id="desc">Voex 文档协作平台封面，使用品牌紫色与青绿色。</desc>
+  <defs>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2=".15">
+      <stop offset="0" stop-color="#16c5b5"/>
+      <stop offset=".48" stop-color="#4c8bda"/>
+      <stop offset="1" stop-color="#7867f5"/>
+    </linearGradient>
+    <radialGradient id="glow">
+      <stop stop-color="#16c5b5" stop-opacity=".09"/>
+      <stop offset="1" stop-color="#16c5b5" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1280" height="360" rx="24" fill="#0d1117"/>
+  <ellipse cx="640" cy="180" rx="590" ry="230" fill="url(#glow)"/>
+  <g fill="none" stroke="#212a36" stroke-width="1">
+    <path d="M0 88h155l55 55M0 272h155l55-55M1280 88h-155l-55 55M1280 272h-155l-55-55"/>
+    <path d="M85 0v48m0 264v48M1195 0v48m0 264v48"/>
+    <circle cx="166" cy="88" r="4"/><circle cx="1114" cy="272" r="4"/>
+  </g>
+  <g text-anchor="middle" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Noto Sans CJK SC, Microsoft YaHei, sans-serif">
+    <text x="640" y="65" fill="#8b949e" font-size="13" font-weight="600" letter-spacing="5">WRITE. CONNECT. COLLABORATE.</text>
+    <text x="640" y="144" fill="#e6edf3" font-size="59" font-weight="750" letter-spacing="-1">从一个想法，</text>
+    <text x="640" y="223" fill="url(#brand)" font-size="59" font-weight="750" letter-spacing="-1">到一份共同完成的文档。</text>
+    <text x="640" y="277" fill="#8b949e" font-size="20">专注表达 · 实时协同 · 知识有序</text>
+  </g>
+  <rect x="604" y="319" width="72" height="4" rx="2" fill="url(#brand)"/>
+</svg>
