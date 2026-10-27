@@ -1,0 +1,85 @@
+// Authentication surfaces are a deliberate, fixed-dark variant of the workspace theme.
+.auth-layout,
+.auth-recovery
+  --auth-bg: #09090a
+  --auth-input: #111113
+  --auth-border: #2c2c31
+  --auth-muted: #9b9ba5
+  --auth-focus: #8c85ef
+  --auth-button: #222225
+  --auth-error: #f48e95
+  --auth-success: #86c5a4
+  --color-accent: var(--auth-focus)
+  color-scheme dark
+
+.auth-form
+  display flex
+  flex-direction column
+  gap 8px
+  width 100%
+
+.auth-form__error
+  min-height 24px
+  color var(--auth-error)
+  font-size 12px
+  line-height 1.6
+  overflow-wrap anywhere
+
+.auth-form__submit
+  display flex
+  justify-content center
+  align-items center
+  gap 8px
+  width 100%
+  min-height 44px
+  padding 10px 16px
+  border 1px solid transparent
+  border-radius 24px
+  background var(--auth-button)
+  color var(--color-text-primary)
+  font-size 13px
+  font-weight 600
+  transition background .15s, border-color .15s
+
+  &:hover:not(:disabled)
+    background var(--auth-border)
+    border-color var(--auth-muted)
+
+  &:focus-visible
+    outline 2px solid var(--auth-focus)
+    outline-offset 3px
+
+.auth-form__link
+  display inline-flex
+  align-items center
+  justify-content center
+  min-height 44px
+  color var(--color-text-secondary)
+  font-size 13px
+  text-decoration none
+
+  &:hover
+    color var(--color-text-primary)
+    text-decoration underline
+
+.auth-form__footer
+  display flex
+  justify-content center
+  align-items center
+  flex-wrap wrap
+  gap 6px
+  margin-top 14px
+  font-size 13px
+  color var(--auth-muted)
+
+.auth-form__spinner
+  width 14px
+  height 14px
+  border 2px solid var(--auth-muted)
+  border-top-color transparent
+  border-radius 50%
+  animation auth-spin .7s linear infinite
+
+@keyframes auth-spin
+  to
+    transform rotate(360deg)

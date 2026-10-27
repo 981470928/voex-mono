@@ -1,0 +1,202 @@
+.milkdown-editor .milkdown-table-block
+  position relative
+  display block
+  min-width 0
+  margin 28px 0
+  padding 12px 0
+
+  .milkdown-editor__table-controls
+    position absolute
+    z-index 20
+    top -60px
+    right -16px
+    bottom -16px
+    left -24px
+    overflow clip
+    pointer-events none
+
+  .table-wrapper
+    position relative
+    max-width 100%
+    padding 0
+    overflow-x auto
+    overflow-y hidden
+    overscroll-behavior-x contain
+
+  table.children
+    margin 0
+    table-layout fixed
+    border-collapse collapse
+
+  .column-resize-handle
+    right 0
+    width 3px
+
+  .handle
+    position absolute
+    color var(--editor-secondary)
+    font-size 12px
+    font-family inherit
+
+    &[data-show='false']
+      opacity 0
+      visibility hidden
+      pointer-events none
+
+    &[data-show='true'], &:focus-within, &[data-menu-open='true'], &[data-hover-retained='true']
+      opacity 1
+      visibility visible
+      pointer-events auto
+
+  .cell-handle
+    z-index 6
+    left -999px
+    top -999px
+    display flex
+    align-items center
+    justify-content center
+    border 1px solid var(--editor-border)
+    border-radius 6px
+    background var(--editor-panel)
+    cursor grab
+
+    &:hover
+      background var(--editor-hover)
+
+    &:active
+      cursor grabbing
+
+    &[data-role='col-drag-handle']
+      width 30px
+      height 18px
+      transform translateY(-2px)
+
+    &[data-role='row-drag-handle']
+      width 18px
+      height 30px
+      transform translateX(-2px)
+      > .milkdown-icon
+        transform rotate(90deg)
+
+    .button-group
+      position absolute
+      z-index 20
+      bottom 100%
+      left 50%
+      transform translateX(-50%)
+      display flex
+      gap 2px
+      padding 4px
+      border 1px solid var(--editor-border)
+      border-radius 8px
+      background var(--editor-panel)
+      box-shadow var(--shadow-medium)
+      white-space nowrap
+
+      &[data-show='false']
+        display none
+
+      button
+        display inline-flex
+        align-items center
+        justify-content center
+        height 30px
+        min-width 30px
+        padding 4px 7px
+        border 0
+        border-radius 6px
+        background transparent
+        color var(--editor-secondary)
+        font inherit
+        cursor pointer
+
+        &:hover
+          background var(--editor-hover)
+          color var(--editor-text)
+
+        &:active
+          background var(--editor-selected)
+
+  .cell-handle[data-menu-open='true'] .button-group
+    display flex
+
+  .milkdown-icon
+    display inline-flex
+    align-items center
+    justify-content center
+
+    svg
+      width 16px
+      height 16px
+      fill currentColor
+      pointer-events none
+
+  button:focus-visible, .cell-handle:focus-visible
+    outline 2px solid var(--editor-accent)
+    outline-offset 2px
+
+  .line-handle
+    z-index 3
+    background var(--editor-accent)
+    pointer-events none !important
+
+    .add-button
+      position absolute
+      display inline-flex
+      align-items center
+      justify-content center
+      width 24px
+      height 24px
+      padding 2px
+      border 1px solid var(--editor-border)
+      border-radius 6px
+      background var(--editor-panel)
+      color var(--editor-secondary)
+      cursor pointer
+      pointer-events auto
+
+      &:hover
+        background var(--editor-selected)
+        color var(--editor-accent)
+
+    &[data-show='false'] .add-button
+      pointer-events none
+
+    &[data-role='x-line-drag-handle']
+      left 24px
+      max-width calc(100% - 40px)
+      height 1px
+      .add-button
+        left 0
+        transform translate(-50%, -50%)
+
+    &[data-role='y-line-drag-handle']
+      top 72px
+      width 1px
+      .add-button
+        top 0
+        transform translate(-50%, -50%)
+
+    &[data-display-type='indicator'] .add-button
+      display none
+
+  .drag-preview
+    position absolute
+    max-width calc(100% - 40px)
+    overflow hidden
+    z-index 8
+    display flex
+    flex-direction column
+    outline 1px solid var(--editor-accent)
+    background var(--editor-panel)
+    opacity .5
+    pointer-events none
+
+    &[data-show='false']
+      display none
+
+  &.readonly .handle, &.readonly .drag-preview
+    display none
+
+.milkdown-editor--readonly .milkdown-table-block .handle
+  display none

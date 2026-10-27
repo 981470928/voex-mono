@@ -1,0 +1,23 @@
+# Local environment and private credentials (keep examples)
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.local
+.secrets/
+.release-keys/
+
+# Dependencies and build output
+node_modules/
+dist/
+dist-ssr/
+bin/
+coverage/
+*.tsbuildinfo
+.eslintcache
+
+# Logs and operating-system files
+logs/
+*.log
+.DS_Store
+Thumbs.db

@@ -1,0 +1,14 @@
+{
+  "name": "@voex/editor-schema",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "peerDependencies": {
+    "@milkdown/kit": "7.22.1",
+    "parse5": "7.3.0"
+  }
+}

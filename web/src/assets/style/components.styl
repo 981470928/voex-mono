@@ -1,0 +1,62 @@
+.voex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.voex-center-column {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.voex-flex-between {
+  display: flex;
+  justify-content: space-between;
+}
+
+.voex-icon-btn_32 
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  color: var(--color-fg-primary);
+  @extend .voex-center;
+  &:hover
+    background-color: var(--color-bg-translucent);
+
+.voex-icon-btn_24 
+  width: 24px;
+  height: 24px;
+  background-color: transparent;
+  border-radius: 4px;
+  color: var(--color-fg-primary);
+  @extend .voex-center;
+  &:hover
+    background-color: var(--color-bg-translucent);
+
+.voex-icon__danger
+    color: var(--color-red);
+
+
+.voex-glow--container
+    background: radial-gradient(50% 50%, #ffffff0a 0%, #fff0 90%);
+    border-radius: 600px;
+    width: 600px;
+    height: 600px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index 0;
+    transform: translate(-50%, -50%);
+
+.voex-glow--content
+    background: radial-gradient(50% 50%, #ffffff0a 0%, #fff0 90%);
+    border-radius: 400px;
+    width: 400px;
+    height: 400px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index 0;
+    transform: translate(-50%, -50%);    

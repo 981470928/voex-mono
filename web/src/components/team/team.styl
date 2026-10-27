@@ -1,0 +1,89 @@
+.team-ui
+  color var(--color-text-secondary)
+  font-size 13px
+  line-height 1.6
+  min-width 0
+  &__button
+    display inline-flex
+    align-items center
+    justify-content center
+    gap 6px
+    min-height 34px
+    padding 6px 12px
+    border 1px solid var(--color-border-primary)
+    border-radius 6px
+    background var(--color-bg-translucent)
+    color var(--color-text-primary)
+    font inherit
+    text-decoration none
+    cursor pointer
+    &:hover:not(:disabled)
+      background var(--color-bg-quaternary)
+    &:active:not(:disabled)
+      opacity .8
+    &:focus-visible
+      outline 2px solid var(--color-accent)
+      outline-offset 2px
+    &:disabled
+      opacity .5
+      cursor not-allowed
+    &--primary
+      background var(--color-brand-bg)
+      color var(--color-brand-text)
+      border-color var(--color-brand-bg)
+    &--danger
+      color var(--color-red)
+  &__actions
+    display flex
+    flex-wrap wrap
+    gap 8px
+    align-items center
+  &__field
+    display grid
+    gap 6px
+    margin-bottom 16px
+  &__input
+    width 100%
+    min-height 36px
+    padding 8px 10px
+    box-sizing border-box
+    border 1px solid var(--color-border-primary)
+    border-radius 6px
+    background var(--color-bg-panel)
+    color var(--color-text-primary)
+    font inherit
+    &:focus-visible
+      outline 2px solid var(--color-accent)
+      outline-offset 1px
+    &[aria-invalid='true']
+      border-color var(--color-red)
+  textarea&__input
+    min-height 120px
+    resize none
+  &__hint
+    color var(--color-text-tertiary)
+    font-size 12px
+    overflow-wrap anywhere
+  &__error
+    min-height 21px
+    color var(--color-red)
+    overflow-wrap anywhere
+  &__state
+    padding 32px 12px
+    text-align center
+    color var(--color-text-secondary)
+  &__badge
+    display inline-flex
+    flex-shrink 0
+    padding 2px 7px
+    border 1px solid var(--color-border-translucent-strong)
+    border-radius 5px
+    color var(--color-text-tertiary)
+    font-size 11px
+  &__pagination
+    display flex
+    flex-wrap wrap
+    align-items center
+    justify-content center
+    gap 12px
+    padding 16px 0

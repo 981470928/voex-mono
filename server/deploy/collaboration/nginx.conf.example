@@ -1,0 +1,20 @@
+# Include these locations inside the existing application server block.
+# Preserve the existing /api/ HTTP proxy and frontend locations.
+location = /api/collab/ws {
+    proxy_pass http://127.0.0.1:8091;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $http_host;
+    proxy_set_header Origin $http_origin;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 90s;
+    proxy_send_timeout 90s;
+    proxy_buffering off;
+    proxy_request_buffering off;
+}
+
+# These are service-to-service routes, never public API.
+location ^~ /internal/collab/ {
+    return 404;
+}

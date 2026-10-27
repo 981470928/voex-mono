@@ -1,0 +1,101 @@
+body,
+html {
+  width: 100%;
+  height: 100%;
+  color: var(--color-text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', Arial, sans-serif;
+}
+
+:root {
+  scrollbar-color: var(--color-border-tertiary) var(--color-bg-primary);
+  scrollbar-width: thin;
+  --color-white: #fff;
+  --color-black: #000;
+  --color-blue: #4ea7fc;
+  --color-red: #eb5757;
+  --color-green: #27a644;
+  --color-orange: #fc7840;
+  --color-yellow: #f0bf00;
+  --color-indigo: #5e6ad2;
+  --color-teal: #00b8cc;
+  --color-linear-plan: #68cc58;
+  --color-linear-build: #d4b144;
+
+  --border-radius-container: 12px;
+  --border-radius-item-s: 6px;
+  --border-radius-item-m: 8px;
+  --border-radius--circle: 50%;
+}
+
+* {
+  scrollbar-color: var(--color-border-tertiary) var(--color-bg-primary);
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: var(--color-bg-primary);
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--color-border-tertiary);
+  border-radius: 6px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
+}
+*::-webkit-scrollbar-thumb:active {
+  background: var(--color-accent);
+}
+
+button,
+input {
+  font: inherit;
+}
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+button:not(:disabled),
+a[href] {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+button:active:not(:disabled) {
+  filter: brightness(0.94);
+}
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+@media (forced-colors: active) {
+  :root,
+  * {
+    scrollbar-color: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important; /* Honor the system preference across shared controls. */
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+}

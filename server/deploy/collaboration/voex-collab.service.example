@@ -1,0 +1,25 @@
+[Unit]
+Description=Voex collaborative document service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Replace with the existing unprivileged application account.
+User=voex
+Group=voex
+WorkingDirectory=/home/voex-server/collab
+EnvironmentFile=/home/voex-server/collab/.env
+Environment=NODE_ENV=production
+ExecStart=/usr/local/bin/node --max-old-space-size=384 /home/voex-server/collab/dist/server.js
+Restart=on-failure
+RestartSec=2
+KillSignal=SIGTERM
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target

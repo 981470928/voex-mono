@@ -1,0 +1,76 @@
+// Official Diff Component decorations, scoped to the readonly review surface.
+.milkdown-editor--diff-preview
+  .milkdown-diff-controls, .milkdown-diff-controls-block
+    display none !important
+
+  .milkdown-diff-removed
+    border-radius 3px
+    background unquote('color-mix(in srgb, var(--color-red) 12%, transparent)')
+    color unquote('color-mix(in srgb, var(--color-red) 40%, var(--editor-text))')
+    text-decoration-line line-through
+    text-decoration-color var(--color-red)
+    text-decoration-thickness 1px
+    box-decoration-break clone
+
+  .milkdown-diff-added
+    padding 0 2px
+    border-radius 3px
+    background unquote('color-mix(in srgb, var(--color-green) 16%, transparent)')
+    color unquote('color-mix(in srgb, var(--color-green) 40%, var(--editor-text))')
+    box-decoration-break clone
+
+  .milkdown-diff-removed-block
+    position relative
+    box-sizing border-box
+    min-width 0
+    max-width 100%
+    border-radius 8px
+    background unquote('color-mix(in srgb, var(--color-red) 8%, transparent)')
+    outline 2px dashed unquote('color-mix(in srgb, var(--color-red) 65%, var(--editor-border))') !important
+    outline-offset 2px
+
+  .milkdown-diff-added-block
+    display block
+    box-sizing border-box
+    min-width 0
+    max-width 100%
+    margin 12px 0
+    padding 8px 12px
+    overflow-x auto
+    overscroll-behavior-x contain
+    border-left 3px solid var(--color-green)
+    border-radius 6px
+    background unquote('color-mix(in srgb, var(--color-green) 10%, transparent)')
+    color var(--editor-text)
+    font-family inherit
+    font-size inherit
+    line-height inherit
+    overflow-wrap anywhere
+
+    > :first-child
+      margin-top 0
+
+    > :last-child
+      margin-bottom 0
+
+    // Inserted widgets contain serialized DOM rather than editor node views.
+    table
+      box-sizing border-box
+      width 100%
+      max-width 100%
+      border-collapse collapse
+
+    th, td
+      overflow-wrap anywhere
+
+    .tableWrapper, .table-wrapper, .milkdown-table-block
+      min-width 0
+      max-width 100%
+
+    pre
+      box-sizing border-box
+      max-width 100%
+      overflow-x auto
+
+    img, video, canvas, svg
+      max-width 100%

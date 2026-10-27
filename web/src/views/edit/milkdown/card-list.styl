@@ -1,0 +1,290 @@
+.milkdown-editor .milkdown-cards
+  position relative
+  min-width 0
+  box-sizing border-box
+  margin 24px 0
+  padding var(--card-padding, 0px)
+  border 0
+  outline 1px solid transparent
+  border-radius 8px
+  color var(--editor-text)
+
+  &--selected
+    outline 1px solid var(--editor-accent)
+
+  [hidden]
+    display none
+
+  &__tools
+    position fixed
+    z-index 30
+    box-sizing border-box
+    display flex
+    flex-wrap wrap
+    align-items center
+    gap 6px
+    width max-content
+    max-width calc(100vw - 16px)
+    padding 6px
+    border 1px solid var(--editor-border)
+    border-radius 6px
+    background var(--editor-panel)
+    box-shadow var(--shadow-medium)
+    color var(--editor-text)
+    font-size 12px
+    line-height 1.5
+
+  &__title
+    margin-right auto
+    color var(--editor-secondary)
+    font-size 12px
+    white-space nowrap
+
+  &__controls
+    display flex
+    flex-wrap wrap
+    align-items center
+    gap 6px
+    max-width 100%
+    min-width 0
+
+  &__button
+    display inline-flex
+    align-items center
+    justify-content center
+    flex-shrink 0
+    width 30px
+    height 30px
+    padding 6px
+    border 0
+    border-radius 6px
+    background transparent
+    color var(--editor-secondary)
+    font-family inherit
+    cursor pointer
+
+    svg
+      fill currentColor
+      flex-shrink 0
+
+    &:hover:not(:disabled), &[aria-pressed='true']
+      background var(--editor-hover)
+      color var(--editor-accent)
+
+    &:focus-visible
+      outline 2px solid var(--editor-accent)
+      outline-offset 2px
+
+    &:disabled
+      opacity .4
+      cursor not-allowed
+
+  &__field
+    display inline-flex
+    align-items center
+    gap 4px
+    color var(--editor-secondary)
+    font-size 12px
+    white-space nowrap
+
+    input, select
+      box-sizing border-box
+      height 28px
+      padding 0 5px
+      border 1px solid var(--editor-border)
+      border-radius 4px
+      background var(--editor-bg)
+      color var(--editor-text)
+      font-family inherit
+      font-size 12px
+
+      &:focus-visible
+        outline 2px solid var(--editor-accent)
+        outline-offset 1px
+
+      &:disabled
+        opacity .5
+        cursor not-allowed
+
+    input
+      width 62px
+      font-variant-numeric tabular-nums
+      &[aria-invalid='true']
+        border-color var(--color-red)
+
+    select
+      max-width 140px
+      cursor pointer
+
+  &__unit
+    color var(--editor-secondary)
+
+  &__validation
+    flex-basis 100%
+    color var(--color-red)
+    font-size 12px
+
+  &__items
+    display grid
+    gap 20px
+    min-width 0
+
+  &[data-layout='horizontal'] .milkdown-cards__items
+    display flex
+    flex-wrap wrap
+    justify-content space-between
+    gap 16px
+
+  &[data-layout='horizontal'] .milkdown-card
+    flex 0 0 unquote('calc((100% - 48px) / 4)')
+    display flex
+    flex-direction column
+    align-items stretch
+    gap 12px
+
+  .milkdown-card
+    position relative
+    display grid
+    grid-template-columns unquote('min(var(--card-image-width), 40%)') minmax(0, 1fr)
+    align-items start
+    gap 20px
+    min-width 0
+
+    &__media
+      position relative
+      display flex
+      align-items center
+      justify-content center
+      width 100%
+      max-width var(--card-image-width)
+      height var(--card-image-height, 100px)
+      min-width 0
+      overflow hidden
+      border-radius 6px
+      background var(--editor-hover)
+      outline 1px solid transparent
+      outline-offset 2px
+
+      &--dragover
+        outline 2px solid var(--editor-accent)
+        background var(--editor-panel)
+
+    &__image
+      display block
+      width 100%
+      height 100%
+      margin 0
+      object-fit var(--card-image-fit, cover)
+
+    &__upload
+      position absolute
+      inset 0
+      display flex
+      flex-direction column
+      gap 7px
+      width 100%
+      height 100%
+      padding 10px
+      font-size 11px
+      line-height 1.5
+      opacity 0
+      color var(--editor-secondary)
+      transition opacity 120ms
+
+    &__media:hover .milkdown-card__upload, &__media:focus-within .milkdown-card__upload
+      opacity 1
+
+    &__actions
+      position absolute
+      top 5px
+      right 5px
+      display flex
+      gap 3px
+      padding 2px
+      border 1px solid var(--editor-border)
+      border-radius 6px
+      background var(--editor-panel)
+      opacity 0
+
+    &__media:hover .milkdown-card__actions, &__media:focus-within .milkdown-card__actions
+      opacity 1
+
+    &__feedback
+      position absolute
+      inset 0
+      display flex
+      align-items center
+      justify-content center
+      padding 10px
+      font-size 11px
+      line-height 1.5
+      color var(--editor-secondary)
+      text-align center
+      pointer-events none
+
+    &__body
+      min-width 0
+      padding 2px 0
+      overflow-wrap anywhere
+
+    &__text
+      min-height 1.65em
+      margin 0 0 6px
+      line-height 1.65
+      font-size 14px
+      white-space pre-wrap
+
+      &:last-child
+        margin-bottom 0
+
+      &:where(:has(> br.ProseMirror-trailingBreak:only-child))::before
+        content attr(data-placeholder)
+        position absolute
+        color var(--editor-secondary)
+        opacity .55
+        pointer-events none
+
+    &__remove
+      position absolute
+      top -11px
+      right -11px
+      width 24px
+      height 24px
+      padding 4px
+      border 1px solid var(--editor-border)
+      border-radius 50%
+      background var(--editor-panel)
+      opacity 0
+
+    &:hover .milkdown-card__remove, &:focus-within .milkdown-card__remove
+      opacity 1
+
+  &[data-readonly='true'] .milkdown-card__text::before
+    content none
+
+@media (max-width: 600px)
+  .milkdown-editor .milkdown-cards
+    &[data-layout='horizontal'] .milkdown-card
+      flex-basis unquote('calc((100% - 16px) / 2)')
+    .milkdown-card
+      gap 12px
+
+@media (hover: none)
+  .milkdown-editor .milkdown-cards
+    .milkdown-card__upload, .milkdown-card__actions, .milkdown-card__remove
+      opacity 1
+    &__button
+      min-width 36px
+      min-height 36px
+
+@media (prefers-reduced-motion: reduce)
+  .milkdown-editor .milkdown-cards
+    .milkdown-card__upload
+      transition none
+
+// Keep native hidden state stronger than component display rules.
+.milkdown-editor .milkdown-cards [hidden]
+  display none
+
+.milkdown-editor .milkdown-cards[data-readonly='true'] .milkdown-card__text[data-placeholder]::before
+  content none

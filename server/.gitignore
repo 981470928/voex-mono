@@ -1,0 +1,14 @@
+bin/
+/voex-server
+.env
+logs/
+*.log
+.secrets/
+.go-backup-path
+
+.gin-backup-path
+
+# Historical generated artifacts and private keys
+/deploy/artifacts/
+/dist/
+/.release-keys/
