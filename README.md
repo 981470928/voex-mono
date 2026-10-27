@@ -63,12 +63,12 @@
 
 ## 选择启动方式
 
-| | 快速体验与部署 | 本地开发 |
-| --- | --- | --- |
-| 适合 | 使用项目、部署自己的实例 | 修改前端、后端或协同服务 |
-| 环境 | Node.js + MySQL 8 | Node.js + pnpm + Go + MySQL 8 |
-| 构建 | 使用仓库内预置包 | 从源码安装依赖并构建 |
-| 入口 | [快速开始 ↓](#快速开始) | [本地开发 ↓](#本地开发) |
+|      | 快速体验与部署           | 本地开发                      |
+| ---- | ------------------------ | ----------------------------- |
+| 适合 | 使用项目、部署自己的实例 | 修改前端、后端或协同服务      |
+| 环境 | Node.js + MySQL 8        | Node.js + pnpm + Go + MySQL 8 |
+| 构建 | 使用仓库内预置包         | 从源码安装依赖并构建          |
+| 入口 | [快速开始 ↓](#快速开始)  | [本地开发 ↓](#本地开发)       |
 
 两种方式共用根目录的 <code>voex.config.json</code> 和同一套运行配置。配置只写在本地，不进入 Git。
 
@@ -86,7 +86,24 @@
 ### 2. 填写配置
 
 ```sh
+// 在项目根目录下创建voex.config.json，参考voex.config.example.json
 cp voex.config.example.json voex.config.json
+
+{
+  "host": "127.0.0.1", // 监听host
+  "port": 8080, // 端口
+  "database": {
+    "host": "127.0.0.1", // 数据库地址
+    "port": 3306, // 数据库端口
+    "user": "voex", // 用户名
+    "password": "", // 密码
+    "name": "voex" // 数据库名
+  },
+  "pexelsKey": "", // pexels免费图片网站，参考网站https://www.pexels.com/zh-cn/api/key/
+  "collaboration": false, // 是否开启协同功能
+  "collaborationPort": 8091 // 协同端口号
+}
+
 ```
 
 编辑数据库连接等字段。Pexels Key、端口和协同开关都在运行时读取，修改后不需要重新打包。
@@ -162,56 +179,55 @@ node scripts/dev.mjs
 
 `voex.config.json` 由 Git 忽略，可从 [`voex.config.example.json`](voex.config.example.json) 复制。JSON 不允许注释和末尾多余逗号。
 
-| 参数 | 要求及默认值 |
-| --- | --- |
-| `host` | HTTP 监听地址，默认 `127.0.0.1`；允许局域网访问时可设 `0.0.0.0` |
-| `port` | HTTP 端口，默认 `8080`，必须为 1–65535 的整数且未被占用 |
-| `database.host` | 必填，MySQL 主机名或 IP，不含协议和端口 |
-| `database.port` | 默认 `3306` |
-| `database.user` | 必填，数据库用户名 |
-| `database.password` | 数据库密码；确实无密码的账号允许空字符串 |
-| `database.name` | 必填；正常启动时自动创建缺失数据库及表 |
-| `pexelsKey` | 可选，空字符串表示图库不可用；通过 `/api/public/config` 在运行时提供给前端 |
-| `collaboration` | 默认 `false`，按需启用多人协同 |
-| `collaborationPort` | 协同内部端口，默认 `8091`，启用时不可与 HTTP 端口相同 |
-| `publicUrl` | 启用协同时必填，浏览器实际访问的 origin，如 `http://localhost:8080`；不能带 `/app/` 等路径 |
+| 参数                | 要求及默认值                                                                               |
+| ------------------- | ------------------------------------------------------------------------------------------ |
+| `host`              | HTTP 监听地址，默认 `127.0.0.1`；允许局域网访问时可设 `0.0.0.0`                            |
+| `port`              | HTTP 端口，默认 `8080`，必须为 1–65535 的整数且未被占用                                    |
+| `database.host`     | 必填，MySQL 主机名或 IP，不含协议和端口                                                    |
+| `database.port`     | 默认 `3306`                                                                                |
+| `database.user`     | 必填，数据库用户名                                                                         |
+| `database.password` | 数据库密码；确实无密码的账号允许空字符串                                                   |
+| `database.name`     | 必填；正常启动时自动创建缺失数据库及表                                                     |
+| `pexelsKey`         | 可选，空字符串表示图库不可用；通过 `/api/public/config` 在运行时提供给前端                 |
+| `collaboration`     | 默认 `false`，按需启用多人协同                                                             |
+| `collaborationPort` | 协同内部端口，默认 `8091`，启用时不可与 HTTP 端口相同                                      |
 
 HTTP 端口和数据库端口是两个不同参数。脚本不会安装或启动 MySQL；正常启动仅创建缺失数据库、表和工作区锁记录，不自动改动已有表的列结构。`--check` 不执行数据库初始化。启用协同前还需满足 [协同说明](server/docs/COLLABORATION.md) 中的数据结构要求。
 
 ## 多人协同（可选）
 
-在 `voex.config.json` 中设置 `collaboration: true`，填写 `publicUrl`，并确认 `server/docs/COLLABORATION.md` 中的数据库迁移已执行。
+在 `voex.config.json` 中设置 `collaboration: true`，并确认 `server/docs/COLLABORATION.md` 中的数据库迁移已执行。
 
 - 本地启动会自动安装并构建 `server/collab/`，随后与前端、Go API 一起启动。
-- 本地启动和快速部署会自动兼容 `localhost` 与 `127.0.0.1` 的协同连接，协议和端口必须一致；其他域名仍按配置精确匹配。
+- 协同连接按浏览器实际访问的 `Host` 与 `Origin` 校验同源，本机、局域网 IP、域名和反向代理都无需额外配置。
 - 快速部署直接使用 `prebuilt/collab/`，不读取前端源码。
 - 协同进程只监听 `127.0.0.1:collaborationPort`，浏览器通过 Go API 的 `/api/collab/ws` 访问；停止时先排空未落库编辑，再依次停止协同服务和 Go API。
 
 ## 项目结构
 
-| 目录 | 内容 |
-| --- | --- |
-| `web/` | Vue + TypeScript 前端，包含共享编辑器 schema |
-| `server/` | Go API、数据库初始化 SQL、服务文档与部署示例 |
-| `server/collab/` | 可选的 Node/Hocuspocus 多人协同服务 |
-| `prebuilt/` | 提交到 Git 的前端、Go 服务和协同服务预置产物及清单 |
-| `scripts/` | 配置、本地启动、快速部署和打包脚本 |
-| `docs/` | 本机启动与部署说明 |
+| 目录             | 内容                                               |
+| ---------------- | -------------------------------------------------- |
+| `web/`           | Vue + TypeScript 前端，包含共享编辑器 schema       |
+| `server/`        | Go API、数据库初始化 SQL、服务文档与部署示例       |
+| `server/collab/` | 可选的 Node/Hocuspocus 多人协同服务                |
+| `prebuilt/`      | 提交到 Git 的前端、Go 服务和协同服务预置产物及清单 |
+| `scripts/`       | 配置、本地启动、快速部署和打包脚本                 |
+| `docs/`          | 本机启动与部署说明                                 |
 
 <details>
 <summary>展开查看本机配置与运行时目录</summary>
 
-| 路径 | 内容 |
-| --- | --- |
-| `voex.config.json` | 本机配置，含数据库密码及可选 Key |
-| `.voex/runtime/server.env` | 由配置生成的运行环境文件 |
+| 路径                       | 内容                                         |
+| -------------------------- | -------------------------------------------- |
+| `voex.config.json`         | 本机配置，含数据库密码及可选 Key             |
+| `.voex/runtime/server.env` | 由配置生成的运行环境文件                     |
 | `.voex/runtime/state.json` | 初始化标记，用于避免自动重建已丢失的签名密钥 |
-| `.voex/secrets/` | 自动生成的稳定签名密钥；备份后可在新环境复用 |
-| `.voex/data/` | 本机上传文件及资产存储 |
-| `.voex/prebuilt/` | 快速部署时解压出的当前平台 Go 服务 |
-| `.voex/build/` | 本地启动时编译的 Go 服务 |
-| `.voex/cache/` | 固定版本 MathJax 资源及本地 Go 构建缓存 |
-| `web/public/vendor/` | 本地启动使用的 MathJax 静态资源 |
+| `.voex/secrets/`           | 自动生成的稳定签名密钥；备份后可在新环境复用 |
+| `.voex/data/`              | 本机上传文件及资产存储                       |
+| `.voex/prebuilt/`          | 快速部署时解压出的当前平台 Go 服务           |
+| `.voex/build/`             | 本地启动时编译的 Go 服务                     |
+| `.voex/cache/`             | 固定版本 MathJax 资源及本地 Go 构建缓存      |
+| `web/public/vendor/`       | 本地启动使用的 MathJax 静态资源              |
 
 </details>
 
@@ -237,14 +253,14 @@ node scripts/package.mjs
 
 ## 文档导航
 
-| 文档 | 内容 |
-| --- | --- |
-| [部署指南](docs/deployment.md) | 启动、运行配置与常见问题 |
-| [后端说明](server/README.md) | Go API 与文件存储 |
+| 文档                                     | 内容                       |
+| ---------------------------------------- | -------------------------- |
+| [部署指南](docs/deployment.md)           | 启动、运行配置与常见问题   |
+| [后端说明](server/README.md)             | Go API 与文件存储          |
 | [多人协同](server/docs/COLLABORATION.md) | 协同连接、持久化与部署要求 |
-| [数据库说明](server/docs/db.md) | 数据结构、初始化与迁移 |
-| [权限模型](server/docs/PERMISSIONS.md) | 团队、项目、文档与分享权限 |
-| [AI 接口](server/docs/AI-API.md) | 模型配置、对话和审阅应用 |
+| [数据库说明](server/docs/db.md)          | 数据结构、初始化与迁移     |
+| [权限模型](server/docs/PERMISSIONS.md)   | 团队、项目、文档与分享权限 |
+| [AI 接口](server/docs/AI-API.md)         | 模型配置、对话和审阅应用   |
 
 ## 许可证
 

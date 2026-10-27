@@ -63217,15 +63217,7 @@ function loadConfig() {
   const secret = readFileSync(secretPath, "utf8").trim();
   if (Buffer.byteLength(secret) < 32)
     throw new Error("Collaboration secret must contain at least 32 bytes");
-  const origins = new Set(
-    (process.env.VOEX_COLLAB_ORIGINS || "").split(",").map((s) => s.trim()).filter(Boolean)
-  );
-  if (!origins.size)
-    throw new Error("VOEX_COLLAB_ORIGINS must explicitly allow the web application origins");
-  for (const origin of origins)
-    if (new URL(origin).origin !== origin)
-      throw new Error("Origins must be exact origins without a path");
-  return { host: host2, port: port2, api, secret, origins };
+  return { host: host2, port: port2, api, secret };
 }
 
 // src/protocol.ts
@@ -64470,15 +64462,27 @@ function createReviewService(service, go2, documents2, getHocuspocus2) {
 
 // src/connections.ts
 init_decoding();
-function createConnectionHandlers(service, go2, config2) {
+function sameHost(request) {
+  const origin = request.headers.origin;
+  const host2 = request.headers.host;
+  if (!origin || !host2) return false;
+  let url;
+  try {
+    url = new URL(origin);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+  return url.host.toLowerCase() === host2.toLowerCase();
+}
+function createConnectionHandlers(service, go2) {
   const { rooms: rooms2, checks, authorize, discardRoom, expireConnectionAuthorization } = service;
-  const { origins } = config2;
   const renewals = /* @__PURE__ */ new WeakMap();
   const sockets = /* @__PURE__ */ new WeakMap();
   const hooks = {
     async onUpgrade({ request, socket }) {
       const url = new URL(request.url || "/", "http://localhost");
-      if (service.isDraining() || url.pathname !== "/api/collab/ws" || url.search || !origins.has(String(request.headers.origin || ""))) {
+      if (service.isDraining() || url.pathname !== "/api/collab/ws" || url.search || !sameHost(request)) {
         socket.write("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
         socket.destroy();
         throw null;
@@ -65030,7 +65034,7 @@ var server;
 var getHocuspocus = () => server.hocuspocus;
 var rooms = createRoomService(go, documents, getHocuspocus);
 var review = createReviewService(rooms, go, documents, getHocuspocus);
-var connections = createConnectionHandlers(rooms, go, config);
+var connections = createConnectionHandlers(rooms, go);
 server = new Server(
   {
     name: "voex-collab",

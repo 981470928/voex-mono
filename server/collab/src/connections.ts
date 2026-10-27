@@ -1,4 +1,5 @@
 /** 连接鉴权、续票、流量限制和定时权限复核；不负责正文合并。 */
+import type { IncomingMessage } from 'node:http';
 import {
   OutgoingMessage,
   type Server,
@@ -7,7 +8,6 @@ import {
 } from '@hocuspocus/server';
 import * as decoding from 'lib0/decoding';
 import { removeAwarenessStates } from 'y-protocols/awareness';
-import type { CollaborationConfig } from './config.js';
 import type { RoomService } from './rooms.js';
 import {
   authentication,
@@ -19,13 +19,24 @@ import {
 } from './protocol.js';
 import type { Context, Grant } from './types.js';
 
-export function createConnectionHandlers(
-  service: RoomService,
-  go: BackendClient,
-  config: CollaborationConfig
-) {
+/** 升级请求只能来自页面自身：Origin 的 host:port 必须与 Host 完全一致。
+ *  浏览器总是按实际访问地址填写这两个头，因此本机、局域网和反向代理都无需额外配置。 */
+function sameHost(request: IncomingMessage): boolean {
+  const origin = request.headers.origin;
+  const host = request.headers.host;
+  if (!origin || !host) return false;
+  let url: URL;
+  try {
+    url = new URL(origin);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+  return url.host.toLowerCase() === host.toLowerCase();
+}
+
+export function createConnectionHandlers(service: RoomService, go: BackendClient) {
   const { rooms, checks, authorize, discardRoom, expireConnectionAuthorization } = service;
-  const { origins } = config;
   const renewals = new WeakMap<Connection, number>();
   const sockets = new WeakMap<
     object,
@@ -47,7 +58,7 @@ export function createConnectionHandlers(
         service.isDraining() ||
         url.pathname !== '/api/collab/ws' ||
         url.search ||
-        !origins.has(String(request.headers.origin || ''))
+        !sameHost(request)
       ) {
         socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
         socket.destroy();

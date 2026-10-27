@@ -118,13 +118,10 @@ node scripts/package.mjs
 | `pexelsKey` | 可选，空字符串表示图库不可用；填写后在运行时提供给前端 |
 | `collaboration` | 默认 `false`，按需启用多人协同 |
 | `collaborationPort` | 协同内部端口，默认 `8091`，启用时不可与 HTTP 端口相同 |
-| `publicUrl` | 启用协同时必填，浏览器实际访问的 origin，如 `http://localhost:8080`；不能带路径 |
 
 HTTP 端口和数据库端口是两个不同参数。正常启动会自动补齐缺失数据库和表。账号密码错误、创建权限不足或已有表结构不兼容时会停止并输出原因；不会覆盖已有记录或自动执行改列迁移。
 
-启用协同前还需满足 `server/docs/COLLABORATION.md` 中的数据结构要求。设置 HTTPS 的 `publicUrl` 时，需要自行配置已有 HTTPS 反向代理，脚本不申请证书。
-
-本地启动和快速部署会为协同服务的本机访问地址自动补齐 `localhost` / `127.0.0.1` 别名。例如配置 `http://localhost:8080` 后，也允许 `http://127.0.0.1:8080`，反向同样适用；本地开发前端端口也采用此规则。别名仅限相同协议和端口，其他域名仍精确匹配配置。
+启用协同前还需满足 `server/docs/COLLABORATION.md` 中的数据结构要求。协同连接按浏览器实际访问的 `Host` 与 `Origin` 校验同源，`host` 只决定监听地址，不影响浏览器如何访问。使用 HTTPS 时由已有的反向代理终止 TLS，代理必须原样转发 `Host` 头（含非默认端口），参考 `server/deploy/collaboration/nginx.conf.example`；脚本不申请证书。旧版本配置中的 `publicUrl` 会被忽略，可以直接删除。
 
 ## 生成文件
 

@@ -14,18 +14,7 @@ export function loadConfig() {
   const secret = readFileSync(secretPath, 'utf8').trim();
   if (Buffer.byteLength(secret) < 32)
     throw new Error('Collaboration secret must contain at least 32 bytes');
-  const origins = new Set(
-    (process.env.VOEX_COLLAB_ORIGINS || '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean)
-  );
-  if (!origins.size)
-    throw new Error('VOEX_COLLAB_ORIGINS must explicitly allow the web application origins');
-  for (const origin of origins)
-    if (new URL(origin).origin !== origin)
-      throw new Error('Origins must be exact origins without a path');
-  return { host, port, api, secret, origins };
+  return { host, port, api, secret };
 }
 
 export type CollaborationConfig = ReturnType<typeof loadConfig>;

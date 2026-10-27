@@ -23,7 +23,7 @@ let server: Server;
 const getHocuspocus = () => server.hocuspocus;
 const rooms = createRoomService(go, documents, getHocuspocus);
 const review = createReviewService(rooms, go, documents, getHocuspocus);
-const connections = createConnectionHandlers(rooms, go, config);
+const connections = createConnectionHandlers(rooms, go);
 server = new Server(
   {
     name: 'voex-collab',
