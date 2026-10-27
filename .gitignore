@@ -21,3 +21,7 @@ logs/
 *.log
 .DS_Store
 Thumbs.db
+
+# Local deployment configuration, secrets, data and releases
+/voex.config.json
+/.voex/

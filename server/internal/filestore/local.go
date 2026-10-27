@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"voex-server/internal/config"
@@ -29,7 +30,7 @@ func New(settings config.Storage) (*Store, error) {
 		return nil, fmt.Errorf("VOEX_STORAGE_ROOT must be an absolute path")
 	}
 	name := filepath.Clean(settings.Root)
-	if name == string(filepath.Separator) {
+	if name == filepath.Clean(filepath.VolumeName(name)+string(filepath.Separator)) {
 		return nil, fmt.Errorf("VOEX_STORAGE_ROOT must be a dedicated directory")
 	}
 	root, err := openStorageRoot(name)
@@ -49,7 +50,7 @@ func New(settings config.Storage) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("inspect upload staging: %w", err)
 	}
-	if !info.IsDir() || info.Mode().Perm()&0077 != 0 {
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || (runtime.GOOS != "windows" && info.Mode().Perm()&0077 != 0) {
 		return nil, fmt.Errorf("upload staging must be a private real directory")
 	}
 	tempKey := ".uploads/" + shared.UUID()
@@ -63,11 +64,21 @@ func New(settings config.Storage) (*Store, error) {
 // Walk from a pinned filesystem root so a pre-existing symlink is rejected
 // before creating anything beneath it. Each next directory stays within its parent.
 func openStorageRoot(name string) (*os.Root, error) {
-	current, err := os.OpenRoot(string(filepath.Separator))
+	if !filepath.IsAbs(name) {
+		return nil, fmt.Errorf("VOEX_STORAGE_ROOT must be an absolute path")
+	}
+	// Pin the correct filesystem/volume root before inspecting each component.
+	// On Windows this includes the drive (C:\) or the full UNC share root.
+	volumeRoot := filepath.VolumeName(name) + string(filepath.Separator)
+	relative, err := filepath.Rel(volumeRoot, name)
+	if err != nil || relative == "." || !filepath.IsLocal(relative) {
+		return nil, fmt.Errorf("VOEX_STORAGE_ROOT must be a dedicated directory")
+	}
+	current, err := os.OpenRoot(volumeRoot)
 	if err != nil {
 		return nil, err
 	}
-	for _, part := range strings.Split(strings.TrimPrefix(name, string(filepath.Separator)), string(filepath.Separator)) {
+	for _, part := range strings.Split(relative, string(filepath.Separator)) {
 		if err := current.Mkdir(part, 0700); err != nil && !errors.Is(err, fs.ErrExist) {
 			_ = current.Close()
 			return nil, fmt.Errorf("create storage root: %w", err)
@@ -211,7 +222,7 @@ func (s *Store) putObject(ctx context.Context, key, filename, _ string) error {
 	}
 	parent, err := s.root.Open(directory)
 	if err == nil {
-		err = parent.Sync()
+		err = syncDirectory(parent)
 		closeErr = parent.Close()
 		if err == nil {
 			err = closeErr

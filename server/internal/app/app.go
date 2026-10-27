@@ -87,12 +87,17 @@ func Run() (err error) {
 	// log.New 创建写入标准输出的访问日志记录器，空字符串表示不添加自定义前缀。
 	// 按位或运算 | 合并日志选项：LstdFlags 添加日期和时间，LUTC 使用 UTC 时区。
 	routes := router.New(business, log.New(os.Stdout, "", log.LstdFlags|log.LUTC))
+	handler, closeWeb, err := deploymentHandler(routes, cfg)
+	if err != nil {
+		return err
+	}
+	defer closeWeb()
 	// 构造 HTTP 服务器并通过 & 取得指针；此时尚未开始监听端口。
 	server := &http.Server{
 		// 使用配置中的主机和端口作为监听地址。
 		Addr: cfg.Address,
 		// 将收到的 HTTP 请求交给 routes.ServeHTTP 处理。
-		Handler: routes,
+		Handler: handler,
 		// 将 10 乘以秒单位，限制读取请求头的时间为 10 秒。
 		ReadHeaderTimeout: 10 * time.Second,
 		// 限制整个请求读取时间，默认 2 分钟，可通过环境变量调整。

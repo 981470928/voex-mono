@@ -2,6 +2,7 @@
 package database
 
 import (
+	"net"
 	"time"
 	"voex-server/internal/config"
 
@@ -15,7 +16,7 @@ import (
 func Open(settings config.Database) (*gorm.DB, error) {
 	cfg := driver.NewConfig()
 	cfg.Net = "tcp"
-	cfg.Addr = settings.Host + ":" + settings.Port
+	cfg.Addr = net.JoinHostPort(settings.Host, settings.Port)
 	cfg.User, cfg.Passwd, cfg.DBName = settings.User, settings.Password, settings.Name
 	cfg.ParseTime, cfg.Loc = true, time.Local
 	cfg.Timeout, cfg.ReadTimeout, cfg.WriteTimeout = 10*time.Second, 30*time.Second, 30*time.Second

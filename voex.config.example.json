@@ -1,0 +1,15 @@
+{
+  "host": "127.0.0.1",
+  "port": 8080,
+  "database": {
+    "host": "127.0.0.1",
+    "port": 3306,
+    "user": "voex",
+    "password": "",
+    "name": "voex"
+  },
+  "pexelsKey": "",
+  "collaboration": false,
+  "collaborationPort": 8091,
+  "publicUrl": ""
+}

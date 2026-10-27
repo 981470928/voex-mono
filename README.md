@@ -2,6 +2,22 @@
 
 Voex 的前端、Go API 和多人协同服务源码统一存放在此仓库。前后端仍独立安装依赖、构建和部署，不要求同时启动或发布。
 
+## 快速部署（Windows / Linux）
+
+准备 Node.js、pnpm、Go 和已初始化的 MySQL 数据库。从仓库根目录执行：
+
+```sh
+# 首次填写/校验配置、打包并启动
+node scripts/init.mjs
+
+# 以后只启动已有构建
+node scripts/run.mjs
+```
+
+默认访问 `http://127.0.0.1:8080/app/`，Ctrl+C 停止。配置保存在被 Git 忽略的 `voex.config.json`；无构建时运行命令会提示先初始化。需要只打包不启动时使用 `node scripts/init.mjs --no-start`。
+
+参数、环境要求及独立部署说明见 [部署文档](docs/deployment.md)。
+
 ## 目录
 
 | 目录 | 内容 |

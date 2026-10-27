@@ -16,7 +16,7 @@ func main() {
 func run(args []string) error {
 	command := "serve"
 	if len(args) > 1 {
-		return fmt.Errorf("usage: voex-server [serve]")
+		return fmt.Errorf("usage: voex-server [serve|check-config]")
 	}
 	if len(args) == 1 {
 		command = args[0]
@@ -24,7 +24,13 @@ func run(args []string) error {
 	switch command {
 	case "serve":
 		return app.Run()
+	case "check-config":
+		if err := app.CheckConfig(); err != nil {
+			return err
+		}
+		fmt.Println("Configuration, storage, secrets and database tables are ready.")
+		return nil
 	default:
-		return fmt.Errorf("unknown command %q; usage: voex-server [serve]", command)
+		return fmt.Errorf("unknown command %q; usage: voex-server [serve|check-config]", command)
 	}
 }
