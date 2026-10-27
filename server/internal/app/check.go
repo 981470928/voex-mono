@@ -15,7 +15,16 @@ import (
 )
 
 // CheckConfig checks local prerequisites and the database without starting the service.
-func CheckConfig() (err error) {
+func CheckConfig() error {
+	return checkConfig(false)
+}
+
+// InitializeDatabase validates prerequisites, creates missing schema objects, then checks readiness.
+func InitializeDatabase() error {
+	return checkConfig(true)
+}
+
+func checkConfig(initialize bool) (err error) {
 	defer func() {
 		if recover() != nil {
 			err = fmt.Errorf("configuration could not be loaded; check VOEX_ENV_FILE and its quoting")
@@ -97,6 +106,11 @@ func CheckConfig() (err error) {
 			return err
 		}
 		closeWeb()
+	}
+	if initialize {
+		if err := database.Initialize(cfg.Database); err != nil {
+			return err
+		}
 	}
 	return database.Check(cfg.Database, cfg.Collaboration.Enabled)
 }

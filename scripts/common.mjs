@@ -19,9 +19,9 @@ export const TARGET = `${process.platform === 'win32' ? 'windows' : process.plat
 export const digest = value => createHash('sha256').update(value).digest('hex');
 export const exists = async file => fs.access(file).then(() => true, () => false);
 
-/** Only Windows and Linux on x64/arm64 are supported by the bundled scripts. */
+/** Windows, Linux and macOS on x64/arm64 are supported by the bundled scripts. */
 export function runtimeCheck() {
-  if (!['win32', 'linux'].includes(process.platform)) throw new Error('仅支持 Windows 和 Linux。');
+  if (!['win32', 'linux', 'darwin'].includes(process.platform)) throw new Error('仅支持 Windows、Linux 和 macOS。');
   const [major, minor] = process.versions.node.split('.').map(Number);
   if (!(major === 22 && minor >= 18 || major === 24 && minor >= 12 || major > 24))
     throw new Error('需要 Node.js 22.18+（22.x）或 24.12+。');
@@ -102,6 +102,20 @@ function loopback(config) {
 }
 export function origin(config, port = config.port) {
   return `http://${net.isIP(loopback(config)) === 6 ? `[${loopback(config)}]` : loopback(config)}:${port}`;
+}
+
+/** Allow localhost and IPv4 loopback aliases at the same scheme and port. */
+export function collaborationOrigins(...values) {
+  const origins = new Set();
+  for (const value of values.filter(Boolean)) {
+    const url = new URL(value);
+    origins.add(url.origin);
+    if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+      url.hostname = url.hostname === 'localhost' ? '127.0.0.1' : 'localhost';
+      origins.add(url.origin);
+    }
+  }
+  return [...origins].join(',');
 }
 
 /** Spawn wrapper that handles Windows command shims. */

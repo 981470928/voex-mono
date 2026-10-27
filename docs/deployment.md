@@ -1,6 +1,6 @@
 # 本机启动与部署
 
-Voex 提供两条启动路径，命令均从仓库根目录执行，Windows PowerShell、Windows 命令提示符和 Linux 终端一致。
+Voex 提供两条启动路径，命令均从仓库根目录执行，Windows PowerShell、Windows 命令提示符、Linux 和 macOS 终端一致。
 
 | 路径 | 使用场景 | 需要 | 命令 |
 | --- | --- | --- | --- |
@@ -9,19 +9,15 @@ Voex 提供两条启动路径，命令均从仓库根目录执行，Windows Powe
 
 ## 环境要求
 
-- 两种方式都只支持 Windows / Linux 的 x64、arm64。
+- 两种方式都支持 Windows / Linux / macOS 的 x64、arm64；macOS 覆盖 Intel Mac 和 Apple Silicon。
 - Node.js 22.18+（22.x）或 24.12+。
-- MySQL 8，数据库已存在并按项目 schema 初始化。脚本不创建数据库、不自动导入 SQL、不自动迁移已有数据库。
+- 已启动的 MySQL 8。正常启动自动创建缺失数据库和表；账号需具备相应的 `CREATE` / `REFERENCES` 权限。已有表的列结构仍由显式迁移维护。
 - 本地启动额外需要 Go（版本见 `server/go.mod`）和 pnpm；pnpm 也可使用 Node 自带的 corepack。
 - 快速部署不需要 Go、pnpm、Nginx 或全局进程管理器。
 
-空库初始化只执行一次：
+无需先手动建库或导入 SQL。`node scripts/dev.mjs` 和 `node scripts/start.mjs` 在正常启动前执行 Go 的 `init-db`：数据库不存在时创建数据库，按外键顺序补齐缺表，并幂等补上 `workspace_state.id=1`。重复或并发执行可恢复中断的初始化；已有表和记录保留。
 
-```sh
-mysql -u<用户> -p <数据库名> < server/internal/database/schema.sql
-```
-
-已有数据库应由维护者核对后显式迁移，不要重复导入 schema。
+`--check` 及 Go 的 `check-config` 只检查数据库，不触发建库、建表或补记录。已有表缺列或结构不兼容时，仍须按对应迁移文件处理。
 
 ## 一、本地启动（源码）
 
@@ -59,7 +55,7 @@ node scripts/dev.mjs
 - 检查 Node.js、Go、pnpm 和 MySQL；
 - `web/` 依赖缺失或 lockfile 变化时执行 `pnpm install --frozen-lockfile`；启用协同时同样处理 `server/collab/`；
 - 下载 MathJax 3.2.2 到 `.voex/cache/`，校验 SHA-256 后复制到 `web/public/vendor/`；
-- 编译 Go API 到 `.voex/build/voex-server`，运行 `check-config` 检查数据库账号、表结构、存储目录和密钥；
+- 编译 Go API 到 `.voex/build/voex-server`，正常启动运行 `init-db` 创建缺失数据库和表，并检查数据库账号、表结构、存储目录和密钥；`--check` 仅运行 `check-config`；
 - 启动 Go API 和 Vite 前端，等待 `/api/health/ready` 与前端页面就绪。
 
 访问 `http://127.0.0.1:3500/app/`。Vite 将 `/api` 代理到 `voex.config.json` 的 `host:port`（默认 `127.0.0.1:8080`），协同 WebSocket 代理到 `collaborationPort`。
@@ -73,13 +69,13 @@ node scripts/dev.mjs
 `prebuilt/` 提交在 Git 中，包含：
 
 - `prebuilt/web/`：已构建前端（资源路径 `/app/`，含 MathJax）；
-- `prebuilt/server/voex-server-<平台>.gz`：Linux/Windows x64/arm64 Go 服务；
+- `prebuilt/server/voex-server-<平台>.gz`：Linux/Windows/macOS x64/arm64 Go 服务；
 - `prebuilt/collab/`：可选的多人协同服务；
 - `prebuilt/MANIFEST.json`：构建时间、平台列表及各目录/文件的 SHA-256。
 
 ### 使用步骤
 
-1. 安装 MySQL 8 并导入 schema（见上文）。
+1. 安装并启动 MySQL 8，准备具备所需权限的数据库账号。
 2. `cp voex.config.example.json voex.config.json`，填写数据库等配置。
 3. 执行：
 
@@ -87,13 +83,13 @@ node scripts/dev.mjs
 node scripts/start.mjs
 ```
 
-脚本会校验清单和预置内容、生成 `.voex/runtime/server.env` 与密钥、把当前平台的 Go 服务解压到 `.voex/prebuilt/`，再执行数据库检查并启动。默认访问 `http://127.0.0.1:8080/app/`。
+脚本会校验清单和预置内容、生成 `.voex/runtime/server.env` 与密钥、把当前平台的 Go 服务解压到 `.voex/prebuilt/`，再自动创建缺失数据库和表、执行配置检查并启动。默认访问 `http://127.0.0.1:8080/app/`。
 
-`node scripts/start.mjs --check` 只做校验，不启动服务。
+`node scripts/start.mjs --check` 只做校验，不初始化数据库、不启动服务。
 
 ### 平台与更新
 
-- 预置平台为 `linux-amd64`、`linux-arm64`、`windows-amd64`、`windows-arm64`；其他平台使用本地启动。
+- 预置平台为 `linux-amd64`、`linux-arm64`、`windows-amd64`、`windows-arm64`、`darwin-amd64`、`darwin-arm64`；启动脚本自动选择当前 Node.js 运行架构对应的产物。
 - 修改 `voex.config.json` 后重新执行 `node scripts/start.mjs` 即可，不需要重新打包。
 - Pexels Key 通过 Go API 的 `/api/public/config` 在运行时返回，预置前端无需重建。
 - 预置前端和协同服务的内容摘要不一致时脚本会拒绝启动，避免运行被篡改的产物。
@@ -104,7 +100,7 @@ node scripts/start.mjs
 node scripts/package.mjs
 ```
 
-需要 Node.js、pnpm、Go 和网络（首次下载 MathJax；之后使用 `.voex/cache/`）。脚本重新生成前端、四个平台的 Go 服务、协同服务和 `prebuilt/MANIFEST.json`，成功后整体替换 `prebuilt/`。提交后即可发布。
+需要 Node.js、pnpm、Go 和网络（首次下载 MathJax；之后使用 `.voex/cache/`）。脚本重新生成前端、六个平台的 Go 服务、协同服务和 `prebuilt/MANIFEST.json`，成功后整体替换 `prebuilt/`。提交后即可发布。
 
 ## 配置
 
@@ -118,15 +114,17 @@ node scripts/package.mjs
 | `database.port` | 默认 `3306` |
 | `database.user` | 必填，数据库用户名 |
 | `database.password` | 数据库密码；确实无密码的账号允许空字符串 |
-| `database.name` | 必填，已存在且完成初始化的数据库名称 |
+| `database.name` | 必填；正常启动时自动创建缺失数据库及表 |
 | `pexelsKey` | 可选，空字符串表示图库不可用；填写后在运行时提供给前端 |
 | `collaboration` | 默认 `false`，按需启用多人协同 |
 | `collaborationPort` | 协同内部端口，默认 `8091`，启用时不可与 HTTP 端口相同 |
 | `publicUrl` | 启用协同时必填，浏览器实际访问的 origin，如 `http://localhost:8080`；不能带路径 |
 
-HTTP 端口和数据库端口是两个不同参数。初始化发现缺表或数据库账号错误时会停止，并输出 Go 服务的检查结果；请确认只向新建空库导入 `server/internal/database/schema.sql`。
+HTTP 端口和数据库端口是两个不同参数。正常启动会自动补齐缺失数据库和表。账号密码错误、创建权限不足或已有表结构不兼容时会停止并输出原因；不会覆盖已有记录或自动执行改列迁移。
 
 启用协同前还需满足 `server/docs/COLLABORATION.md` 中的数据结构要求。设置 HTTPS 的 `publicUrl` 时，需要自行配置已有 HTTPS 反向代理，脚本不申请证书。
+
+本地启动和快速部署会为协同服务的本机访问地址自动补齐 `localhost` / `127.0.0.1` 别名。例如配置 `http://localhost:8080` 后，也允许 `http://127.0.0.1:8080`，反向同样适用；本地开发前端端口也采用此规则。别名仅限相同协议和端口，其他域名仍精确匹配配置。
 
 ## 生成文件
 
@@ -141,13 +139,13 @@ HTTP 端口和数据库端口是两个不同参数。初始化发现缺表或数
 | `.voex/cache/` | 固定版本 MathJax 3.2.2 资源、许可证缓存及本地 Go 构建缓存 |
 | `web/public/vendor/` | 本地启动使用的 MathJax 静态资源，已被 Git 忽略 |
 
-整个 `.voex/` 已被 Git 忽略。Linux 下敏感文件使用私有权限；Windows 下沿用目录 ACL，应使用自己的用户目录并保留访问权限。已初始化后若密钥丢失，须从备份恢复；确认要重新开始时，删除 `.voex/` 后重新生成。
+整个 `.voex/` 已被 Git 忽略。Linux 和 macOS 下敏感文件使用私有权限；Windows 下沿用目录 ACL，应使用自己的用户目录并保留访问权限。已初始化后若密钥丢失，须从备份恢复；确认要重新开始时，删除 `.voex/` 后重新生成。
 
 ## 常见问题
 
 - **端口被占用**：修改 `voex.config.json` 的 `port`；本地启动的前端端口还受 `VOEX_DEV_PORT` 影响。
-- **数据库连接失败**：检查 `database` 的地址、端口、用户、密码和库名；脚本只检查端口，账号和表结构由 `check-config` 检查。
-- **缺少表**：仅向空库导入 `server/internal/database/schema.sql`，已有库不要重复导入。
+- **数据库连接或创建失败**：检查 `database` 的地址、端口、账号、密码和库名；缺库需有 `CREATE` 权限，缺表需有 `CREATE` / `REFERENCES` 权限。
+- **缺少表**：重新执行不带 `--check` 的正常启动命令，自动补齐缺表；已有表缺列时按对应迁移文件处理。
 - **Pexels 图库不可用**：在配置中填写 `pexelsKey` 后重新执行启动命令；预置前端无需重建。
 - **预置包不支持当前平台**：改用 `node scripts/dev.mjs` 从源码启动，或在有 Go 的机器上运行 `node scripts/package.mjs`。
 - **本地启动提示找不到 pnpm**：安装 pnpm，或执行 `corepack enable pnpm`。

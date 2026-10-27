@@ -1,11 +1,13 @@
 {
   "format": 1,
-  "createdAt": "2026-10-27T06:18:04.370Z",
+  "createdAt": "2026-10-27T06:41:18.700Z",
   "platforms": [
     "linux-amd64",
     "linux-arm64",
     "windows-amd64",
-    "windows-arm64"
+    "windows-arm64",
+    "darwin-amd64",
+    "darwin-arm64"
   ],
   "web": {
     "digest": "836d93764da465401023144de1bc9d9caa901b70d89fcd06c7228e15af9199c7"
@@ -16,27 +18,39 @@
   "server": {
     "linux-amd64": {
       "path": "server/voex-server-linux-amd64.gz",
-      "sha256": "7873134fd5a11280d56bee0bd908e4eb0161ddb8b9a7668c2f16773cd7a98f13",
-      "binarySha256": "627929c3f460974b55d25f21854e68782e5007d2c55213f3b3173167314194e1",
-      "size": 9244469
+      "sha256": "09f20b72051a4133f37554d372bc6df7e477112d8ac40169d4b623de4f26fdb8",
+      "binarySha256": "bcf350a30c971817aef8fd09c7a33837acb8edc8adae73f6f2e9cc4887eb09a0",
+      "size": 9252156
     },
     "linux-arm64": {
       "path": "server/voex-server-linux-arm64.gz",
-      "sha256": "e18da1bf8bad8ef9e8967943f5a47018ce8a1c6231edfcca8c44684543904899",
-      "binarySha256": "9cd4eb8358823689d8bb2cb69fbc79eddd5f5600776a2124dfddb1e5f552d462",
-      "size": 8298459
+      "sha256": "0f8b5fce287272c081495a251d2613e2d8fa4dfeac449c66a66fc8ffc958c620",
+      "binarySha256": "9860797bb983540bf836e2444041a34cea1ea899e7058075eb7258e766bebb2d",
+      "size": 8303007
     },
     "windows-amd64": {
       "path": "server/voex-server-windows-amd64.gz",
-      "sha256": "f01fc2effecd019f759371b2533c033b2af0ccec048d3b0db21c3c2c8c149e64",
-      "binarySha256": "d3a044e5ecf4429d38b3ff3a2a3fa909b037f7ddd99d203e340bf843b1cc51da",
-      "size": 9390981
+      "sha256": "7f181cd952d52ab571837101649aaf2b2a808f0a61e3f81f3be56b226a16550b",
+      "binarySha256": "f453a47312b2ad872689005c81510ac162e93b54879ebf48d749086d64ba79d9",
+      "size": 9395809
     },
     "windows-arm64": {
       "path": "server/voex-server-windows-arm64.gz",
-      "sha256": "f59ba00d2112f026c51a7b90e563b5dad042fbdc48ace4192b339980e3bfa509",
-      "binarySha256": "85422c174f95807762ff68e3a3b8bb47bffa0eb168d73ff4cdb7882fc30f29fd",
-      "size": 8309913
+      "sha256": "4d7dfc714250a4bf5d180c9464565632bfa17009813ae826c46e58699a5f803d",
+      "binarySha256": "bc07fc173e207c5b6dd01d979bc84659317170a9579aaae2781a8333bf3a30a4",
+      "size": 8317553
+    },
+    "darwin-amd64": {
+      "path": "server/voex-server-darwin-amd64.gz",
+      "sha256": "7b826260703da4bd00ac1746a22538562bf635b42af12572472ca4d2c723cbe9",
+      "binarySha256": "94a8874aa4a62f024819bee8143c0ea0b19cbc096f10fe100068c165ef17e18b",
+      "size": 9391785
+    },
+    "darwin-arm64": {
+      "path": "server/voex-server-darwin-arm64.gz",
+      "sha256": "756ad40c6a3ca4e1b567b8e19bb5bcf92a85ed82e70b00199320601096982543",
+      "binarySha256": "e2f26374a7aa2351287b7d619b46bd81b3fcd880c673311198f8b3b04693d275",
+      "size": 8623420
     }
   }
 }

@@ -1,7 +1,7 @@
--- Current schema for a new, empty MySQL 8 database. Import manually before starting the server.
--- Existing databases are managed explicitly; this script does not update existing tables.
+-- Current MySQL 8 schema used by automatic initialization and optional manual import.
+-- Creates missing tables only; existing columns and data require explicit migrations.
 
-CREATE TABLE `users` (
+CREATE TABLE IF NOT EXISTS `users` (
   `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   `account` varbinary(256) NOT NULL,
   `password_hash` varchar(255) NOT NULL,
@@ -16,12 +16,12 @@ CREATE TABLE `users` (
   UNIQUE KEY `account` (`account`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-CREATE TABLE `workspace_state` (
+CREATE TABLE IF NOT EXISTS `workspace_state` (
   `id` tinyint NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-CREATE TABLE `assets` (
+CREATE TABLE IF NOT EXISTS `assets` (
   `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   `creator_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   `directory` varchar(255) NOT NULL,
@@ -35,7 +35,7 @@ CREATE TABLE `assets` (
   CONSTRAINT `assets_ibfk_1` FOREIGN KEY (`creator_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-CREATE TABLE `auth_sessions` (
+CREATE TABLE IF NOT EXISTS `auth_sessions` (
   `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   `user_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   `refresh_hash` char(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
@@ -48,7 +48,7 @@ CREATE TABLE `auth_sessions` (
   CONSTRAINT `auth_sessions_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-CREATE TABLE `files` (
+CREATE TABLE IF NOT EXISTS `files` (
   `id` int NOT NULL AUTO_INCREMENT,
   `file_key` varchar(64) NOT NULL,
   `hash` varchar(128) NOT NULL,
@@ -65,7 +65,7 @@ CREATE TABLE `files` (
   CONSTRAINT `fk_files_creator` FOREIGN KEY (`creator_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-CREATE TABLE `teams` (
+CREATE TABLE IF NOT EXISTS `teams` (
   `id` int NOT NULL AUTO_INCREMENT,
   `team_key` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   `team_code` char(10) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
@@ -86,7 +86,7 @@ CREATE TABLE `teams` (
   CONSTRAINT `teams_chk_1` CHECK ((((`kind` = _utf8mb4'personal') and (`personal_owner_id` is not null) and (`personal_owner_id` = `owner_id`)) or ((`kind` = _utf8mb4'standard') and (`personal_owner_id` is null))))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-CREATE TABLE ai_models (
+CREATE TABLE IF NOT EXISTS ai_models (
   id varchar(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   user_id char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   name varchar(128) NOT NULL,
@@ -102,7 +102,7 @@ CREATE TABLE ai_models (
   CONSTRAINT fk_ai_model_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE ai_review_applications (
+CREATE TABLE IF NOT EXISTS ai_review_applications (
   review_id varchar(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   user_id char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   payload_hash char(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
@@ -112,7 +112,7 @@ CREATE TABLE ai_review_applications (
   CONSTRAINT fk_ai_review_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `projects` (
+CREATE TABLE IF NOT EXISTS `projects` (
   `id` int NOT NULL AUTO_INCREMENT,
   `project_key` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   `name` varchar(255) NOT NULL,
@@ -130,7 +130,7 @@ CREATE TABLE `projects` (
   CONSTRAINT `fk_projects_team` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-CREATE TABLE `team_invites` (
+CREATE TABLE IF NOT EXISTS `team_invites` (
   `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   `team_id` int NOT NULL,
   `token_hash` char(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
@@ -145,7 +145,7 @@ CREATE TABLE `team_invites` (
   CONSTRAINT `team_invites_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-CREATE TABLE `team_join_requests` (
+CREATE TABLE IF NOT EXISTS `team_join_requests` (
   `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   `team_id` int NOT NULL,
   `user_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
@@ -163,7 +163,7 @@ CREATE TABLE `team_join_requests` (
   CONSTRAINT `team_join_requests_ibfk_3` FOREIGN KEY (`reviewed_by`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-CREATE TABLE `team_members` (
+CREATE TABLE IF NOT EXISTS `team_members` (
   `team_id` int NOT NULL,
   `user_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   `role` enum('admin','member') NOT NULL DEFAULT 'member',
@@ -174,7 +174,7 @@ CREATE TABLE `team_members` (
   CONSTRAINT `team_members_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-CREATE TABLE `folders` (
+CREATE TABLE IF NOT EXISTS `folders` (
   `id` int NOT NULL AUTO_INCREMENT,
   `folder_key` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   `project_id` int NOT NULL,
@@ -200,7 +200,7 @@ CREATE TABLE `folders` (
   CONSTRAINT `fk_folders_deleted_by` FOREIGN KEY (`deleted_by`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-CREATE TABLE `project_members` (
+CREATE TABLE IF NOT EXISTS `project_members` (
   `project_id` int NOT NULL,
   `user_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   PRIMARY KEY (`project_id`,`user_id`),
@@ -209,11 +209,12 @@ CREATE TABLE `project_members` (
   CONSTRAINT `project_members_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-CREATE TABLE `documents` (
+CREATE TABLE IF NOT EXISTS `documents` (
   `id` int NOT NULL AUTO_INCREMENT,
   `file_key` varchar(64) NOT NULL,
   `file_name` varchar(255) NOT NULL DEFAULT 'untitled',
   `file_content` longtext,
+  `content_mode` enum('legacy','collab') NOT NULL DEFAULT 'legacy',
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `folder_id` int NOT NULL,
@@ -240,14 +241,14 @@ CREATE TABLE `documents` (
   CONSTRAINT `fk_documents_deleted_by` FOREIGN KEY (`deleted_by`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-CREATE TABLE `document_sharing` (
+CREATE TABLE IF NOT EXISTS `document_sharing` (
  `document_id` int NOT NULL PRIMARY KEY,
  `read_enabled` boolean NOT NULL DEFAULT false,
  `edit_enabled` boolean NOT NULL DEFAULT false,
  CONSTRAINT `fk_document_sharing_document` FOREIGN KEY (`document_id`) REFERENCES `documents` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-CREATE TABLE `document_access` (
+CREATE TABLE IF NOT EXISTS `document_access` (
   `document_id` int NOT NULL,
   `user_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   `permission` enum('read','edit') NOT NULL,
@@ -258,7 +259,7 @@ CREATE TABLE `document_access` (
   CONSTRAINT `fk_document_access_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-CREATE TABLE `file_shares` (
+CREATE TABLE IF NOT EXISTS `file_shares` (
   `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   `document_id` int NOT NULL,
   `token_hash` char(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
@@ -274,7 +275,7 @@ CREATE TABLE `file_shares` (
   CONSTRAINT `file_shares_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-CREATE TABLE ai_conversation_sessions (
+CREATE TABLE IF NOT EXISTS ai_conversation_sessions (
   id bigint unsigned NOT NULL AUTO_INCREMENT,
   user_id char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   document_id int NOT NULL,
@@ -289,7 +290,7 @@ CREATE TABLE ai_conversation_sessions (
   CONSTRAINT fk_ai_session_document FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `recent_files` (
+CREATE TABLE IF NOT EXISTS `recent_files` (
   `user_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   `document_id` int NOT NULL,
   `share_id` char(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL,
@@ -304,7 +305,7 @@ CREATE TABLE `recent_files` (
   CONSTRAINT `fk_recent_files_share` FOREIGN KEY (`share_id`) REFERENCES `file_shares` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-CREATE TABLE ai_conversation_turns (
+CREATE TABLE IF NOT EXISTS ai_conversation_turns (
   id bigint unsigned NOT NULL AUTO_INCREMENT,
   user_id char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   document_id int NOT NULL,
@@ -331,11 +332,10 @@ CREATE TABLE ai_conversation_turns (
     REFERENCES ai_conversation_sessions (user_id, document_id, session_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO workspace_state (id) VALUES (1);
+INSERT IGNORE INTO workspace_state (id) VALUES (1);
 
--- Explicit migration for existing databases. Run once before enabling collaboration.
-ALTER TABLE documents ADD COLUMN content_mode enum('legacy','collab') NOT NULL DEFAULT 'legacy';
-CREATE TABLE document_collaboration (
+-- Collaboration tables are included in a fresh database even when collaboration is disabled.
+CREATE TABLE IF NOT EXISTS document_collaboration (
  document_id int NOT NULL,
  state longblob NOT NULL,
  schema_version varchar(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
@@ -345,7 +345,7 @@ CREATE TABLE document_collaboration (
  PRIMARY KEY(document_id),
  CONSTRAINT fk_collab_document FOREIGN KEY(document_id) REFERENCES documents(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
-CREATE TABLE collaboration_commits (
+CREATE TABLE IF NOT EXISTS collaboration_commits (
  document_id int NOT NULL,
  commit_key varchar(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
  payload_hash char(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
@@ -356,7 +356,7 @@ CREATE TABLE collaboration_commits (
  KEY idx_collab_commit_created(created_at),
  CONSTRAINT fk_collab_commit_document FOREIGN KEY(document_id) REFERENCES documents(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
-CREATE TABLE collaboration_outbox (
+CREATE TABLE IF NOT EXISTS collaboration_outbox (
  id bigint NOT NULL AUTO_INCREMENT,
  kind varchar(32) NOT NULL,
  file_key varchar(64) NOT NULL DEFAULT '',

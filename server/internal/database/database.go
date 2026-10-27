@@ -1,4 +1,4 @@
-// Package database opens MySQL connections without changing the schema.
+// Package database manages MySQL connections and initial schema creation.
 package database
 
 import (
@@ -12,8 +12,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// Open connects to an existing database. Initialize an empty database with schema.sql first.
-func Open(settings config.Database) (*gorm.DB, error) {
+func connectionConfig(settings config.Database) *driver.Config {
 	cfg := driver.NewConfig()
 	cfg.Net = "tcp"
 	cfg.Addr = net.JoinHostPort(settings.Host, settings.Port)
@@ -21,6 +20,12 @@ func Open(settings config.Database) (*gorm.DB, error) {
 	cfg.ParseTime, cfg.Loc = true, time.Local
 	cfg.Timeout, cfg.ReadTimeout, cfg.WriteTimeout = 10*time.Second, 30*time.Second, 30*time.Second
 	cfg.Collation = "utf8mb4_unicode_ci"
+	return cfg
+}
+
+// Open connects to an existing database; Initialize creates missing databases and tables.
+func Open(settings config.Database) (*gorm.DB, error) {
+	cfg := connectionConfig(settings)
 	db, err := gorm.Open(mysql.Open(cfg.FormatDSN()), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent), SkipDefaultTransaction: true,
 	})

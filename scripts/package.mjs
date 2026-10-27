@@ -16,6 +16,8 @@ const TARGETS = [
   ['linux', 'arm64'],
   ['windows', 'amd64'],
   ['windows', 'arm64'],
+  ['darwin', 'amd64'],
+  ['darwin', 'arm64'],
 ];
 
 async function fresh(lock, marker) {
@@ -97,7 +99,7 @@ async function main() {
     console.log(
       [
         'node scripts/package.mjs',
-        '维护者命令：重新构建 prebuilt/（前端、Windows/Linux x64/arm64 Go 服务、协同服务）并写入 MANIFEST.json。',
+        '维护者命令：重新构建 prebuilt/（前端、Windows/Linux/macOS x64/arm64 Go 服务、协同服务）并写入 MANIFEST.json。',
         '需要 Node.js、pnpm 和 Go；产物提交到 Git 后，用户可只填写配置并用 node scripts/start.mjs 启动。',
       ].join('\n')
     );

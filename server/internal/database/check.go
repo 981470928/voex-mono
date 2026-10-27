@@ -13,6 +13,8 @@ import (
 //go:embed schema.sql
 var schemaSource string
 
+var schemaTablePattern = regexp.MustCompile("(?im)^CREATE TABLE\\s+(?:IF NOT EXISTS\\s+)?`?([a-z_]+)`?\\s*\\(")
+
 // Check connects to the configured database and reads schema metadata only.
 // It does not create tables, migrate data or start application workers.
 func Check(settings config.Database, collaboration bool) error {
@@ -43,8 +45,7 @@ func Check(settings config.Database, collaboration bool) error {
 	if rows.Err() != nil {
 		return fmt.Errorf("database schema metadata could not be read")
 	}
-	tablePattern := regexp.MustCompile("(?im)^CREATE TABLE\\s+`?([a-z_]+)`?\\s*\\(")
-	matches := tablePattern.FindAllStringSubmatch(schemaSource, -1)
+	matches := schemaTablePattern.FindAllStringSubmatch(schemaSource, -1)
 	if len(matches) == 0 {
 		return fmt.Errorf("embedded database schema could not be read")
 	}
@@ -59,7 +60,7 @@ func Check(settings config.Database, collaboration bool) error {
 		}
 	}
 	if len(missing) != 0 {
-		return fmt.Errorf("database tables missing: %s; initialize a NEW EMPTY database using server/internal/database/schema.sql, or apply the appropriate explicit migrations to an existing database", strings.Join(missing, ", "))
+		return fmt.Errorf("database tables missing: %s; run voex-server init-db or start without --check to create missing tables", strings.Join(missing, ", "))
 	}
 	if collaboration {
 		var count int

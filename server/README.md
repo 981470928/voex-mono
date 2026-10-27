@@ -11,7 +11,7 @@ Gin + GORM HTTP 服务：账号认证、团队与项目权限、单层目录、M
 - 服务用户须能读写专用绝对路径 `VOEX_STORAGE_ROOT`，默认 `/home/static`；目录不得通过符号链接逃逸到其他位置。
 - 原生 Go API 不依赖 Node.js；前端在独立仓库使用 pnpm 构建。
 
-以下命令仅用于已明确指定的开发数据库；新环境填写 `.env`，已有配置应保留。服务只连接已有数据库；空库需先手动导入 `internal/database/schema.sql`，启动时不建库、不修改表结构。
+以下命令仅用于已明确指定的开发数据库；新环境填写 `.env`，已有配置应保留。正常启动会自动创建配置指定的缺失数据库、表和工作区锁记录；缺失对象需要相应 `CREATE` / `REFERENCES` 权限，已有表的列结构变化仍使用显式迁移。
 
 ```sh
 cd /home/voex-server
@@ -23,7 +23,7 @@ make check
 ./bin/voex-server serve
 ```
 
-数据库初始化、表结构与业务一致性约定见 [数据库](docs/db.md)。
+可单独执行 `./bin/voex-server init-db` 完成初始化与配置检查；`./bin/voex-server check-config` 只检查，不修改数据库。数据库初始化、表结构与业务一致性约定见 [数据库](docs/db.md)。
 
 `.env` 自动加载，进程环境变量优先；`VOEX_ENV_FILE` 可指定其他配置文件。默认模块代理不可达时可使用 `GOPROXY=https://goproxy.cn,direct go mod download`，保持 Go checksum 校验。`make build` 原子替换 `bin/voex-server`；`make fmt` 格式化 `cmd` 和 `internal`；`make check` 执行 `go vet` 与 `go mod verify`，不运行单元测试。
 

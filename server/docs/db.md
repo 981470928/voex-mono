@@ -2,15 +2,15 @@
 
 # 数据库
 
-Go 服务通过 GORM / `gorm.io/driver/mysql` 访问 MySQL 8，驱动版本固定于 `go.mod`。连接参数为 `MYSQL_HOST`、`MYSQL_PORT`、`MYSQL_USER`、`MYSQL_PASSWORD`、`MYSQL_DATABASE`；不在文档保存真实密码。服务连接配置指定的已有数据库。
+Go 服务通过 GORM / `gorm.io/driver/mysql` 访问 MySQL 8，驱动版本固定于 `go.mod`。连接参数为 `MYSQL_HOST`、`MYSQL_PORT`、`MYSQL_USER`、`MYSQL_PASSWORD`、`MYSQL_DATABASE`；不在文档保存真实密码。服务连接配置指定的数据库，并在正常启动时创建缺失数据库和表。
 
 ## 初始化与连接
 
-服务默认运行 `serve`，只建立数据库连接，不自动建库、建表或执行 DDL。新环境先手动创建 MySQL 8 空库，再通过 MySQL 客户端把 `internal/database/schema.sql` 导入该库；连接参数对应上述 `MYSQL_*` 配置。该 SQL 是当前完整结构，按外键依赖顺序建表，最后写入 `workspace_state.id=1` 的工作区锁记录。
+服务默认运行 `serve`，使用内嵌的 `internal/database/schema.sql` 自动创建缺失数据库和表，并幂等补上 `workspace_state.id=1` 的工作区锁记录。也可单独执行 `voex-server init-db` 初始化并检查配置；两条一键启动脚本在正常启动前调用此命令。`voex-server check-config` 和脚本的 `--check` 不执行数据库初始化。
 
-初始化脚本仅适用于空库，遇到已有同名表会报错；不用于更新已有业务库。当前开发阶段由开发者显式维护结构变化，并同步更新初始化 SQL。运行时代码不读取或写入迁移账本。
+初始化按外键依赖顺序补齐缺表，使用同一 MySQL 会话的数据库命名锁串行执行；创建语句采用 `IF NOT EXISTS`，中断后可以重试。已有表跳过创建，已有记录不覆盖；该逻辑不修改已有列、不自动运行历史数据迁移。结构变化仍由开发者显式维护，并同步更新初始化 SQL；没有迁移账本。新建 documents 表已直接包含 content_mode，已有 documents 表缺少此列时仍需显式协同迁移。
 
-连接池最多 10 个连接，查询和事务绑定请求 context，业务事务使用 REPEATABLE READ；没有 GORM `AutoMigrate`。日常服务只需业务表读写权限。
+连接池最多 10 个连接，查询和事务绑定请求 context，业务事务使用 REPEATABLE READ；没有 GORM `AutoMigrate`。缺库需要对应的 `CREATE` 权限，补表需要 `CREATE` / `REFERENCES` 权限；对象已齐全时不再执行 DDL，日常服务只需业务表读写权限。
 
 `documents.updated_by=null`、`updated_by_anonymous=false` 表示未记录修改人；匿名分享修改为 null / true，登录修改为用户 ID / false。
 
@@ -46,7 +46,7 @@ Go 服务通过 GORM / `gorm.io/driver/mysql` 访问 MySQL 8，驱动版本固�
 
 `document_access` 按 document_id + user_id 保存 read/edit，外键随文件或账号删除清理。登录用户打开有效分享链接时幂等写入，只能从 read 升级 edit，后续只读链接不能降级。授权独立于 recent_files 和 file_shares，历史清理或链接撤销不撤销已有权限。
 
-已有环境部署前显式执行 `internal/database/document-access.sql`；该脚本创建新表，并从仍有效的已访问分享记录回填授权，重复执行不会把 edit 降为 read。新环境的 schema.sql 已包含此表。运行时仍不自动执行 DDL。
+已有环境部署前显式执行 `internal/database/document-access.sql`；该脚本创建新表，并从仍有效的已访问分享记录回填授权，重复执行不会把 edit 降为 read。新环境及自动补表已包含此表；历史授权回填仍须显式执行迁移，不由建表代替。
 
 ## 协同正文
 

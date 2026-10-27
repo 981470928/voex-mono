@@ -47,7 +47,10 @@ func Run() (err error) {
 	}
 	// Run 退出时清理存储的进程临时目录；Close 仅删除空目录。
 	defer files.Close()
-	// 连接已初始化的数据库，不自动修改表结构。
+	// 自动创建缺失数据库和表；已有表结构由显式迁移维护。
+	if err := database.Initialize(cfg.Database); err != nil {
+		return fmt.Errorf("database initialization failed: %w", err)
+	}
 	db, err := database.Open(cfg.Database)
 	// 数据库初始化失败时，终止启动；此前注册的 defer 仍会执行。
 	if err != nil {

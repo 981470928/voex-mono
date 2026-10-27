@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url';
 import {
   ROOT, LOCAL, BINARY, exists, runtimeCheck, requireGo, loadConfig,
   databaseReachable, prepareRuntime, ensureVendor, exec, execPnpm,
-  origin, available, fail,
+  origin, collaborationOrigins, available, fail,
 } from './common.mjs';
 import { runServices } from './services.mjs';
 
@@ -54,7 +54,7 @@ export async function startDev({ check = false } = {}) {
     cwd: path.join(ROOT, 'server'),
     env: { ...process.env, CGO_ENABLED: '0', GOCACHE: path.join(LOCAL, 'cache', 'go-build') },
   });
-  await exec(binary, ['check-config'], { cwd: ROOT, env: { ...process.env, ...env } });
+  await exec(binary, [check ? 'check-config' : 'init-db'], { cwd: ROOT, env: { ...process.env, ...env } });
   if (check) {
     console.log('本地环境、数据库及 Go API 检查通过，未启动服务。');
     return;
@@ -79,7 +79,7 @@ export async function startDev({ check = false } = {}) {
         VOEX_COLLAB_PORT: String(config.collaborationPort),
         VOEX_COLLAB_API_URL: origin(config),
         VOEX_COLLAB_SECRET_FILE: env.VOEX_COLLAB_SECRET_FILE,
-        VOEX_COLLAB_ORIGINS: [config.publicUrl, origin(config, devPort)].filter(Boolean).join(','),
+        VOEX_COLLAB_ORIGINS: collaborationOrigins(config.publicUrl, origin(config, devPort)),
       },
     };
   }

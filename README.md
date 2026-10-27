@@ -15,13 +15,7 @@ Voex 的前端（Vue 3 + TypeScript）、Go API 和多人协同服务源码统�
 
 - Node.js 22.18+（22.x）或 24.12+，以及 pnpm（Node 自带的 corepack 也可：`corepack enable pnpm`）。
 - Go 1.27.1（以 [`server/go.mod`](server/go.mod) 为准）。
-- MySQL 8，数据库已创建并导入表结构（空库执行一次）：
-
-  ```sh
-  mysql -u<用户> -p <数据库名> < server/internal/database/schema.sql
-  ```
-
-  不要向已有业务库重复导入 schema；已有库请按 [数据库说明](server/docs/db.md) 显式迁移。
+- 已启动的 MySQL 8。正常启动会自动创建配置中缺失的数据库、表和工作区锁记录；创建操作需要账号具备相应的 `CREATE` / `REFERENCES` 权限。已有表的列结构变化仍按 [数据库说明](server/docs/db.md) 显式迁移。
 
 ### 2. 填写配置
 
@@ -54,7 +48,7 @@ node scripts/dev.mjs
 1. 检查 Node.js、Go、pnpm 和 MySQL；
 2. 按 lockfile 安装 `web/`（及启用时 `server/collab/`）依赖；
 3. 下载固定版本 MathJax 到 `web/public/vendor/`；
-4. 编译 Go API 到 `.voex/build/voex-server` 并执行数据库/表结构检查；
+4. 编译 Go API 到 `.voex/build/voex-server`，自动创建缺失数据库和表后执行配置检查；
 5. 同时启动 Vite 前端和 Go API，等待两者就绪。
 
 访问 `http://127.0.0.1:3500/app/`。前端由 Vite 提供热更新，`/api` 请求代理到 `http://127.0.0.1:8080`；按 Ctrl+C 同时停止两个进程。
@@ -71,13 +65,9 @@ node scripts/dev.mjs
 ### 1. 准备环境
 
 - Node.js 22.18+（22.x）或 24.12+（仅用于运行脚本和协同服务）。
-- MySQL 8，数据库已创建并导入表结构：
+- 已启动的 MySQL 8；配置账号需能创建缺失数据库和表。正常启动自动初始化，无需先手动导入 SQL。
 
-  ```sh
-  mysql -u<用户> -p <数据库名> < server/internal/database/schema.sql
-  ```
-
-- 支持 Windows / Linux 的 x64、arm64。其他平台请使用本地启动。
+- 支持 Windows / Linux / macOS 的 x64、arm64（Intel Mac 和 Apple Silicon）。
 
 ### 2. 填写配置
 
@@ -98,12 +88,12 @@ node scripts/start.mjs
 1. 校验 `prebuilt/` 清单、前端和协同服务的内容摘要；
 2. 读取配置，生成 `.voex/runtime/server.env` 和签名密钥；
 3. 解压当前平台的 Go 服务到 `.voex/prebuilt/`；
-4. 执行数据库账号、表结构和存储目录检查；
+4. 自动创建缺失数据库和表，再检查数据库账号、表结构和存储目录；
 5. 启动 Go API；前端和 API 共用一个 HTTP 端口，按需启动协同服务。
 
 默认访问 `http://127.0.0.1:8080/app/`，Ctrl+C 停止。只检查不启动：`node scripts/start.mjs --check`。
 
-预置包覆盖 `linux-amd64`、`linux-arm64`、`windows-amd64`、`windows-arm64`。当前平台不在清单中时，脚本会明确提示改用本地启动。
+预置包覆盖 `linux-amd64`、`linux-arm64`、`windows-amd64`、`windows-arm64`、`darwin-amd64`、`darwin-arm64`。当前平台不在清单中时，脚本会明确提示改用本地启动。
 
 ## 配置
 
@@ -117,13 +107,13 @@ node scripts/start.mjs
 | `database.port` | 默认 `3306` |
 | `database.user` | 必填，数据库用户名 |
 | `database.password` | 数据库密码；确实无密码的账号允许空字符串 |
-| `database.name` | 必填，已存在且完成初始化的数据库名称 |
+| `database.name` | 必填；正常启动时自动创建缺失数据库及表 |
 | `pexelsKey` | 可选，空字符串表示图库不可用；通过 `/api/public/config` 在运行时提供给前端 |
 | `collaboration` | 默认 `false`，按需启用多人协同 |
 | `collaborationPort` | 协同内部端口，默认 `8091`，启用时不可与 HTTP 端口相同 |
 | `publicUrl` | 启用协同时必填，浏览器实际访问的 origin，如 `http://localhost:8080`；不能带 `/app/` 等路径 |
 
-HTTP 端口和数据库端口是两个不同参数。脚本不会安装或启动 MySQL，也不会修改已有数据库。启用协同前还需满足 [协同说明](server/docs/COLLABORATION.md) 中的数据结构要求。
+HTTP 端口和数据库端口是两个不同参数。脚本不会安装或启动 MySQL；正常启动仅创建缺失数据库、表和工作区锁记录，不自动改动已有表的列结构。`--check` 不执行数据库初始化。启用协同前还需满足 [协同说明](server/docs/COLLABORATION.md) 中的数据结构要求。
 
 ## 维护预置包
 
@@ -133,7 +123,7 @@ HTTP 端口和数据库端口是两个不同参数。脚本不会安装或启动
 node scripts/package.mjs
 ```
 
-该命令会重新构建 `prebuilt/web/`、四个平台的 Go 服务（gzip 压缩）和 `prebuilt/collab/`，并写入 `prebuilt/MANIFEST.json`。完成后提交 `prebuilt/` 即可发布。不要手工修改预置产物。
+该命令会重新构建 `prebuilt/web/`、六个平台的 Go 服务（gzip 压缩）和 `prebuilt/collab/`，并写入 `prebuilt/MANIFEST.json`。完成后提交 `prebuilt/` 即可发布。不要手工修改预置产物。
 
 ## 目录
 
@@ -165,6 +155,7 @@ node scripts/package.mjs
 在 `voex.config.json` 中设置 `collaboration: true`，填写 `publicUrl`，并确认 `server/docs/COLLABORATION.md` 中的数据库迁移已执行。
 
 - 本地启动会自动安装并构建 `server/collab/`，随后与前端、Go API 一起启动。
+- 本地启动和快速部署会自动兼容 `localhost` 与 `127.0.0.1` 的协同连接，协议和端口必须一致；其他域名仍按配置精确匹配。
 - 快速部署直接使用 `prebuilt/collab/`，不读取前端源码。
 - 协同进程只监听 `127.0.0.1:collaborationPort`，浏览器通过 Go API 的 `/api/collab/ws` 访问；停止时先排空未落库编辑，再依次停止协同服务和 Go API。
 
