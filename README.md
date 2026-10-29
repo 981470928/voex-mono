@@ -74,9 +74,9 @@
 
 ### 体验地址
 
-[点击此处体验](http://192.140.173.58/app/)
+[点击此处体验](http://101.251.166.138:8080/app/)
 
-[协同体验地址，需要登录](http://192.140.173.58/app/share#v1.4a006547b32e4b01.edit.JhmW96UerCsp45xPw7ZiRrCDBgcyjryp09qD2iuJ_n8)
+[协同体验地址，需要登录](http://101.251.166.138:8080/app/share#v1.4a006547b32e4b01.edit.JhmW96UerCsp45xPw7ZiRrCDBgcyjryp09qD2iuJ_n8)
 
 ## 快速开始
 
