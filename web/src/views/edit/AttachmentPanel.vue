@@ -193,9 +193,6 @@ const pendingUploads = computed(() => {
     &:hover:not(:disabled)
       background var(--color-bg-tertiary)
 
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset 2px
 
     &:disabled
       opacity .45
@@ -288,9 +285,6 @@ const pendingUploads = computed(() => {
     cursor pointer
     text-align left
 
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset -2px
 
   &__icon
     display flex
@@ -339,9 +333,6 @@ const pendingUploads = computed(() => {
     &:hover
       background var(--color-bg-translucent)
 
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset 1px
 
   &__delete
     display inline-flex
@@ -361,9 +352,6 @@ const pendingUploads = computed(() => {
       background var(--color-accent-tint)
       color var(--color-red)
 
-    &:focus-visible
-      outline 2px solid var(--color-red)
-      outline-offset 1px
 
   &__progress
     width 100%

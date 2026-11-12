@@ -1,5 +1,6 @@
+import { Messages, SocketCloseCode, httpStatus, publicFailure } from "./errors.js";
 /** 连接鉴权、续票、流量限制和定时权限复核；不负责正文合并。 */
-import type { IncomingMessage } from 'node:http';
+import { STATUS_CODES, type IncomingMessage } from 'node:http';
 import {
   OutgoingMessage,
   type Server,
@@ -60,28 +61,28 @@ export function createConnectionHandlers(service: RoomService, go: BackendClient
         url.search ||
         !sameHost(request)
       ) {
-        socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
+        socket.write(`HTTP/1.1 ${httpStatus.HTTP_STATUS_FORBIDDEN} ${STATUS_CODES[httpStatus.HTTP_STATUS_FORBIDDEN]}\r\nConnection: close\r\n\r\n`);
         socket.destroy();
         throw null;
       }
     },
     async onAuthenticate(data) {
-      if (service.isDraining()) throw new ServiceError('Service draining');
+      if (service.isDraining()) throw new ServiceError(Messages.ServiceUnavailable);
       const file_key = key(data.documentName);
       const auth = authentication(data.token);
       let grant: Grant;
       try {
         grant = await go<Grant>('authorize', { ticket: auth.ticket, file_key });
       } catch (error) {
-        if (error instanceof ServiceError && error.status === 401)
-          throw { code: 4001, reason: 'authentication-expired' };
-        if (error instanceof ServiceError && error.status >= 500)
-          throw { code: 1013, reason: 'service-unavailable' };
+        if (error instanceof ServiceError && error.status === httpStatus.HTTP_STATUS_UNAUTHORIZED)
+          throw { code: SocketCloseCode.AuthenticationExpired, reason: 'authentication-expired' };
+        if (error instanceof ServiceError && error.status >= httpStatus.HTTP_STATUS_INTERNAL_SERVER_ERROR)
+          throw { code: SocketCloseCode.TryAgainLater, reason: 'service-unavailable' };
         throw error;
       }
       checkSchema(grant);
       if (!grant.permissions.read || grant.document_name !== data.documentName)
-        throw new ServiceError('没有访问权限', 403);
+        throw new ServiceError(Messages.NoAccessPermission, httpStatus.HTTP_STATUS_FORBIDDEN);
       data.connectionConfig.readOnly = !grant.permissions.write;
       return { grant, clientId: auth.clientId } satisfies Context;
     },
@@ -98,19 +99,19 @@ export function createConnectionHandlers(service: RoomService, go: BackendClient
         });
       } catch (error) {
         if (renewals.get(data.connection) !== sequence) return {};
-        if (error instanceof ServiceError && error.status === 401) {
+        if (error instanceof ServiceError && error.status === httpStatus.HTTP_STATUS_UNAUTHORIZED) {
           expireConnectionAuthorization(data.connection);
-          throw { code: 4001, reason: 'authentication-expired' };
+          throw { code: SocketCloseCode.AuthenticationExpired, reason: 'authentication-expired' };
         }
-        if (error instanceof ServiceError && error.status >= 500) {
+        if (error instanceof ServiceError && error.status >= httpStatus.HTTP_STATUS_INTERNAL_SERVER_ERROR) {
           data.connection.sendStateless(
             JSON.stringify({
               type: 'persistence-error',
-              message: '协同服务暂不可用，正在重新连接',
+              message: publicFailure(error, "renew authorization").message,
               retryable: true,
             })
           );
-          throw { code: 1013, reason: 'service-unavailable' };
+          throw { code: SocketCloseCode.TryAgainLater, reason: 'service-unavailable' };
         }
         throw error;
       }
@@ -118,11 +119,11 @@ export function createConnectionHandlers(service: RoomService, go: BackendClient
       checkSchema(grant);
       const room = rooms.get(data.documentName);
       if (!room || grant.epoch !== room.state.epoch)
-        throw new ServiceError('Document replaced', 409);
+        throw new ServiceError(Messages.DocumentChanged, httpStatus.HTTP_STATUS_CONFLICT);
       const previousGrant = (data.connection.context as Context).grant;
       const previous = previousGrant.authorization_id;
       if (room.actors.has(previous) && grant.user.id !== previousGrant.user.id)
-        throw new ServiceError('请使用原编辑账号重新连接', 403);
+        throw new ServiceError(Messages.ReconnectOriginalAccount, httpStatus.HTTP_STATUS_FORBIDDEN);
       const context = data.connection.context as Context;
       if (
         context.clientId !== null &&
@@ -201,7 +202,7 @@ export function createConnectionHandlers(service: RoomService, go: BackendClient
       };
       sockets.set(socket, info);
       const deadline = setTimeout(() => {
-        if (!info.authenticated) socket.close(4001, 'authentication-timeout');
+        if (!info.authenticated) socket.close(SocketCloseCode.AuthenticationExpired, 'authentication-timeout');
       }, 15000);
       deadline.unref();
       socket.once('close', () => clearTimeout(deadline));
@@ -240,24 +241,24 @@ export function createConnectionHandlers(service: RoomService, go: BackendClient
           void authorize(connection, true).catch((error) => {
             if ((connection.context as Context).grant.authorization_id !== grant.authorization_id)
               return;
-            if (error instanceof ServiceError && error.status >= 500) {
+            if (error instanceof ServiceError && error.status >= httpStatus.HTTP_STATUS_INTERNAL_SERVER_ERROR) {
               connection.readOnly = true;
               checks.delete(connection);
               connection.sendStateless(
                 JSON.stringify({
                   type: 'persistence-error',
-                  message: '协同服务暂不可用，正在重新连接',
+                  message: publicFailure(error, "renew authorization").message,
                   retryable: true,
                 })
               );
-              connection.close({ code: 1013, reason: 'service-unavailable' });
+              connection.close({ code: SocketCloseCode.TryAgainLater, reason: 'service-unavailable' });
               return;
             }
             connection.sendStateless(
               JSON.stringify({
                 type: 'room-closed',
                 reason:
-                  error instanceof ServiceError && error.status === 401
+                  error instanceof ServiceError && error.status === httpStatus.HTTP_STATUS_UNAUTHORIZED
                     ? 'authentication-expired'
                     : 'permission-changed',
                 epoch: room.state.epoch,
@@ -265,7 +266,7 @@ export function createConnectionHandlers(service: RoomService, go: BackendClient
             );
             if (room.actors.has(grant.authorization_id))
               discardRoom(room, 'authentication-expired');
-            else connection.close({ code: 4001, reason: 'authorization-expired' });
+            else connection.close({ code: SocketCloseCode.AuthenticationExpired, reason: 'authorization-expired' });
           });
         }
     }, 5000);

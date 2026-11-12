@@ -62,6 +62,7 @@ export const useNotificationStore = defineStore('notification', () => {
     if (!item?.action) return;
     const action = item.action;
     // Remove before invoking: a retry may create a replacement with the same key.
+    // 先移除再调用：重试可能创建具有相同 key 的替代项。
     dismiss(id);
     try {
       await action.run();

@@ -1,0 +1,272 @@
+[
+  {
+    "id": "noto-sans-sc",
+    "label": "思源黑体",
+    "group": "中文",
+    "languages": "中 / EN",
+    "family": "Noto Sans SC",
+    "version": "full-9862abc066c9",
+    "upstream": {
+      "commit": "9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0",
+      "directory": "notosanssc",
+      "license": {
+        "url": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/notosanssc/OFL.txt",
+        "gitSha": "1c9f43281b8f216c5461fe9ac729afbade7724e4"
+      },
+      "sources": [
+        {
+          "name": "NotoSansSC[wght].ttf",
+          "url": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf",
+          "gitSha": "fb0637bafbcd804fe32152370a1225990745b4bc",
+          "weight": null
+        }
+      ]
+    }
+  },
+  {
+    "id": "noto-serif-sc",
+    "label": "思源宋体",
+    "group": "中文",
+    "languages": "中 / EN",
+    "family": "Noto Serif SC",
+    "version": "full-f8d157532fbf",
+    "upstream": {
+      "commit": "f8d157532fbfaeda587e826d4cd5b21a49186f7c",
+      "directory": "Serif/SubsetOTF/SC",
+      "license": {
+        "url": "https://raw.githubusercontent.com/notofonts/noto-cjk/f8d157532fbfaeda587e826d4cd5b21a49186f7c/Serif/LICENSE",
+        "gitSha": "d952d62c065f3f35fb83a173496e90b21525aef3"
+      },
+      "sources": [
+        {
+          "name": "NotoSerifSC-Regular.otf",
+          "url": "https://raw.githubusercontent.com/notofonts/noto-cjk/f8d157532fbfaeda587e826d4cd5b21a49186f7c/Serif/SubsetOTF/SC/NotoSerifSC-Regular.otf",
+          "gitSha": "be55fbdf3fe53bfc99779389f3f0b875707bf496",
+          "weight": 400
+        },
+        {
+          "name": "NotoSerifSC-Medium.otf",
+          "url": "https://raw.githubusercontent.com/notofonts/noto-cjk/f8d157532fbfaeda587e826d4cd5b21a49186f7c/Serif/SubsetOTF/SC/NotoSerifSC-Medium.otf",
+          "gitSha": "490a57d8e5e94cb01402fed126dc009561baf585",
+          "weight": 500
+        },
+        {
+          "name": "NotoSerifSC-Bold.otf",
+          "url": "https://raw.githubusercontent.com/notofonts/noto-cjk/f8d157532fbfaeda587e826d4cd5b21a49186f7c/Serif/SubsetOTF/SC/NotoSerifSC-Bold.otf",
+          "gitSha": "7d1928abb3f71b0a4a233cce96211d18f878bdf7",
+          "weight": 700
+        }
+      ]
+    }
+  },
+  {
+    "id": "lxgw-wenkai-tc",
+    "label": "霞鶩文楷 TC",
+    "group": "中文",
+    "languages": "中 / EN",
+    "family": "LXGW WenKai TC",
+    "version": "full-9862abc066c9",
+    "upstream": {
+      "commit": "9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0",
+      "directory": "lxgwwenkaitc",
+      "license": {
+        "url": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/lxgwwenkaitc/OFL.txt",
+        "gitSha": "4b0cd68dc387a714b67e4d652bb000c8e65ff0f9"
+      },
+      "sources": [
+        {
+          "name": "LXGWWenKaiTC-Regular.ttf",
+          "url": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/lxgwwenkaitc/LXGWWenKaiTC-Regular.ttf",
+          "gitSha": "58d7e60237900ffed823f929e13d2b2686483aba",
+          "weight": 400
+        },
+        {
+          "name": "LXGWWenKaiTC-Bold.ttf",
+          "url": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/lxgwwenkaitc/LXGWWenKaiTC-Bold.ttf",
+          "gitSha": "4c48b0882af4edb7b161327ca1726ffe6da3b282",
+          "weight": 700
+        }
+      ]
+    }
+  },
+  {
+    "id": "zcool-kuaile",
+    "label": "站酷快乐体",
+    "group": "中文",
+    "languages": "中 / EN",
+    "family": "ZCOOL KuaiLe",
+    "version": "full-9862abc066c9",
+    "upstream": {
+      "commit": "9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0",
+      "directory": "zcoolkuaile",
+      "license": {
+        "url": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/zcoolkuaile/OFL.txt",
+        "gitSha": "fe1432fe7e56b24842d855a8ddbde0911a844d7f"
+      },
+      "sources": [
+        {
+          "name": "ZCOOLKuaiLe-Regular.ttf",
+          "url": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/zcoolkuaile/ZCOOLKuaiLe-Regular.ttf",
+          "gitSha": "3cf6cd927ee910d46875de173efdaac4330e84ac",
+          "weight": 400
+        }
+      ]
+    }
+  },
+  {
+    "id": "inter",
+    "label": "Inter",
+    "group": "English",
+    "languages": "EN",
+    "family": "Inter",
+    "version": "full-9862abc066c9",
+    "upstream": {
+      "commit": "9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0",
+      "directory": "inter",
+      "license": {
+        "url": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/inter/OFL.txt",
+        "gitSha": "21f6aff961064c2e429f570995e446bcdd555422"
+      },
+      "sources": [
+        {
+          "name": "Inter[opsz,wght].ttf",
+          "url": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/inter/Inter%5Bopsz%2Cwght%5D.ttf",
+          "gitSha": "047c92f6e2212473dc436020afed689527076d44",
+          "weight": null
+        }
+      ]
+    }
+  },
+  {
+    "id": "roboto-mono",
+    "label": "Roboto Mono",
+    "group": "English",
+    "languages": "EN",
+    "family": "Roboto Mono",
+    "version": "full-9862abc066c9",
+    "upstream": {
+      "commit": "9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0",
+      "directory": "robotomono",
+      "license": {
+        "url": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/robotomono/OFL.txt",
+        "gitSha": "8e7df338d36eb52c49548ecc58afcb7eb3f73898"
+      },
+      "sources": [
+        {
+          "name": "RobotoMono[wght].ttf",
+          "url": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/robotomono/RobotoMono%5Bwght%5D.ttf",
+          "gitSha": "f21d1d716bce3cc756bc618d32be71ce6f733f81",
+          "weight": null
+        }
+      ]
+    }
+  },
+  {
+    "id": "noto-sans-jp",
+    "label": "Noto Sans 日本語",
+    "group": "日本語",
+    "languages": "日 / EN",
+    "family": "Noto Sans JP",
+    "version": "full-9862abc066c9",
+    "upstream": {
+      "commit": "9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0",
+      "directory": "notosansjp",
+      "license": {
+        "url": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/notosansjp/OFL.txt",
+        "gitSha": "1c9f43281b8f216c5461fe9ac729afbade7724e4"
+      },
+      "sources": [
+        {
+          "name": "NotoSansJP[wght].ttf",
+          "url": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/notosansjp/NotoSansJP%5Bwght%5D.ttf",
+          "gitSha": "cdd8f083c1f5928ff3361f8cda4d3fc9462cbe89",
+          "weight": null
+        }
+      ]
+    }
+  },
+  {
+    "id": "m-plus-rounded-1c",
+    "label": "M PLUS Rounded 1c",
+    "group": "日本語",
+    "languages": "日 / EN",
+    "family": "M PLUS Rounded 1c",
+    "version": "full-9862abc066c9",
+    "upstream": {
+      "commit": "9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0",
+      "directory": "mplusrounded1c",
+      "license": {
+        "url": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/roundedmplus1c/OFL.txt",
+        "gitSha": "90025a9897ab421939e26226c3e5897e8a514960"
+      },
+      "sources": [
+        {
+          "name": "MPLUSRounded1c-Regular.ttf",
+          "url": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/mplusrounded1c/MPLUSRounded1c-Regular.ttf",
+          "gitSha": "a66978b6a6f55de71105a37f8de702ab3f31d27d",
+          "weight": 400
+        },
+        {
+          "name": "MPLUSRounded1c-Medium.ttf",
+          "url": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/mplusrounded1c/MPLUSRounded1c-Medium.ttf",
+          "gitSha": "1b7ff5d1e5cbb060aee71786d5b7a3a5c3537731",
+          "weight": 500
+        },
+        {
+          "name": "MPLUSRounded1c-Bold.ttf",
+          "url": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/mplusrounded1c/MPLUSRounded1c-Bold.ttf",
+          "gitSha": "cedcdd46c387ee243991abd07b7d2007fd683baf",
+          "weight": 700
+        }
+      ]
+    }
+  },
+  {
+    "id": "noto-sans-kr",
+    "label": "Noto Sans 한국어",
+    "group": "한국어",
+    "languages": "韩 / EN",
+    "family": "Noto Sans KR",
+    "version": "full-9862abc066c9",
+    "upstream": {
+      "commit": "9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0",
+      "directory": "notosanskr",
+      "license": {
+        "url": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/notosanskr/OFL.txt",
+        "gitSha": "1c9f43281b8f216c5461fe9ac729afbade7724e4"
+      },
+      "sources": [
+        {
+          "name": "NotoSansKR[wght].ttf",
+          "url": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf",
+          "gitSha": "b386890ba945e1f39448a6b59f20c5d194f58808",
+          "weight": null
+        }
+      ]
+    }
+  },
+  {
+    "id": "gowun-dodum",
+    "label": "Gowun Dodum",
+    "group": "한국어",
+    "languages": "韩 / EN",
+    "family": "Gowun Dodum",
+    "version": "full-9862abc066c9",
+    "upstream": {
+      "commit": "9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0",
+      "directory": "gowundodum",
+      "license": {
+        "url": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/gowundodum/OFL.txt",
+        "gitSha": "09dec7ceae2a0b0002c2514f9859dc42f6bf8e91"
+      },
+      "sources": [
+        {
+          "name": "GowunDodum-Regular.ttf",
+          "url": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/gowundodum/GowunDodum-Regular.ttf",
+          "gitSha": "2d87cc83583a37bd7828c638eb9bab6df3cf596c",
+          "weight": 400
+        }
+      ]
+    }
+  }
+]

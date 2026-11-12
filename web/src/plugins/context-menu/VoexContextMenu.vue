@@ -60,6 +60,7 @@ function close(restore = true) {
   if (!props.modelValue || closing) return;
   closing = true;
   // Restore before selecting so a newly opened dialog remembers the original item.
+  // 先恢复再选择，以便新打开的对话框记住原始项目。
   if (restore) restoreFocus();
   emit('update:modelValue', false);
 }
@@ -106,6 +107,7 @@ function handleKeydown(event: KeyboardEvent) {
     close();
   } else if (event.key === 'Tab') {
     // Let the browser continue from the trigger in its normal Tab order.
+    // 让浏览器从触发元素开始，按正常 Tab 顺序继续移动焦点。
     close();
   }
 }

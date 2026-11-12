@@ -1,0 +1,59 @@
+{
+  "id": "m-plus-rounded-1c",
+  "label": "M PLUS Rounded 1c",
+  "group": "日本語",
+  "languages": "日 / EN",
+  "family": "M PLUS Rounded 1c",
+  "version": "full-9862abc066c9",
+  "license": "OFL-1.1",
+  "sourceCommit": "9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0",
+  "variants": [
+    {
+      "file": "Regular.woff2",
+      "weights": [
+        "Regular"
+      ],
+      "cssWeight": "400",
+      "bytes": 1017048,
+      "characters": 8201,
+      "glyphs": 8546,
+      "axes": {},
+      "sha256": "206f8c6dae4c906d6c93f27cdb9e27bd7e75e866e6a443e1e3cc96badafa99a6",
+      "source": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/mplusrounded1c/MPLUSRounded1c-Regular.ttf",
+      "sourceGitSha": "a66978b6a6f55de71105a37f8de702ab3f31d27d",
+      "sourceSha256": "b75708b53e45b06d17d470aeeca5b766e3d1b3999f03f13ec4eb863ca846c14c"
+    },
+    {
+      "file": "Medium.woff2",
+      "weights": [
+        "Medium"
+      ],
+      "cssWeight": "500",
+      "bytes": 1025224,
+      "characters": 8201,
+      "glyphs": 8546,
+      "axes": {},
+      "sha256": "27436af1dc654d38370e5ab99bba749432b1ffba6eca4d6aaeb7cb1a53581fdf",
+      "source": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/mplusrounded1c/MPLUSRounded1c-Medium.ttf",
+      "sourceGitSha": "1b7ff5d1e5cbb060aee71786d5b7a3a5c3537731",
+      "sourceSha256": "adfde1b6bae58719c4e0144612a94232e72fc5ca655c4722165fe88d06521a70"
+    },
+    {
+      "file": "Bold.woff2",
+      "weights": [
+        "Bold"
+      ],
+      "cssWeight": "700",
+      "bytes": 1109364,
+      "characters": 8201,
+      "glyphs": 8546,
+      "axes": {},
+      "sha256": "7cf1684fc15723ee0093122ebba81e19eeb463c01d116d5e769ff55bf78156e9",
+      "source": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/mplusrounded1c/MPLUSRounded1c-Bold.ttf",
+      "sourceGitSha": "cedcdd46c387ee243991abd07b7d2007fd683baf",
+      "sourceSha256": "c358630584e8e2d8fbd6121d0f4693255ffef6d1e6d4f3441fd6e5a963a11f9e"
+    }
+  ],
+  "woff2Files": 3,
+  "bytes": 3151636
+}

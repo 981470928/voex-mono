@@ -1,3 +1,4 @@
+import { Messages, SocketCloseCode, httpStatus } from "./errors.js";
 /** 房间注册表、权限刷新和生命周期。每次创建服务都有独立状态，模块间不共享全局单例。 */
 import type { Hocuspocus, Document, Connection } from '@hocuspocus/server';
 import * as Y from 'yjs';
@@ -37,7 +38,7 @@ export function createRoomService(
   /** 短期缓存鉴权结果；异步返回时核对授权 ID，避免旧请求覆盖已续期的授权。 */
   async function authorize(connection: Connection, force = false) {
     const context = connection.context as Context;
-    if (!context.grant) throw new ServiceError('Missing authorization', 401);
+    if (!context.grant) throw new ServiceError(Messages.SessionExpired, httpStatus.HTTP_STATUS_UNAUTHORIZED);
     if (!force && Date.now() - (checks.get(connection) || 0) < 5000) return context.grant;
     const requested = context.grant.authorization_id;
     let grant: Grant;
@@ -57,7 +58,7 @@ export function createRoomService(
     const room = rooms.get(grant.file_key);
     if (room && grant.epoch !== room.state.epoch) {
       closeRoom(room, 'document-replaced', grant.epoch);
-      throw new ServiceError('Document replaced', 409);
+      throw new ServiceError(Messages.DocumentChanged, httpStatus.HTTP_STATUS_CONFLICT);
     }
     connection.readOnly = !grant.permissions.write;
     context.grant = grant;
@@ -109,7 +110,7 @@ export function createRoomService(
         epoch: room?.doc === connection.document ? room.state.epoch : grant.epoch,
       })
     );
-    connection.close({ code: 4001, reason: 'authentication-expired' });
+    connection.close({ code: SocketCloseCode.AuthenticationExpired, reason: 'authentication-expired' });
   }
   /** 首次连接才将 legacy Markdown 转为 Yjs；初始化冲突时重新读取后端赢家状态。 */
   async function loadRoom(document: Document, grant: Grant): Promise<Room> {
@@ -137,7 +138,7 @@ export function createRoomService(
             schema_version: SCHEMA_VERSION,
           });
         } catch (error) {
-          if (!(error instanceof ServiceError) || error.status !== 409) throw error;
+          if (!(error instanceof ServiceError) || error.status !== httpStatus.HTTP_STATUS_CONFLICT) throw error;
           state = await go<Stored>('load', {
             file_key: grant.file_key,
             authorization_id: grant.authorization_id,
@@ -148,7 +149,7 @@ export function createRoomService(
       }
     }
     if (!state.state_base64 || state.content_mode !== 'collab')
-      throw new ServiceError('文档初始化未完成', 409);
+      throw new ServiceError(Messages.DocumentInitializationPending, httpStatus.HTTP_STATUS_CONFLICT);
     Y.applyUpdate(document, decode(state.state_base64), 'load');
     snapshot(document);
     const room: Room = {
@@ -184,7 +185,7 @@ export function createRoomService(
   /** AI 审阅先排空已有消息并保存，再暂停后续写入；这是事务屏障，不是用户行锁。 */
   async function lockRoom(room: Room, operation: string) {
     if (room.prepared && room.prepared !== operation)
-      throw new ServiceError('另一个审阅正在应用', 409);
+      throw new ServiceError(Messages.ReviewInProgress, httpStatus.HTTP_STATUS_CONFLICT);
     room.prepared = operation;
     try {
       const pending = room.messages;
@@ -247,7 +248,7 @@ export function createRoomService(
   async function drain() {
     draining = true;
     for (const room of rooms.values()) {
-      if (room.prepared) throw new ServiceError('仍有审阅事务等待确认，请稍后重试排空', 409);
+      if (room.prepared) throw new ServiceError(Messages.ReviewConfirmationPending, httpStatus.HTTP_STATUS_CONFLICT);
       await room.messages;
       await flush(room);
     }

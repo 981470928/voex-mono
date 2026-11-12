@@ -26,7 +26,7 @@ var assetStoragePattern = regexp.MustCompile(`^[a-f0-9-]{36}(\.webp)?$`)
 func SafeDirectory(value any) string {
 	directory, ok := value.(string)
 	if !ok || len(directory) > 255 || !directoryPattern.MatchString(directory) {
-		shared.Fail(400, "path 只能包含字母、数字、短横线、下划线和分层斜杠")
+		shared.Fail(http.StatusBadRequest, shared.MsgStoragePathInvalid)
 	}
 	return directory
 }
@@ -40,6 +40,7 @@ type Upload struct {
 }
 
 // Read the multipart stream with the same file, field, and size limits as the previous API.
+// 读取 multipart 流时，沿用原 API 的文件、字段和大小限制。
 func (s *Store) ReadUpload(w http.ResponseWriter, r *http.Request, asset bool) (upload Upload) {
 	maximum := int64(300 * 1024 * 1024)
 	if asset {
@@ -55,7 +56,7 @@ func (s *Store) ReadUpload(w http.ResponseWriter, r *http.Request, asset bool) (
 	r.Body = http.MaxBytesReader(w, r.Body, maximum+1024*1024)
 	reader, err := r.MultipartReader()
 	if err != nil {
-		shared.Fail(400, "请求格式错误，请检查上传表单")
+		shared.Fail(http.StatusBadRequest, shared.MsgUploadFormInvalid)
 	}
 	maxFields, maxParts, maxFieldSize, maxNameSize := 3, 5, int64(4096), 100
 	if asset {
@@ -73,31 +74,33 @@ func (s *Store) ReadUpload(w http.ResponseWriter, r *http.Request, asset bool) (
 		parts++
 		name := part.FormName()
 		if parts > maxParts || len(name) > maxNameSize || name == "" {
-			shared.Fail(400, "上传字段或文件数量不合法")
+			shared.Fail(http.StatusBadRequest, shared.MsgUploadFieldsInvalid)
 		}
 		if part.FileName() == "" {
 			fields++
 			if fields > maxFields {
-				shared.Fail(400, "上传字段或文件数量不合法")
+				shared.Fail(http.StatusBadRequest, shared.MsgUploadFieldsInvalid)
 			}
 			data, err := io.ReadAll(io.LimitReader(part, maxFieldSize+1))
 			if err != nil {
 				uploadReadError(err)
 			}
 			if int64(len(data)) > maxFieldSize {
-				shared.Fail(400, "上传字段或文件数量不合法")
+				shared.Fail(http.StatusBadRequest, shared.MsgUploadFieldsInvalid)
 			}
 			if _, exists := upload.Fields[name]; exists {
-				shared.Fail(400, "上传字段或文件数量不合法")
+				shared.Fail(http.StatusBadRequest, shared.MsgUploadFieldsInvalid)
 			}
 			upload.Fields[name] = string(data)
 		} else {
 			if name != "file" || upload.Path != "" {
-				shared.Fail(400, "上传字段或文件数量不合法")
+				shared.Fail(http.StatusBadRequest, shared.MsgUploadFieldsInvalid)
 			}
 			file, filename, err := s.createUpload()
 			shared.Must(err)
-			upload.Path, upload.Name, upload.MIME = filename, part.FileName(), part.Header.Get("Content-Type")
+			upload.Path, upload.Name, upload.MIME = filename, part.FileName(), part.Header.Get(
+				"Content-Type",
+			)
 			upload.Size, err = io.Copy(file, io.LimitReader(part, maximum+1))
 			closeErr := file.Close()
 			if err != nil {
@@ -105,7 +108,7 @@ func (s *Store) ReadUpload(w http.ResponseWriter, r *http.Request, asset bool) (
 			}
 			shared.Must(closeErr)
 			if upload.Size > maximum {
-				shared.Fail(413, "上传文件超过大小限制")
+				shared.Fail(http.StatusRequestEntityTooLarge, shared.SizeLimitMessage("上传文件"))
 			}
 		}
 		if err := part.Close(); err != nil {
@@ -119,13 +122,13 @@ func (s *Store) ReadUpload(w http.ResponseWriter, r *http.Request, asset bool) (
 func uploadReadError(err error) {
 	var oversized *http.MaxBytesError
 	if errors.As(err, &oversized) {
-		shared.Fail(413, "上传文件超过大小限制")
+		shared.Fail(http.StatusRequestEntityTooLarge, shared.SizeLimitMessage("上传文件"))
 	}
 	var pathError *os.PathError
 	if errors.As(err, &pathError) {
 		shared.Must(err)
 	}
-	shared.Fail(400, "请求格式错误，请检查上传表单")
+	shared.Fail(http.StatusBadRequest, shared.MsgUploadFormInvalid)
 }
 
 func ComputeHash(filename string) string {
@@ -139,6 +142,7 @@ func ComputeHash(filename string) string {
 }
 
 // validatedImage checks the actual image bytes without altering the uploaded file.
+// validatedImage 检查实际图片字节，不修改上传文件。
 func validatedImage(filename string) (string, error) {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -173,13 +177,15 @@ func validatedImage(filename string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if decodedFormat != format || decoded.Bounds().Dx() != config.Width || decoded.Bounds().Dy() != config.Height {
+	if decodedFormat != format || decoded.Bounds().Dx() != config.Width ||
+		decoded.Bounds().Dy() != config.Height {
 		return "", fmt.Errorf("inconsistent image dimensions")
 	}
 	return mimeType, nil
 }
 
 // Inspect animation chunks so a decoder cannot silently accept only the first frame.
+// 检查动画数据块，防止解码器仅接受首帧而未报告问题。
 func staticImage(filename string, format string) bool {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -191,7 +197,11 @@ func staticImage(filename string, format string) bool {
 	}
 	header := make([]byte, 12)
 	if format == "png" {
-		if _, err = io.ReadFull(file, header[:8]); err != nil || string(header[:8]) != "\x89PNG\r\n\x1a\n" {
+		if _, err = io.ReadFull(
+			file,
+			header[:8],
+		); err != nil ||
+			string(header[:8]) != "\x89PNG\r\n\x1a\n" {
 			return false
 		}
 		for {
@@ -213,7 +223,11 @@ func staticImage(filename string, format string) bool {
 		}
 	}
 	if format == "webp" {
-		if _, err = io.ReadFull(file, header); err != nil || string(header[:4]) != "RIFF" || string(header[8:12]) != "WEBP" {
+		if _, err = io.ReadFull(
+			file,
+			header,
+		); err != nil || string(header[:4]) != "RIFF" ||
+			string(header[8:12]) != "WEBP" {
 			return false
 		}
 		info, err := file.Stat()
@@ -252,6 +266,7 @@ func IsImageMIME(mimeType string) bool {
 }
 
 // Remove cleans up an incoming multipart body after its request finishes.
+// Remove 在请求结束后清理接收的 multipart 请求体。
 func (u Upload) Remove() {
 	if u.Path != "" {
 		_ = os.Remove(u.Path)
@@ -266,6 +281,7 @@ type StoredAsset struct {
 }
 
 // Remove rolls back an uncommitted UUID asset, even after the request is canceled.
+// Remove 回滚尚未提交的 UUID 资源，即使请求已取消也执行清理。
 func (a StoredAsset) Remove() {
 	if a.store != nil && a.key != "" {
 		a.store.removeAsset(a.key)
@@ -273,7 +289,12 @@ func (a StoredAsset) Remove() {
 }
 
 // SaveAsset validates supported images and stores their original bytes in the private local volume.
-func (s *Store) SaveAsset(ctx context.Context, upload Upload, id, directory string) (stored StoredAsset) {
+// SaveAsset 验证支持的图片，并将原始字节存入私有本地存储卷。
+func (s *Store) SaveAsset(
+	ctx context.Context,
+	upload Upload,
+	id, directory string,
+) (stored StoredAsset) {
 	SafeDirectory(directory)
 	stored = StoredAsset{StorageName: id, MIME: "application/octet-stream", Size: upload.Size}
 	source := upload.Path
@@ -283,18 +304,21 @@ func (s *Store) SaveAsset(ctx context.Context, upload Upload, id, directory stri
 			maximum = 5
 		}
 		if upload.Size > maximum*1024*1024 {
-			shared.Fail(413, fmt.Sprintf("图片不能超过 %d MB", maximum))
+			shared.Fail(
+				http.StatusRequestEntityTooLarge,
+				shared.MaxSizeMessage("图片", maximum, "MB"),
+			)
 		}
 		mimeType, err := validatedImage(source)
 		if err != nil {
-			shared.Fail(400, "请选择有效的静态 PNG、JPEG 或 WebP 图片（最多 2000 万像素）")
+			shared.Fail(http.StatusBadRequest, shared.MsgStaticImageInvalid)
 		}
 		stored.MIME = mimeType
 	}
 	key := s.AssetKey(directory, stored.StorageName)
 	if err := s.putObject(ctx, key, source, stored.MIME); err != nil {
 		if storageStatus(err) == http.StatusPreconditionFailed {
-			shared.Fail(409, "资源标识冲突，请重试")
+			shared.Fail(http.StatusConflict, shared.MsgResourceConflict)
 		}
 		storageFailure("upload asset", err)
 	}
@@ -305,19 +329,20 @@ func (s *Store) SaveAsset(ctx context.Context, upload Upload, id, directory stri
 func (s *Store) AssetKey(directory, storageName string) string {
 	SafeDirectory(directory)
 	if !assetStoragePattern.MatchString(storageName) {
-		shared.Fail(404, "文件不存在")
+		shared.Fail(http.StatusNotFound, shared.NotFoundMessage("文件"))
 	}
 	return "assets/" + directory + "/" + storageName
 }
 func (s *Store) AttachmentKey(hash string) string {
 	if !attachmentHashPattern.MatchString(hash) {
-		shared.Fail(404, "附件不存在")
+		shared.Fail(http.StatusNotFound, shared.NotFoundMessage("附件"))
 	}
 	return "attachments/" + hash
 }
 func (s *Store) SaveAttachment(ctx context.Context, upload Upload, hash string) {
 	err := s.putObject(ctx, s.AttachmentKey(hash), upload.Path, "application/octet-stream")
 	// Content-addressed objects are immutable and can be shared across documents.
+	// 按内容寻址的对象不可变，可以在文档之间共享。
 	if err != nil && storageStatus(err) != http.StatusPreconditionFailed {
 		storageFailure("upload attachment", err)
 	}

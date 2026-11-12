@@ -9,6 +9,7 @@ let request: Promise<string> | undefined;
 /**
  * Read runtime settings from the API so the prebuilt frontend does not need to
  * be rebuilt when the deployment fills voex.config.json.
+ * 从 API 读取运行时设置，使部署时填写 voex.config.json 后无需重新构建预编译前端。
  */
 export function getPexelsKey(): Promise<string> {
   if (!request) {

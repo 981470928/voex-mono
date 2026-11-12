@@ -2,6 +2,8 @@ import http from './https';
 import type { ApiError } from './index';
 import type {
   AIModel,
+  AIWebEngine,
+  AIAttachment,
   AIConversationSession,
   ConversationSessionPage,
   ChatMessage,
@@ -10,6 +12,30 @@ import type {
   TurnResponseInput,
 } from '@/agent/types';
 
+export function listAIWebEngines(signal?: AbortSignal) {
+  return http.get<ApiError, { engines: AIWebEngine[] }>('/ai/web/engines', {
+    signal,
+    timeout: 15000,
+  });
+}
+
+export function searchAIWeb(
+  engine: string,
+  query: string,
+  maxResults: number,
+  signal: AbortSignal
+) {
+  return http.post<ApiError, unknown>(
+    '/ai/web/search',
+    { engine, query, max_results: maxResults },
+    { signal, timeout: 45000 }
+  );
+}
+
+export function fetchAIWeb(engine: string, url: string, signal: AbortSignal) {
+  return http.post<ApiError, unknown>('/ai/web/fetch', { engine, url }, { signal, timeout: 45000 });
+}
+
 export function listAIModels(signal?: AbortSignal) {
   return http.get<ApiError, AIModel[]>('/ai/models', { signal });
 }
@@ -17,6 +43,27 @@ export function listAIModels(signal?: AbortSignal) {
 export function saveAIModel(model: Omit<AIModel, 'has_key'> & { api_key: string }) {
   const { id, ...body } = model;
   return http.put<ApiError, AIModel>(`/ai/models/${encodeURIComponent(id)}`, body);
+}
+
+export function uploadAIAttachment(
+  modelId: string,
+  file: File,
+  signal: AbortSignal,
+  onProgress: (percent: number) => void
+) {
+  const body = new FormData();
+  body.append('file', file);
+  return http.post<ApiError, AIAttachment>(
+    `/ai/models/${encodeURIComponent(modelId)}/attachments`,
+    body,
+    {
+      signal,
+      timeout: 120000,
+      onUploadProgress: (event) => {
+        if (event.total) onProgress(Math.round((event.loaded / event.total) * 100));
+      },
+    }
+  );
 }
 
 export function deleteAIModel(id: string) {
@@ -54,6 +101,7 @@ async function readAIChatStream(
           else if (line.startsWith('data:')) data.push(line.slice(5).replace(/^ /, ''));
         }
         // SSE comments are heartbeats, not completed model responses.
+        // SSE 注释用于心跳，不表示模型响应已完成。
         if (event !== 'result' && event !== 'error') continue;
         let payload: unknown;
         try {
@@ -96,10 +144,10 @@ export interface AppliedDocument {
   replayed?: boolean;
 }
 
-export function applyAIReview(review: ReviewSnapshot) {
+export function applyAIReview(review: ReviewSnapshot, force = false) {
   return http.post<ApiError, AppliedDocument[]>(
     `/ai/reviews/${encodeURIComponent(review.id)}/apply`,
-    {}
+    force ? { force: true } : {}
   );
 }
 
@@ -143,11 +191,12 @@ export function beginAITurn(
   id: string,
   modelId: string,
   prompt: string,
-  signal: AbortSignal
+  signal: AbortSignal,
+  attachments: AIAttachment[] = []
 ) {
   return http.put<ApiError, ChatMessage[]>(
     `/ai/conversations/${encodeURIComponent(fileKey)}/turns/${encodeURIComponent(id)}`,
-    { session_id: sessionId, model_id: modelId, prompt },
+    { session_id: sessionId, model_id: modelId, prompt, attachments },
     { signal }
   );
 }

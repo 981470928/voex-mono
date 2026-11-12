@@ -89,6 +89,7 @@ export function createMinimapCloner(options: {
 
     const clone = source.cloneNode(false) as Element;
     // Clones are inert presentation only; no editable controls, focus or original IDs.
+    // 克隆内容仅用于静态展示，不保留可编辑控件、焦点能力或原始 ID。
     for (const attribute of Array.from(clone.attributes)) {
       if (
         /^on/i.test(attribute.name) ||

@@ -1,7 +1,7 @@
 import { registerRichEditorTools } from './rich-editor-tools';
 import { AgentToolRegistry } from './registry';
 import { AgentDraft } from './draft';
-import type { AgentContext, AgentTool, ToolSchema } from './types';
+import type { AgentTool, ToolSchema } from './types';
 
 const string = (description: string) => ({ type: 'string' as const, description });
 const schema = (properties: ToolSchema['properties'], required: string[]): ToolSchema => ({
@@ -109,10 +109,9 @@ export function registerEditorTools(
 export interface FileCapabilities {
   canCreate: () => boolean;
   canRename: () => boolean;
-  exportDocument: (signal: AbortSignal) => Promise<void>;
 }
 
-/** Host-owned capabilities are explicitly registered; the core never imports workspace APIs. */
+/** Host-owned capabilities are explicitly registered; the core never imports workspace APIs. / 宿主提供的能力必须显式注册；核心不会导入工作区 API。 */
 export function registerFileTools(
   registry: AgentToolRegistry,
   draft: AgentDraft,
@@ -138,21 +137,6 @@ export function registerFileTools(
     execute: (input) => {
       if (!host.canRename()) throw new Error('当前文件没有重命名权限');
       return draft.rename(String(input.name), key(input));
-    },
-  });
-  let exported = false;
-  registry.register({
-    name: 'export_file',
-    description:
-      '仅在用户本轮明确授权导出时，下载当前文件已保存正文为 Markdown（.md），保留附件引用但不打包附件文件。不包含待审阅修改。每轮最多导出一次。',
-    parameters: schema({}, []),
-    execute: async (_input, context: AgentContext) => {
-      if (!context.allowExport)
-        throw new Error('本轮未授权导出，请让用户在对话输入框勾选“允许本轮导出”');
-      if (exported) throw new Error('本轮已触发导出，不重复下载');
-      exported = true;
-      await host.exportDocument(context.signal);
-      return { status: 'download_started', version: 'saved_document' };
     },
   });
 }

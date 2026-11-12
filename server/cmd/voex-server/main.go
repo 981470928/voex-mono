@@ -37,6 +37,9 @@ func run(args []string) error {
 		fmt.Println("Configuration, storage, secrets and database tables are ready.")
 		return nil
 	default:
-		return fmt.Errorf("unknown command %q; usage: voex-server [serve|init-db|check-config]", command)
+		return fmt.Errorf(
+			"unknown command %q; usage: voex-server [serve|init-db|check-config]",
+			command,
+		)
 	}
 }

@@ -1,6 +1,6 @@
-/** ---------- upload APIs ---------- */
+/** ---------- upload APIs ---------- / 上传 API */
 import http from './https';
-import type { AxiosRequestConfig } from 'axios';
+import { isAxiosError, type AxiosRequestConfig } from 'axios';
 import type { ApiError } from './index';
 import type { UploadResult, FileInfo } from './document-api';
 import type { Creator } from '@/service/auth-session';
@@ -83,6 +83,46 @@ export function downloadFile(
     `/download/${encodeURIComponent(fileKey)}/${encodeURIComponent(hash)}`,
     { ...options, responseType: 'blob', timeout: 0 }
   );
+}
+
+let imageFetchQueue: Promise<void> = Promise.resolve();
+
+/** 串行读取，兼容一次粘贴多张外链图片与后端的单用户并发限制。 */
+export function fetchRemoteImage(fileKey: string, url: string, signal: AbortSignal): Promise<Blob> {
+  const request = imageFetchQueue.then(() => {
+    signal.throwIfAborted();
+    return requestRemoteImage(fileKey, url, signal);
+  });
+  imageFetchQueue = request.then(
+    () => undefined,
+    () => undefined
+  );
+  return request;
+}
+
+/** 在有文档编辑权限时读取公网图片，避免浏览器跨域读取限制。 */
+async function requestRemoteImage(
+  fileKey: string,
+  url: string,
+  signal: AbortSignal
+): Promise<Blob> {
+  try {
+    return await http.post<unknown, Blob>(
+      '/images/fetch',
+      { fileKey, url },
+      { signal, responseType: 'blob', timeout: 30000 }
+    );
+  } catch (cause) {
+    if (isAxiosError(cause) && cause.response?.data instanceof Blob) {
+      const body: unknown = await cause.response.data
+        .text()
+        .then((text: string) => JSON.parse(text))
+        .catch(() => null);
+      if (body && typeof body === 'object' && 'error' in body && typeof body.error === 'string')
+        throw new Error(body.error, { cause });
+    }
+    throw cause;
+  }
 }
 
 /** 查询上传进度 */

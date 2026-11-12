@@ -24,7 +24,7 @@ export function toTriggerPosition(placement: Placement): TriggerPosition {
   );
 }
 
-/** Flatten fragments without throwing away the user's other slot nodes. */
+/** Flatten fragments without throwing away the user's other slot nodes. / 展开 Fragment，同时保留用户的其他插槽节点。 */
 export function flattenChildren(nodes: VNode[]): VNode[] {
   return nodes.flatMap((node) =>
     node.type === Fragment && Array.isArray(node.children)

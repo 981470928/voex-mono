@@ -40,6 +40,8 @@ make check
 | `internal/filestore`                                        | 本地不可变文件、私有暂存、原图校验与 Range 下载          |
 | `docs`                                                      | 架构、数据库、路由及业务接口说明                     |
 
+错误分类、集中式文案与日志约定见 [错误处理规范](docs/ERROR-HANDLING.md)。
+
 依赖方向与事务规则见 [架构](docs/architecture.md)，端点见 [路由](docs/routes.md)，账号与团队接口见 `docs/AUTH-API.md` / `docs/TEAM-API.md`。模型不调用 `AutoMigrate`。
 
 ## 本地文件存储
@@ -100,3 +102,13 @@ pm2 save
 个人和团队可以在许可证允许的非商业用途范围内私有化部署、使用、修改和分发本项目。商业用途需另行获得权利人的授权；内网部署或团队内部使用本身不代表非商业用途。
 
 以上仅为说明，完整授权范围、义务及例外以 [LICENSE](LICENSE) 原文为准。
+
+## AI 多模态附件
+
+模型配置需要手动启用多模态。图片和新版 Office 文本解析随 Go API 提供；旧版 DOC/PPT/XLS 额外需要系统解析工具，在 Ubuntu/Debian 安装：
+
+```sh
+apt-get install --no-upgrade catdoc
+```
+
+该包提供 `catdoc`、`catppt`、`xls2csv`。其他操作系统需在 PATH 中提供这些工具；缺失时旧格式上传返回说明，DOCX/PPTX/XLSX 继续可用。解析只提取文字，不执行宏或公式。已有库部署前显式执行 `internal/database/ai-multimodal.sql`；接口、大小限制和数据保存规则见 [AI-API.md](docs/AI-API.md#多模态附件)。

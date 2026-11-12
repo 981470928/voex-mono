@@ -1,0 +1,37 @@
+{
+  "id": "noto-sans-jp",
+  "label": "Noto Sans 日本語",
+  "group": "日本語",
+  "languages": "日 / EN",
+  "family": "Noto Sans JP",
+  "version": "full-9862abc066c9",
+  "license": "OFL-1.1",
+  "sourceCommit": "9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0",
+  "variants": [
+    {
+      "file": "Variable.woff2",
+      "weights": [
+        "Regular",
+        "Medium",
+        "Bold"
+      ],
+      "cssWeight": "100 900",
+      "bytes": 4349692,
+      "characters": 16732,
+      "glyphs": 17936,
+      "axes": {
+        "wght": [
+          100.0,
+          100.0,
+          900.0
+        ]
+      },
+      "sha256": "999cb8bfd4403dafd8a8d3eb954de83dd5224e76d11970152c56c3df1c746481",
+      "source": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/notosansjp/NotoSansJP%5Bwght%5D.ttf",
+      "sourceGitSha": "cdd8f083c1f5928ff3361f8cda4d3fc9462cbe89",
+      "sourceSha256": "c2f3b4d463500a2ddcd3849cded1fceeb9fd6d1c32e6cbecd568453ba50fc68f"
+    }
+  ],
+  "woff2Files": 1,
+  "bytes": 4349692
+}

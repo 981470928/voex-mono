@@ -85,10 +85,6 @@ defineExpose({ focus: () => input.value?.focus() });
   background var(--auth-input)
   transition border-color .15s
 
-  &:focus-within
-    border-color var(--auth-focus)
-    box-shadow 0 0 0 1px var(--auth-focus)
-
   &--invalid
     border-color var(--auth-error)
 

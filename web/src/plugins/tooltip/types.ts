@@ -16,9 +16,9 @@ export interface VoexTooltipProps extends Pick<
   | 'popupZIndex'
   | 'strategy'
 > {
-  /** Plain text; the content slot takes precedence. */
+  /** Plain text; the content slot takes precedence. / 纯文本内容；content 插槽优先。 */
   content?: string | number;
-  /** Numbers are CSS pixels; strings accept CSS lengths. */
+  /** Numbers are CSS pixels; strings accept CSS lengths. / 数值表示 CSS 像素；字符串支持 CSS 长度值。 */
   maxWidth?: number | string;
 }
 

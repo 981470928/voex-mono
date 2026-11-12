@@ -19,6 +19,7 @@ export interface AuthSession {
 }
 
 // Credentials and tokens intentionally live only in memory.
+// 凭据和 token 被有意限制为仅保存在内存中。
 export const authUser = shallowRef<AuthUser | null>(null);
 export const accessToken = ref('');
 export const accessExpiresAt = ref(0);

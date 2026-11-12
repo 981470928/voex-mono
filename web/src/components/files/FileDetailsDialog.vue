@@ -192,9 +192,6 @@ onBeforeUnmount(() => controller?.abort());
         background var(--color-bg-translucent)
       &:active
         background var(--color-bg-quaternary)
-      &:focus-visible
-        outline 2px solid var(--color-accent)
-        outline-offset 2px
   &__state
     display flex
     flex-direction column
@@ -218,9 +215,6 @@ onBeforeUnmount(() => controller?.abort());
       color var(--color-text-primary)
     &:active
       filter brightness(.94)
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset 2px
 @media (max-width: 440px)
   .file-details__row
     gap 8px

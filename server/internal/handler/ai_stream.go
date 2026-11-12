@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"log"
 	"mime"
 	"net/http"
 	"strconv"
@@ -14,10 +13,10 @@ import (
 	"voex-server/internal/shared"
 
 	"github.com/gin-gonic/gin"
-	driver "github.com/go-sql-driver/mysql"
 )
 
 // Streaming is opt-in so existing clients keep the original JSON response.
+// 流式响应需要显式启用，现有客户端仍使用原来的 JSON 响应。
 func acceptsAIStream(accept string) bool {
 	for _, part := range strings.Split(accept, ",") {
 		media, parameters, err := mime.ParseMediaType(strings.TrimSpace(part))
@@ -41,36 +40,11 @@ type aiStreamResult struct {
 	error  string
 }
 
-// Match the existing recovery boundary without exposing upstream errors or panic values.
+// Both transports use the same classification and public messages.
+// 两种传输方式使用相同的错误分类和对外消息。
 func aiStreamFailure(failure any) aiStreamResult {
-	result := aiStreamResult{status: http.StatusInternalServerError, error: "服务器处理失败，请稍后重试"}
-	switch err := failure.(type) {
-	case shared.HTTPError:
-		result.status, result.error = err.Status, err.Message
-	case *shared.HTTPError:
-		if err != nil {
-			result.status, result.error = err.Status, err.Message
-		}
-	case *http.MaxBytesError:
-		result.status, result.error = http.StatusRequestEntityTooLarge, "上传文件超过大小限制"
-	case *driver.MySQLError:
-		if err != nil {
-			switch err.Number {
-			case 1062:
-				result.status, result.error = http.StatusConflict, "资源标识冲突，请重试"
-			case 1451, 1452:
-				result.status, result.error = http.StatusConflict, "资源关联已发生变化，请刷新后重试"
-			case 1205, 1213:
-				result.status, result.error = http.StatusConflict, "工作区正在更新，请稍后重试"
-			case 1406:
-				result.status, result.error = http.StatusBadRequest, "字段内容超过长度限制"
-			}
-		}
-	}
-	if result.status == http.StatusInternalServerError {
-		log.Printf("[API] AI stream request failed (%T)", failure)
-	}
-	return result
+	result := shared.PublicError(failure)
+	return aiStreamResult{status: result.Status, error: result.Message}
 }
 
 func (h *Handler) streamAIChat(c *gin.Context, id string, body shared.Row) {
@@ -91,6 +65,7 @@ func (h *Handler) streamAIChat(c *gin.Context, id string, body shared.Row) {
 		return controller.Flush() == nil
 	}
 	// Flush headers immediately, before waiting for a model response.
+	// 等待模型响应前，立即刷新并发送响应头。
 	if !write(": connected\n\n") {
 		return
 	}
@@ -108,6 +83,7 @@ func (h *Handler) streamAIChat(c *gin.Context, id string, body shared.Row) {
 		}()
 		data := h.Service.AIChat(ctx, id, body)
 		// One SSE data line must not contain raw JSON formatting newlines.
+		// 单条 SSE data 行不得含有 JSON 格式化产生的原始换行符。
 		var compact bytes.Buffer
 		shared.Must(json.Compact(&compact, data))
 		result.data = compact.Bytes()

@@ -46,11 +46,14 @@ func Load() {
 }
 
 // Config groups application settings; secrets are loaded from the environment.
+// Config 汇总应用设置；敏感凭据从环境变量加载。
 type Config struct {
 	Address, SecretFile string
 	Database            Database
 	Collaboration       Collaboration
+	History             History
 	Storage             Storage
+	WebSearchKeys       map[string]string
 }
 type Database struct{ Host, Port, User, Password, Name string }
 type Storage struct{ Root string }
@@ -58,13 +61,21 @@ type Storage struct{ Root string }
 func Read() Config {
 	Load()
 	return Config{
-		Address:    Env("VOEX_ADDR", "127.0.0.1:8090"),
-		SecretFile: Env("JWT_SECRET_FILE", "/home/server/.secrets/jwt-key"),
+		WebSearchKeys: ReadWebSearchKeys(),
+		Address:       Env("VOEX_ADDR", "127.0.0.1:8090"),
+		SecretFile:    Env("JWT_SECRET_FILE", "/home/server/.secrets/jwt-key"),
 		Database: Database{
-			Host: Env("MYSQL_HOST", "127.0.0.1"), Port: Env("MYSQL_PORT", "3306"),
-			User: Env("MYSQL_USER", "root"), Password: Env("MYSQL_PASSWORD", ""), Name: Env("MYSQL_DATABASE", "file_server"),
+			Host: Env("MYSQL_HOST", "127.0.0.1"),
+			Port: Env("MYSQL_PORT", "3306"),
+			User: Env(
+				"MYSQL_USER",
+				"root",
+			),
+			Password: Env("MYSQL_PASSWORD", ""),
+			Name:     Env("MYSQL_DATABASE", "file_server"),
 		},
 		Collaboration: ReadCollaboration(),
+		History:       ReadHistory(),
 		Storage:       Storage{Root: Env("VOEX_STORAGE_ROOT", "/home/static")},
 	}
 }

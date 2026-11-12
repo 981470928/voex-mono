@@ -31,7 +31,10 @@ func (h *Handler) trashRestore(c *gin.Context) {
 	case "folder":
 		h.Service.RestoreFolder(ctx, key)
 	default:
-		shared.Fail(http.StatusBadRequest, "type 只能是 document 或 folder")
+		shared.Fail(
+			http.StatusBadRequest,
+			shared.MustBeMessage("type", shared.MsgDocumentTypeOptions),
+		)
 	}
 
 	c.JSON(http.StatusOK, shared.Row{"success": true})
@@ -47,7 +50,7 @@ func trashQueryInt(c *gin.Context, field string, defaultValue int) int {
 	text, valid := value.(string)
 	number, err := strconv.Atoi(text)
 	if !valid || err != nil {
-		shared.Fail(http.StatusBadRequest, field+" 必须是单个整数")
+		shared.Fail(http.StatusBadRequest, shared.MustBeMessage(field, shared.MsgSingleIntegerType))
 	}
 
 	return number
@@ -86,7 +89,10 @@ func (h *Handler) trashPurge(c *gin.Context) {
 	case "folder":
 		h.Service.PurgeFolder(ctx, key)
 	default:
-		shared.Fail(http.StatusBadRequest, "type 只能是 document 或 folder")
+		shared.Fail(
+			http.StatusBadRequest,
+			shared.MustBeMessage("type", shared.MsgDocumentTypeOptions),
+		)
 	}
 
 	c.JSON(http.StatusOK, shared.Row{"success": true})
@@ -94,9 +100,9 @@ func (h *Handler) trashPurge(c *gin.Context) {
 
 func (h *Handler) trashRestoreAll(c *gin.Context) {
 	h.Service.BulkTrash(c.Request.Context(), c.Query("team_key"), c.Query("project_key"), true)
-	c.JSON(200, shared.Row{"success": true})
+	c.JSON(http.StatusOK, shared.Row{"success": true})
 }
 func (h *Handler) trashClear(c *gin.Context) {
 	h.Service.BulkTrash(c.Request.Context(), c.Query("team_key"), c.Query("project_key"), false)
-	c.JSON(200, shared.Row{"success": true})
+	c.JSON(http.StatusOK, shared.Row{"success": true})
 }

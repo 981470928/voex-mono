@@ -102,6 +102,7 @@ function decorations(doc: ProseNode): DecorationSet {
     if (!node.isTextblock) return;
     for (const reference of blockReferences(node, position + 1)) {
       // Presentation only: keep the original Markdown and collaboration state intact.
+      // 仅调整展示，保持原始 Markdown 和协同状态不变。
       const hidden = { style: 'display: none', 'aria-hidden': 'true' };
       result.push(
         Decoration.inline(reference.from, reference.labelFrom, hidden),

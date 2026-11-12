@@ -1,5 +1,7 @@
 # Include these locations inside the existing application server block.
+# 将这些 location 配置加入现有应用的 server 块。
 # Preserve the existing /api/ HTTP proxy and frontend locations.
+# 保留现有 /api/ HTTP 代理和前端 location 配置。
 location = /api/collab/ws {
     proxy_pass http://127.0.0.1:8091;
     proxy_http_version 1.1;
@@ -15,6 +17,7 @@ location = /api/collab/ws {
 }
 
 # These are service-to-service routes, never public API.
+# 这些路由仅供服务间调用，不得作为公开 API。
 location ^~ /internal/collab/ {
     return 404;
 }

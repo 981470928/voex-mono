@@ -80,7 +80,7 @@
         当前展示已应用的历史快照，关闭不会更改当前文档。
       </p>
       <p v-else class="ai-review__note">
-        “应用并保存”会应用本次审阅的全部文件。取消后仍可从对话中的“审阅修改”重新打开；原文件变化时，旧建议不会覆盖新内容。
+        “应用并保存”会应用本次审阅的全部文件。取消后仍可从对话中的“审阅修改”重新打开；原文件发生变化时，会再次询问是否强制应用；确认后将覆盖生成建议后的修改。
       </p>
     </div>
     <template #footer>
@@ -184,9 +184,6 @@ watch(selected, resetPreview);
     overflow auto
     border 1px solid var(--color-border-secondary)
     border-radius 6px
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset 2px
     &--loading .milkdown-editor
       visibility hidden
     .milkdown-editor

@@ -85,7 +85,4 @@ async function copy() {
       border-color var(--color-accent)
     &:active
       background var(--color-accent-tint)
-  &__button:focus-visible, &__content:focus-visible
-    outline 2px solid var(--color-accent)
-    outline-offset 2px
 </style>

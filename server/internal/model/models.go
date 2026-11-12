@@ -1,7 +1,11 @@
 // Package model maps the existing MySQL schema.
+// model 包映射现有 MySQL schema。
 package model
 
-import "time"
+import (
+	"time"
+	"voex-server/internal/dbschema"
+)
 
 type Asset struct {
 	ID          string    `gorm:"column:id;primaryKey" json:"-"`
@@ -14,7 +18,7 @@ type Asset struct {
 	CreatedAt   time.Time `gorm:"column:created_at;autoCreateTime:false" json:"-"`
 }
 
-func (Asset) TableName() string { return "assets" }
+func (Asset) TableName() string { return dbschema.Assets.Name }
 
 type AuthSession struct {
 	ID          string    `gorm:"column:id;primaryKey" json:"-"`
@@ -24,7 +28,7 @@ type AuthSession struct {
 	CreatedAt   time.Time `gorm:"column:created_at;autoCreateTime:false" json:"-"`
 }
 
-func (AuthSession) TableName() string { return "auth_sessions" }
+func (AuthSession) TableName() string { return dbschema.AuthSessions.Name }
 
 type Document struct {
 	ID                 int64      `gorm:"column:id;primaryKey;autoIncrement" json:"-"`
@@ -44,7 +48,7 @@ type Document struct {
 	ExpiresAt          *time.Time `gorm:"column:expires_at" json:"-"`
 }
 
-func (Document) TableName() string { return "documents" }
+func (Document) TableName() string { return dbschema.Documents.Name }
 
 type DocumentSharing struct {
 	DocumentID  int64 `gorm:"column:document_id;primaryKey;autoIncrement:false" json:"-"`
@@ -52,7 +56,7 @@ type DocumentSharing struct {
 	EditEnabled bool  `gorm:"column:edit_enabled" json:"-"`
 }
 
-func (DocumentSharing) TableName() string { return "document_sharing" }
+func (DocumentSharing) TableName() string { return dbschema.DocumentSharing.Name }
 
 type DocumentAccess struct {
 	Permission string    `gorm:"column:permission" json:"-"`
@@ -61,7 +65,7 @@ type DocumentAccess struct {
 	GrantedAt  time.Time `gorm:"column:granted_at;autoCreateTime:false" json:"-"`
 }
 
-func (DocumentAccess) TableName() string { return "document_access" }
+func (DocumentAccess) TableName() string { return dbschema.DocumentAccess.Name }
 
 type FileShare struct {
 	ID         string     `gorm:"column:id;primaryKey" json:"-"`
@@ -73,7 +77,7 @@ type FileShare struct {
 	RevokedAt  *time.Time `gorm:"column:revoked_at" json:"-"`
 }
 
-func (FileShare) TableName() string { return "file_shares" }
+func (FileShare) TableName() string { return dbschema.FileShares.Name }
 
 type RecentFile struct {
 	UserID     string    `gorm:"column:user_id;primaryKey" json:"-"`
@@ -83,7 +87,7 @@ type RecentFile struct {
 	ViewedAt   time.Time `gorm:"column:viewed_at" json:"-"`
 }
 
-func (RecentFile) TableName() string { return "recent_files" }
+func (RecentFile) TableName() string { return dbschema.RecentFiles.Name }
 
 type File struct {
 	ID         int64      `gorm:"column:id;primaryKey;autoIncrement" json:"-"`
@@ -97,7 +101,7 @@ type File struct {
 	Privileges string     `gorm:"column:privileges" json:"-"`
 }
 
-func (File) TableName() string { return "files" }
+func (File) TableName() string { return dbschema.Files.Name }
 
 type Folder struct {
 	ID         int64      `gorm:"column:id;primaryKey;autoIncrement" json:"-"`
@@ -113,14 +117,14 @@ type Folder struct {
 	ExpiresAt  *time.Time `gorm:"column:expires_at" json:"-"`
 }
 
-func (Folder) TableName() string { return "folders" }
+func (Folder) TableName() string { return dbschema.Folders.Name }
 
 type ProjectMember struct {
 	ProjectID int64  `gorm:"column:project_id;primaryKey;autoIncrement:false" json:"-"`
 	UserID    string `gorm:"column:user_id;primaryKey" json:"-"`
 }
 
-func (ProjectMember) TableName() string { return "project_members" }
+func (ProjectMember) TableName() string { return dbschema.ProjectMembers.Name }
 
 type Project struct {
 	ID         int64     `gorm:"column:id;primaryKey;autoIncrement" json:"-"`
@@ -133,7 +137,7 @@ type Project struct {
 	Privileges string    `gorm:"column:privileges" json:"-"`
 }
 
-func (Project) TableName() string { return "projects" }
+func (Project) TableName() string { return dbschema.Projects.Name }
 
 type TeamInvite struct {
 	ID        string     `gorm:"column:id;primaryKey" json:"-"`
@@ -144,7 +148,7 @@ type TeamInvite struct {
 	RevokedAt *time.Time `gorm:"column:revoked_at" json:"-"`
 }
 
-func (TeamInvite) TableName() string { return "team_invites" }
+func (TeamInvite) TableName() string { return dbschema.TeamInvites.Name }
 
 type TeamJoinRequest struct {
 	ID         string     `gorm:"column:id;primaryKey" json:"-"`
@@ -157,7 +161,7 @@ type TeamJoinRequest struct {
 	ReviewedAt *time.Time `gorm:"column:reviewed_at" json:"-"`
 }
 
-func (TeamJoinRequest) TableName() string { return "team_join_requests" }
+func (TeamJoinRequest) TableName() string { return dbschema.TeamJoinRequests.Name }
 
 type TeamMember struct {
 	TeamID   int64     `gorm:"column:team_id;primaryKey;autoIncrement:false" json:"-"`
@@ -166,7 +170,7 @@ type TeamMember struct {
 	JoinedAt time.Time `gorm:"column:joined_at" json:"-"`
 }
 
-func (TeamMember) TableName() string { return "team_members" }
+func (TeamMember) TableName() string { return dbschema.TeamMembers.Name }
 
 type Team struct {
 	ID              int64     `gorm:"column:id;primaryKey;autoIncrement" json:"-"`
@@ -181,7 +185,7 @@ type Team struct {
 	UpdatedAt       time.Time `gorm:"column:updated_at;autoUpdateTime:false" json:"-"`
 }
 
-func (Team) TableName() string { return "teams" }
+func (Team) TableName() string { return dbschema.Teams.Name }
 
 type User struct {
 	ID           string    `gorm:"column:id;primaryKey" json:"-"`
@@ -196,10 +200,10 @@ type User struct {
 	UpdatedAt    time.Time `gorm:"column:updated_at;autoUpdateTime:false" json:"-"`
 }
 
-func (User) TableName() string { return "users" }
+func (User) TableName() string { return dbschema.Users.Name }
 
 type WorkspaceState struct {
 	ID int64 `gorm:"column:id;primaryKey;autoIncrement:false" json:"-"`
 }
 
-func (WorkspaceState) TableName() string { return "workspace_state" }
+func (WorkspaceState) TableName() string { return dbschema.WorkspaceState.Name }

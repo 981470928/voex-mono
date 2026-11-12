@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"golang.org/x/crypto/argon2"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -20,7 +21,16 @@ func randomPassword() string { return shared.RandomToken(32) }
 func (s *Service) signAccess(user shared.Row, sid string) string {
 	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT"}`))
 	now := time.Now().Unix()
-	b, err := json.Marshal(shared.Row{"sid": sid, "sub": user["id"], "iss": "voex", "aud": "voex-web", "iat": now, "exp": now + accessSeconds})
+	b, err := json.Marshal(
+		shared.Row{
+			"sid": sid,
+			"sub": user["id"],
+			"iss": "voex",
+			"aud": "voex-web",
+			"iat": now,
+			"exp": now + accessSeconds,
+		},
+	)
 	shared.Must(err)
 	payload := header + "." + base64.RawURLEncoding.EncodeToString(b)
 	h := hmac.New(sha256.New, s.secret)
@@ -88,7 +98,11 @@ func hashPassword(password string) string {
 	_, err := rand.Read(salt)
 	shared.Must(err)
 	hash := argon2.IDKey([]byte(password), salt, 2, 19456, 1, 32)
-	return "$argon2id$v=19$m=19456,t=2,p=1$" + base64.RawStdEncoding.EncodeToString(salt) + "$" + base64.RawStdEncoding.EncodeToString(hash)
+	return "$argon2id$v=19$m=19456,t=2,p=1$" + base64.RawStdEncoding.EncodeToString(
+		salt,
+	) + "$" + base64.RawStdEncoding.EncodeToString(
+		hash,
+	)
 }
 
 func verifyPassword(encoded, password string) bool {
@@ -98,6 +112,8 @@ func verifyPassword(encoded, password string) bool {
 	}
 	// PHC parameters are named; node-argon2 emits m,p,t while other encoders
 	// emit m,t,p. Accept either order without weakening the resource bounds.
+	// PHC 参数按名称识别；node-argon2 输出 m,p,t，其他编码器可能输出 m,t,p。
+	// 接受这两种顺序，同时保留资源用量限制。
 	params := map[string]uint64{}
 	for _, item := range strings.Split(parts[3], ",") {
 		key, value, ok := strings.Cut(item, "=")
@@ -117,7 +133,9 @@ func verifyPassword(encoded, password string) bool {
 		params[key] = n
 	}
 	memory, iterations, parallel := params["m"], params["t"], params["p"]
-	if len(params) != 3 || memory < 8 || memory > 262144 || iterations < 1 || iterations > 10 || parallel < 1 || parallel > 16 {
+	if len(params) != 3 || memory < 8 || memory > 262144 || iterations < 1 || iterations > 10 ||
+		parallel < 1 ||
+		parallel > 16 {
 		return false
 	}
 	salt, err := base64.RawStdEncoding.DecodeString(parts[4])
@@ -128,7 +146,14 @@ func verifyPassword(encoded, password string) bool {
 	if err != nil || len(expected) < 16 || len(expected) > 64 {
 		return false
 	}
-	actual := argon2.IDKey([]byte(password), salt, uint32(iterations), uint32(memory), uint8(parallel), uint32(len(expected)))
+	actual := argon2.IDKey(
+		[]byte(password),
+		salt,
+		uint32(iterations),
+		uint32(memory),
+		uint8(parallel),
+		uint32(len(expected)),
+	)
 	return subtle.ConstantTimeCompare(actual, expected) == 1
 }
 
@@ -138,6 +163,6 @@ func (s *Service) hashSlot(fn func()) {
 		defer func() { <-s.hashSlots }()
 		fn()
 	default:
-		shared.Fail(429, "登录服务繁忙，请稍后重试")
+		shared.Fail(http.StatusTooManyRequests, shared.MsgLoginBusy)
 	}
 }

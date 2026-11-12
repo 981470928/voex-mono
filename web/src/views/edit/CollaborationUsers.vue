@@ -195,9 +195,6 @@ onBeforeUnmount(() => {
     &:active
       background var(--color-bg-quaternary)
 
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset 2px
 
   &__stack
     display inline-flex
@@ -254,9 +251,6 @@ onBeforeUnmount(() => {
     overflow-y auto
     list-style none
 
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset 2px
 
   &__member
     display flex

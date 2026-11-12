@@ -1,0 +1,29 @@
+{
+  "id": "zcool-kuaile",
+  "label": "站酷快乐体",
+  "group": "中文",
+  "languages": "中 / EN",
+  "family": "ZCOOL KuaiLe",
+  "version": "full-9862abc066c9",
+  "license": "OFL-1.1",
+  "sourceCommit": "9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0",
+  "variants": [
+    {
+      "file": "Regular.woff2",
+      "weights": [
+        "Regular"
+      ],
+      "cssWeight": "400",
+      "bytes": 871928,
+      "characters": 7053,
+      "glyphs": 7055,
+      "axes": {},
+      "sha256": "c6fc388b486afb363e00420540b56079561e4b46eba4c0d09a65b999bd0235e0",
+      "source": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/zcoolkuaile/ZCOOLKuaiLe-Regular.ttf",
+      "sourceGitSha": "3cf6cd927ee910d46875de173efdaac4330e84ac",
+      "sourceSha256": "812a6fc1fe54b6d73a419245c32dfeba8aa33104d5be90d1cf6af082007cb71d"
+    }
+  ],
+  "woff2Files": 1,
+  "bytes": 871928
+}

@@ -1,5 +1,7 @@
 -- Current MySQL 8 schema used by automatic initialization and optional manual import.
 -- Creates missing tables only; existing columns and data require explicit migrations.
+-- 自动初始化和可选手动导入所用的当前 MySQL 8 schema。
+-- 仅创建缺失的表；已有列和数据的变更需要显式迁移。
 
 CREATE TABLE IF NOT EXISTS `users` (
   `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
@@ -62,6 +64,7 @@ CREATE TABLE IF NOT EXISTS `files` (
   KEY `idx_file_key` (`file_key`),
   KEY `idx_hash` (`hash`),
   KEY `idx_files_creator` (`creator_id`),
+  KEY `idx_files_key_hash` (`file_key`,`hash`),
   CONSTRAINT `fk_files_creator` FOREIGN KEY (`creator_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
@@ -97,8 +100,10 @@ CREATE TABLE IF NOT EXISTS ai_models (
   temperature double DEFAULT NULL,
   max_tokens int unsigned NOT NULL DEFAULT 4096,
   token_parameter varchar(24) NOT NULL DEFAULT 'max_completion_tokens',
+  multimodal_enabled boolean NOT NULL DEFAULT false,
   created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id), KEY idx_ai_model_user (user_id),
+  KEY idx_ai_model_user_order (user_id, created_at, id),
   CONSTRAINT fk_ai_model_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -126,6 +131,7 @@ CREATE TABLE IF NOT EXISTS `projects` (
   KEY `idx_projects_order` (`created_at`,`id`),
   KEY `idx_projects_creator` (`creator_id`),
   KEY `idx_projects_team` (`team_id`),
+  KEY `idx_projects_team_order` (`team_id`,`created_at`,`id`),
   CONSTRAINT `fk_projects_creator` FOREIGN KEY (`creator_id`) REFERENCES `users` (`id`),
   CONSTRAINT `fk_projects_team` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -237,6 +243,7 @@ CREATE TABLE IF NOT EXISTS `documents` (
   KEY `idx_documents_trash_expiry` (`expires_at`, `id`),
   KEY `idx_documents_folder_deleted` (`folder_id`, `deleted_at`, `created_at`, `id`),
   KEY `idx_documents_deleted_by` (`deleted_by`),
+  FULLTEXT KEY `ft_documents_search` (`file_name`,`file_content`) WITH PARSER ngram,
   CONSTRAINT `fk_documents_updated_by` FOREIGN KEY (`updated_by`) REFERENCES `users` (`id`),
   CONSTRAINT `fk_documents_deleted_by` FOREIGN KEY (`deleted_by`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -313,6 +320,7 @@ CREATE TABLE IF NOT EXISTS ai_conversation_turns (
   turn_id varchar(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   model_id varchar(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   prompt longtext NOT NULL,
+  attachments json DEFAULT NULL,
   response longtext NOT NULL,
   activity json NOT NULL,
   error text NOT NULL,
@@ -335,6 +343,7 @@ CREATE TABLE IF NOT EXISTS ai_conversation_turns (
 INSERT IGNORE INTO workspace_state (id) VALUES (1);
 
 -- Collaboration tables are included in a fresh database even when collaboration is disabled.
+-- 即使未启用协同，新数据库也会创建协同相关表。
 CREATE TABLE IF NOT EXISTS document_collaboration (
  document_id int NOT NULL,
  state longblob NOT NULL,
@@ -363,3 +372,22 @@ CREATE TABLE IF NOT EXISTS collaboration_outbox (
  created_at datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
  PRIMARY KEY(id)
 ) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS document_versions (
+ id bigint NOT NULL AUTO_INCREMENT,
+ document_id int NOT NULL,
+ revision bigint NOT NULL,
+ kind enum('auto','manual','backup') NOT NULL DEFAULT 'auto',
+ label varchar(255) NOT NULL DEFAULT '',
+ content longtext NOT NULL,
+ content_hash char(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ schema_version varchar(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ created_by char(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL,
+ created_by_anonymous tinyint(1) NOT NULL DEFAULT '0',
+ created_at datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+ PRIMARY KEY(id),
+ KEY idx_document_versions_doc (document_id, id),
+ KEY idx_document_versions_cleanup (kind, created_at),
+ KEY idx_document_versions_creator (created_by),
+ CONSTRAINT fk_document_versions_document FOREIGN KEY(document_id) REFERENCES documents(id) ON DELETE CASCADE,
+ CONSTRAINT fk_document_versions_creator FOREIGN KEY(created_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

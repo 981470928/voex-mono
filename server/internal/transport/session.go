@@ -20,13 +20,23 @@ func AccessToken(r *http.Request) string {
 		return Cookie(r, "voex_access")
 	}
 	parts := strings.Split(header, " ")
-	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || strings.ContainsAny(parts[1], "\t\r\n ") {
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") ||
+		strings.ContainsAny(parts[1], "\t\r\n ") {
 		return ""
 	}
 	return parts[1]
 }
 func SessionCookie(w http.ResponseWriter, r *http.Request, name, path, value string, seconds int) {
-	c := &http.Cookie{Name: name, Value: value, Path: path, HttpOnly: true, Secure: security.SecureRequest(r), SameSite: http.SameSiteStrictMode, MaxAge: seconds, Expires: time.Now().Add(time.Duration(seconds) * time.Second)}
+	c := &http.Cookie{
+		Name:     name,
+		Value:    value,
+		Path:     path,
+		HttpOnly: true,
+		Secure:   security.SecureRequest(r),
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   seconds,
+		Expires:  time.Now().Add(time.Duration(seconds) * time.Second),
+	}
 	if seconds < 0 {
 		c.Expires = time.Unix(0, 0)
 	}

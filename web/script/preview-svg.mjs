@@ -37,6 +37,7 @@ async function renderPage() {
       if (!symbols.length) return [{ name, content }];
 
       // Sprite source files contain definitions, each symbol needs its own SVG viewport.
+      // 精灵图源文件包含符号定义，每个 symbol 都需要独立的 SVG 视口。
       return symbols.map((symbol, index) => {
         const id = symbol[1].match(/\bid\s*=\s*(["'])(.*?)\1/i)?.[2] || String(index + 1);
         const attributes = symbol[1].replace(/\sxmlns\s*=\s*(["']).*?\1/gi, '');
@@ -51,6 +52,7 @@ async function renderPage() {
   const cards = icons.map((icon) => {
     const name = escapeHtml(icon.name);
     // Each SVG is an isolated image, so its styles and IDs cannot affect other icons.
+    // 每个 SVG 都是独立图像，其样式和 ID 不会影响其他图标。
     const source = Buffer.from(icon.content).toString('base64');
     return `<li class="icon-preview__card" data-name="${name}">
         <div class="icon-preview__image-wrap">
@@ -68,7 +70,10 @@ async function renderPage() {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SVG 图标预览 · Voex</title>
   <style>
-    /* Standalone preview: use the project's light palette without a build step. */
+    /*
+     * Standalone preview: use the project's light palette without a build step.
+     * 独立预览：无需构建，直接使用项目的浅色调色板。
+     */
     :root {
       color-scheme: light;
       --preview-background: #f5f5f5;
@@ -228,6 +233,7 @@ async function main() {
     throw new Error('--port 必须是 1 到 65535 之间的整数');
   }
   // Fail before listening if the source directory cannot be read.
+  // 如果无法读取源目录，则在开始监听前报错退出。
   const icons = await findIcons();
   const server = createServer(async (request, response) => {
     response.setHeader('Cache-Control', 'no-store');

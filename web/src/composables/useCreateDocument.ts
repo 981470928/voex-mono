@@ -37,6 +37,7 @@ export function useCreateDocument() {
           const path = [result.project_name, ...result.folder_path].join(' / ');
           notification.show(`已创建到 ${path}，即将打开文件`, 'success', 4000);
           // Close the input before showing the destination for one full second.
+          // 先关闭输入框，再将目标位置展示完整一秒。
           modal.hideModal(ModalType.INPUT_DIALOG);
           await new Promise<void>((resolve) => setTimeout(resolve, 1000));
           if (active && router.currentRoute.value.fullPath === from) {

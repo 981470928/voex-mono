@@ -6,6 +6,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 # Replace with the existing unprivileged application account.
+# 替换为现有的非特权应用账号。
 User=voex
 Group=voex
 WorkingDirectory=/home/voex-server/collab

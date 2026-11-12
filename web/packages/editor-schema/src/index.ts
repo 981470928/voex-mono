@@ -27,6 +27,7 @@ import { createLatexSchema } from './latex';
 import { createMermaidSchema } from './mermaid';
 import { createTextColorSchema } from './text-color';
 import { createFontSizeSchema } from './font-size';
+import { createFontFamilySchema } from './font-family';
 import { createRichTextSchema } from './rich-text';
 import { createCardSchema } from './cards';
 import { createImageSchema } from './images';
@@ -47,8 +48,13 @@ export interface MarkdownCodec {
 /** Builds the same schema and Remark pipeline as the browser, without an EditorView or DOM.
  * Only schema plugins run; their readiness waits are already satisfied by this explicit order.
  * UI factories and browser-global timers are never constructed.
+ * 构建与浏览器相同的 schema 和 Remark 处理流程，无需 EditorView 或 DOM。
+ * 仅运行 schema 插件；此处明确的执行顺序已满足它们对前置步骤就绪的等待条件。
+ * 不会创建 UI 工厂或浏览器全局定时器。
  */
-export async function createMarkdownCodec(): Promise<MarkdownCodec> {
+export async function createMarkdownCodec(
+  additionalPlugins: MilkdownPlugin[] = []
+): Promise<MarkdownCodec> {
   const ctx = new Ctx(new Container(), new Clock());
   Object.defineProperties(ctx, {
     wait: { value: () => Promise.resolve() },
@@ -64,9 +70,11 @@ export async function createMarkdownCodec(): Promise<MarkdownCodec> {
   const richText = createRichTextSchema();
   const colors = createTextColorSchema();
   const fontSizes = createFontSizeSchema();
+  const fontFamilies = createFontFamilySchema();
   const cards = createCardSchema();
   const images = createImageSchema();
   const plugins: MilkdownPlugin[] = [
+    ...additionalPlugins,
     ...commonmarkSchema,
     ...gfmSchema,
     ...remarkAddOrderInListPlugin,
@@ -87,6 +95,7 @@ export async function createMarkdownCodec(): Promise<MarkdownCodec> {
     mermaid.mermaidNode,
     ...colors.marks,
     fontSizes.fontSize,
+    fontFamilies.fontFamily,
     ...tableWidthsRemark,
     ...cards.remarkCards,
     cards.cardText,

@@ -1,0 +1,42 @@
+{
+  "id": "inter",
+  "label": "Inter",
+  "group": "English",
+  "languages": "EN",
+  "family": "Inter",
+  "version": "full-9862abc066c9",
+  "license": "OFL-1.1",
+  "sourceCommit": "9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0",
+  "variants": [
+    {
+      "file": "Variable.woff2",
+      "weights": [
+        "Regular",
+        "Medium",
+        "Bold"
+      ],
+      "cssWeight": "100 900",
+      "bytes": 350460,
+      "characters": 2849,
+      "glyphs": 2933,
+      "axes": {
+        "opsz": [
+          14.0,
+          14.0,
+          32.0
+        ],
+        "wght": [
+          100.0,
+          400.0,
+          900.0
+        ]
+      },
+      "sha256": "13b4cddc57045d40b411008e61588c8f81aa0bd72fe884624831a0ff9c4d159a",
+      "source": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/inter/Inter%5Bopsz%2Cwght%5D.ttf",
+      "sourceGitSha": "047c92f6e2212473dc436020afed689527076d44",
+      "sourceSha256": "29160a80ff49ddcab2c97711247e08b1fab27a484a329ce8b813d820dc559031"
+    }
+  ],
+  "woff2Files": 1,
+  "bytes": 350460
+}

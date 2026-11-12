@@ -15,11 +15,14 @@ import (
 )
 
 // CheckConfig checks local prerequisites and the database without starting the service.
+// CheckConfig 检查本地前置条件和数据库，不启动服务。
 func CheckConfig() error {
 	return checkConfig(false)
 }
 
-// InitializeDatabase validates prerequisites, creates missing schema objects, then checks readiness.
+// InitializeDatabase validates prerequisites, creates missing schema objects,
+// then checks readiness.
+// InitializeDatabase 验证前置条件、创建缺失的 schema 对象，然后检查是否就绪。
 func InitializeDatabase() error {
 	return checkConfig(true)
 }
@@ -27,7 +30,9 @@ func InitializeDatabase() error {
 func checkConfig(initialize bool) (err error) {
 	defer func() {
 		if recover() != nil {
-			err = fmt.Errorf("configuration could not be loaded; check VOEX_ENV_FILE and its quoting")
+			err = fmt.Errorf(
+				"configuration could not be loaded; check VOEX_ENV_FILE and its quoting",
+			)
 		}
 	}()
 	cfg := config.Read()
@@ -49,7 +54,10 @@ func checkConfig(initialize bool) (err error) {
 	if err := validPort("VOEX_ADDR port", port); err != nil {
 		return err
 	}
-	if timeout, parseErr := time.ParseDuration(config.Env("VOEX_HTTP_READ_TIMEOUT", "2m")); parseErr != nil || timeout <= 0 {
+	if timeout, parseErr := time.ParseDuration(
+		config.Env("VOEX_HTTP_READ_TIMEOUT", "2m"),
+	); parseErr != nil ||
+		timeout <= 0 {
 		return fmt.Errorf("VOEX_HTTP_READ_TIMEOUT must be a positive duration")
 	}
 	if !filepath.IsAbs(cfg.Storage.Root) {
@@ -82,7 +90,12 @@ func checkConfig(initialize bool) (err error) {
 	if err := checkSecret("JWT_SECRET_FILE", cfg.SecretFile, 64, false); err != nil {
 		return err
 	}
-	if err := checkSecret("SHARE_SECRET_FILE", config.Env("SHARE_SECRET_FILE", "/home/server/.secrets/share-key"), 64, false); err != nil {
+	if err := checkSecret(
+		"SHARE_SECRET_FILE",
+		config.Env("SHARE_SECRET_FILE", "/home/server/.secrets/share-key"),
+		64,
+		false,
+	); err != nil {
 		return err
 	}
 	enabled := config.Env("VOEX_COLLAB_ENABLED", "false")
@@ -93,7 +106,12 @@ func checkConfig(initialize bool) (err error) {
 		if _, err := collaborationTarget(cfg.Collaboration.URL); err != nil {
 			return err
 		}
-		if err := checkSecret("VOEX_COLLAB_SECRET_FILE", cfg.Collaboration.SecretFile, 32, true); err != nil {
+		if err := checkSecret(
+			"VOEX_COLLAB_SECRET_FILE",
+			cfg.Collaboration.SecretFile,
+			32,
+			true,
+		); err != nil {
 			return err
 		}
 		if cfg.Collaboration.WSURL != "/api/collab/ws" {

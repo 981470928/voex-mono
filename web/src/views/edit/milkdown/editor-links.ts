@@ -155,7 +155,9 @@ export function createEditorLinks(options: {
           if (!canEdit(view)) return;
           const reference = fileReferenceAt(view.state.doc, from);
           // Hidden Markdown delimiters have no usable DOM coordinates.
+          // 隐藏的 Markdown 定界符没有可用的 DOM 坐标。
           // Anchor the edit tooltip to the visible label, keeping the full range for apply.
+          // 将编辑提示框锚定到可见标签，并保留完整范围以应用修改。
           if (reference && reference.to === to)
             api.editLink(mark, reference.labelFrom, reference.labelTo);
           else api.editLink(mark, from, to);

@@ -45,87 +45,116 @@
           <template v-else>{{ action.text }}</template>
         </button>
         <div ref="toolbarColorHost" class="milkdown-editor__color-controls" />
-        <button
-          v-for="layout in ['horizontal', 'vertical'] as const"
-          :key="layout"
-          type="button"
-          class="milkdown-editor__action"
-          :disabled="loading || !ready || componentInsertionBlocked"
-          :title="layout === 'horizontal' ? '插入横向卡片列表' : '插入纵向卡片列表'"
-          :aria-label="layout === 'horizontal' ? '插入横向卡片列表' : '插入纵向卡片列表'"
-          @mousedown.prevent
-          @click="insertCardList(layout)"
-        >
-          <SvgIcon :name="layout === 'horizontal' ? 'grid' : 'list'" :size="16" />
-        </button>
-        <span v-if="allowAttachments" class="milkdown-editor__separator" aria-hidden="true" />
+        <span class="milkdown-editor__separator" aria-hidden="true" />
         <button
           type="button"
-          class="milkdown-editor__action"
+          class="milkdown-editor__action milkdown-editor__menu-button"
+          :class="{ 'milkdown-editor__action--active': toolbarMenu?.kind === 'insert' }"
           :disabled="loading || !ready || componentInsertionBlocked"
-          title="插入表情"
-          aria-label="插入表情"
-          aria-haspopup="dialog"
+          title="插入"
+          aria-label="插入"
+          aria-haspopup="menu"
+          :aria-expanded="toolbarMenu?.kind === 'insert'"
           @mousedown.prevent
-          @click="openEmoji"
+          @click="toggleToolbarMenu('insert', $event)"
+          @keydown.down.prevent="toggleToolbarMenu('insert', $event)"
+          @keydown.up.prevent="toggleToolbarMenu('insert', $event)"
         >
-          <SvgIcon name="face" :size="16" />
+          <SvgIcon name="add" :size="16" />
+          <SvgIcon name="chevron-right" :size="10" class="milkdown-editor__menu-chevron" />
         </button>
         <button
           type="button"
-          class="milkdown-editor__action"
+          class="milkdown-editor__action milkdown-editor__menu-button"
+          :class="{ 'milkdown-editor__action--active': toolbarMenu?.kind === 'assets' }"
           :disabled="loading || !ready"
-          aria-haspopup="dialog"
-          title="图库"
-          aria-label="图库"
+          title="素材库"
+          aria-label="素材库"
+          aria-haspopup="menu"
+          :aria-expanded="toolbarMenu?.kind === 'assets'"
           @mousedown.prevent
-          @click="openPexels"
+          @click="toggleToolbarMenu('assets', $event)"
+          @keydown.down.prevent="toggleToolbarMenu('assets', $event)"
+          @keydown.up.prevent="toggleToolbarMenu('assets', $event)"
         >
-          <SvgIcon name="image" :size="16" />
-        </button>
-        <button
-          type="button"
-          class="milkdown-editor__action"
-          :disabled="loading || !ready || componentInsertionBlocked"
-          title="插入或编辑 LaTeX 公式"
-          aria-label="插入或编辑 LaTeX 公式"
-          aria-haspopup="dialog"
-          @mousedown.prevent
-          @click="openLatex()"
-        >
-          <SvgIcon name="editor-formula" :size="16" />
-        </button>
-        <button
-          type="button"
-          class="milkdown-editor__action"
-          :disabled="loading || !ready || componentInsertionBlocked"
-          title="插入或编辑流程图"
-          aria-label="插入或编辑流程图"
-          aria-haspopup="dialog"
-          @mousedown.prevent
-          @click="openMermaid()"
-        >
-          <SvgIcon name="diagram" :size="16" />
+          <SvgIcon name="material-library" :size="16" />
+          <SvgIcon name="chevron-right" :size="10" class="milkdown-editor__menu-chevron" />
         </button>
         <button
           v-if="allowAttachments"
           type="button"
           class="milkdown-editor__action"
-          :title="uploading ? '上传中…' : '添加附件'"
-          :aria-label="uploading ? '上传中…' : '添加附件'"
+          :title="uploadingImage ? '上传中…' : '插入图片'"
+          :aria-label="uploadingImage ? '上传中…' : '插入图片'"
           :disabled="loading || !ready || uploading || componentInsertionBlocked"
-          :aria-busy="uploading"
+          :aria-busy="uploadingImage"
           @mousedown.prevent
-          @click="uploadAndInsertAttachments"
+          @click="uploadAndInsertAttachments(FILE_ACCEPT.IMAGE)"
         >
           <SvgIcon
-            :name="uploading ? 'loading' : 'attachment'"
+            :name="uploadingImage ? 'loading' : 'image'"
             :size="16"
-            :class="{ 'milkdown-editor__uploading': uploading }"
+            :class="{ 'milkdown-editor__uploading': uploadingImage }"
+          />
+        </button>
+        <button
+          v-if="allowAttachments"
+          type="button"
+          class="milkdown-editor__action"
+          :title="uploadingAttachment ? '上传中…' : '添加附件'"
+          :aria-label="uploadingAttachment ? '上传中…' : '添加附件'"
+          :disabled="loading || !ready || uploading || componentInsertionBlocked"
+          :aria-busy="uploadingAttachment"
+          @mousedown.prevent
+          @click="uploadAndInsertAttachments()"
+        >
+          <SvgIcon
+            :name="uploadingAttachment ? 'loading' : 'attachment'"
+            :size="16"
+            :class="{ 'milkdown-editor__uploading': uploadingAttachment }"
           />
         </button>
       </div>
+      <div v-if="searchOpen" class="milkdown-editor__search-anchor">
+        <DocumentSearchBar
+          ref="searchBarRef"
+          :query="searchStatus.query"
+          :case-sensitive="searchStatus.options.caseSensitive"
+          :regex="searchStatus.options.regex"
+          :match-count="searchStatus.matches.length"
+          :current-index="searchStatus.currentIndex"
+          :error="searchStatus.error"
+          :can-replace="searchCanReplace"
+          @update:query="search.controller.setQuery($event)"
+          @update:case="search.controller.setOptions({ caseSensitive: $event })"
+          @update:regex="search.controller.setOptions({ regex: $event })"
+          @next="search.controller.next()"
+          @prev="search.controller.prev()"
+          @replace-current="search.controller.replaceCurrent($event)"
+          @replace-all="search.controller.replaceAll($event)"
+          @close="closeSearch"
+        />
+      </div>
+      <VoexContextMenu
+        v-if="toolbarMenu"
+        :model-value="true"
+        :items="toolbarMenuItems"
+        :x="toolbarMenu.x"
+        :y="toolbarMenu.y"
+        :trigger="toolbarMenu.trigger"
+        :label="toolbarMenu.kind === 'insert' ? '插入' : '素材库'"
+        @update:model-value="toolbarMenu = null"
+        @select="runToolbarMenuItem"
+      />
       <Teleport v-for="host in colorMenuHosts" :key="host.source" :to="host.element">
+        <FontFamilyPicker
+          :value="toolbarFontFamily"
+          :open="fontFamilySelection?.source === host.source"
+          :disabled="readonly || loading || !ready || toolbarState.fontFamily?.enabled === false"
+          :loading="fontFamilyLoading && fontFamilySelection?.source === host.source"
+          @update:open="setFontFamilyMenuVisible($event, host.source)"
+          @select="applySelectedFontFamily"
+        />
         <select
           class="milkdown-editor__font-size"
           aria-label="字号（px）"
@@ -240,11 +269,20 @@ import { createRichTextSchema } from '@voex/editor-schema/rich-text';
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, useId, watch } from 'vue';
 import SvgIcon from '@/components/SvgIcon.vue';
 import ColorPicker from '@/components/ColorPicker.vue';
+import FontFamilyPicker from './FontFamilyPicker.vue';
+import { createFontFamilyExtension } from './font-family';
+import { loadSelectedFont } from '@/utils/editor-fonts';
 import EditorOutline from '@/views/edit/milkdown/EditorOutline.vue';
 import { DocumentMinimap } from '@/plugins/document-minimap';
 import { editorMinimapPlaceholders, editorMinimapIgnoreSelectors } from './editor-minimap';
 import { useDialog } from '@/composables/useDialog';
 import { VoexTrigger } from '@/plugins/trigger';
+import {
+  VoexContextMenu,
+  type ContextMenuItem,
+  type ContextMenuOption,
+} from '@/plugins/context-menu';
+import { FILE_ACCEPT } from '@/utils/dom';
 import type { Mark, NodeType } from '@milkdown/kit/prose/model';
 import {
   Editor,
@@ -329,13 +367,16 @@ import {
   createFormattingActions,
   type EditorAction,
 } from '@/views/edit/milkdown/editor-interactions';
+import { createEditorSearch, type SearchStatus } from '@/views/edit/milkdown/editor-search';
+import DocumentSearchBar from './DocumentSearchBar.vue';
+import { fetchRemoteImage } from '@/service/api/upload-api';
 
 const props = withDefaults(
   defineProps<{
     defaultValue?: string;
     collaboration?: CollaborationBinding | null;
     attachments?: FileInfo[];
-    uploadAttachments?: () => Promise<FileInfo[]>;
+    uploadAttachments?: (accept?: string) => Promise<FileInfo[]>;
     importImages?: (files: File[]) => Promise<FileInfo[]>;
     loadImage?: (hash: string, signal: AbortSignal, documentKey?: string) => Promise<Blob>;
     documentKey?: string;
@@ -379,16 +420,49 @@ const emit = defineEmits<{
 }>();
 
 // Diff previews always use their own non-collaborative, read-only instance.
+// 差异预览始终使用独立的非协同只读实例。
 const diffPreview =
   props.readonly && props.diffAfter !== undefined ? createEditorDiffPreview() : null;
 
 const editorRef = shallowRef<Editor | null>(null);
 const attachmentExtensionRef = shallowRef<AttachmentExtension | null>(null);
 const ready = ref(false);
-const uploading = ref(false);
+const activeUpload = ref<'image' | 'attachment' | null>(null);
+const uploading = computed(() => activeUpload.value !== null);
+const uploadingImage = computed(() => activeUpload.value === 'image');
+const uploadingAttachment = computed(() => activeUpload.value === 'attachment');
 const componentInsertionBlocked = ref(false);
 const toolbarState = shallowRef<Record<string, { active: boolean; enabled: boolean }>>({});
 const toolbarRef = ref<HTMLElement>();
+const toolbarMenu = shallowRef<{
+  kind: 'insert' | 'assets';
+  trigger: HTMLElement;
+  x: number;
+  y: number;
+} | null>(null);
+const toolbarMenuItems = computed<ContextMenuItem[]>(() => {
+  const unavailable = props.readonly || props.loading || !ready.value;
+  const componentDisabled = unavailable || componentInsertionBlocked.value;
+  return toolbarMenu.value?.kind === 'insert'
+    ? [
+        { value: 'mermaid', label: '插入流程图', icon: 'diagram', disabled: componentDisabled },
+        { value: 'latex', label: '插入公式', icon: 'editor-formula', disabled: componentDisabled },
+        {
+          value: 'cards',
+          label: '插入卡片列表',
+          icon: 'grid',
+          disabled: componentDisabled,
+          children: [
+            { value: 'cards-horizontal', label: '横向', icon: 'grid', disabled: componentDisabled },
+            { value: 'cards-vertical', label: '纵向', icon: 'list', disabled: componentDisabled },
+          ],
+        },
+      ]
+    : [
+        { value: 'emoji', label: 'Emoji 表情', icon: 'face', disabled: componentDisabled },
+        { value: 'pexels', label: 'Pexels 图库', icon: 'pexels', disabled: unavailable },
+      ];
+});
 const editorRoot = ref<HTMLElement | null>(null);
 const minimapAvailable = ref(false);
 const supportsMinimap = !isMobile;
@@ -413,6 +487,15 @@ const toolbarColors = shallowRef<Record<TextColorKind, string | null>>({
   textColor: null,
   highlight: null,
 });
+const toolbarFontFamily = ref<string | null>(null);
+const fontFamilyLoading = ref(false);
+const fontFamilySelection = shallowRef<{
+  source: ColorMenuSource;
+  key: symbol;
+  editor: Editor;
+  version: number;
+  marks: readonly Mark[] | null;
+} | null>(null);
 const toolbarFontSize = ref<number | 'mixed' | null>(null);
 const fontSizeSelection = shallowRef<{
   source: ColorMenuSource;
@@ -526,6 +609,7 @@ function collaborationCursor(user: { name?: unknown; color?: unknown }) {
 }
 
 const imageImport = createImageImport({
+  loadRemoteImage: (url, signal) => fetchRemoteImage(props.documentKey, url, signal),
   readonly: () => props.readonly,
   attachments: () => props.attachments,
   documentKey: () => props.documentKey,
@@ -574,6 +658,9 @@ const mermaidExtension = createMermaidExtension({
 const richText = createRichTextSchema();
 const textColors = createTextColorExtension();
 const fontSizes = createFontSizeExtension();
+const fontFamilies = createFontFamilyExtension((message) => {
+  if (!disposed) notification.show(message, 'error');
+});
 const tables = createEditorTables({
   readonly: () => props.readonly,
   collaborative: () => !!props.collaboration,
@@ -605,7 +692,18 @@ const interactions = createEditorInteractions({
     floatingColorHost.value = element;
   },
   isColorMenuOpen: () =>
-    colorSelection.value?.source === 'floating' || fontSizeSelection.value?.source === 'floating',
+    colorSelection.value?.source === 'floating' ||
+    fontSizeSelection.value?.source === 'floating' ||
+    fontFamilySelection.value?.source === 'floating',
+});
+const search = createEditorSearch({
+  readonly: () => props.readonly,
+  view: () => {
+    const editor = editorRef.value;
+    return editor?.status === EditorStatus.Created
+      ? editor.action((ctx) => ctx.get(editorViewCtx))
+      : null;
+  },
 });
 const toolbarActions: EditorAction[] = [
   ...[
@@ -642,6 +740,99 @@ function canEdit(editor = editorRef.value): editor is Editor {
 
 function canInsertComponent(editor: Editor): boolean {
   return editor.action((ctx) => !inCardText(ctx.get(editorViewCtx).state.selection));
+}
+
+const searchBarRef = ref<InstanceType<typeof DocumentSearchBar> | null>(null);
+const searchOpen = ref(false);
+const searchStatus = shallowRef<SearchStatus>(search.controller.status());
+const unsubscribeSearch = search.controller.subscribe(() => {
+  searchStatus.value = search.controller.status();
+});
+const searchCanReplace = computed(() => !props.readonly && ready.value);
+
+function openSearch() {
+  const editor = editorRef.value;
+  if (disposed || !ready.value || !editor || editor.status !== EditorStatus.Created) return;
+  if (searchOpen.value) {
+    searchBarRef.value?.focus();
+    return;
+  }
+  const view = editor.action((ctx) => ctx.get(editorViewCtx));
+  const { from, to, empty } = view.state.selection;
+  if (!empty && to > from && to - from <= 500) {
+    const selected = view.state.doc.textBetween(from, to, ' ');
+    if (selected.trim()) search.controller.setQuery(selected);
+  }
+  searchOpen.value = true;
+  nextTick(() => searchBarRef.value?.focus());
+}
+
+function closeSearch() {
+  if (!searchOpen.value) return;
+  searchOpen.value = false;
+  search.controller.clear();
+  const editor = editorRef.value;
+  if (!disposed && editor?.status === EditorStatus.Created)
+    editor.action((ctx) => ctx.get(editorViewCtx).focus());
+}
+
+// useKeyboardShortcuts 只注册无修饰键快捷键，Ctrl/Cmd + F 需要独立监听。
+function handleSearchHotkey(event: KeyboardEvent) {
+  if (disposed || !ready.value || event.defaultPrevented || event.isComposing || event.repeat)
+    return;
+  if (event.key.toLowerCase() !== 'f') return;
+  if (event.altKey || event.shiftKey || !(event.ctrlKey || event.metaKey)) return;
+  // 代码块内保留 CodeMirror 自带的查找面板（Ctrl/Cmd + F）。
+  const target = event.target instanceof HTMLElement ? event.target : null;
+  const root = editorRoot.value;
+  // 主正文与历史预览各自处理内部快捷键，隐藏或 inert 的实例不抢焦点。
+  if (!target || !root?.contains(target) || !root.getClientRects().length) return;
+  if (target.closest('.cm-editor, [inert]')) return;
+  event.preventDefault();
+  openSearch();
+}
+document.addEventListener('keydown', handleSearchHotkey);
+
+function toggleToolbarMenu(kind: 'insert' | 'assets', event: MouseEvent | KeyboardEvent) {
+  if (!canEdit() || props.loading || !ready.value) return;
+  if (event instanceof KeyboardEvent && event.isComposing) return;
+  if (kind === 'insert' && componentInsertionBlocked.value) return;
+  const trigger = event.currentTarget;
+  if (!(trigger instanceof HTMLElement)) return;
+  if (toolbarMenu.value?.kind === kind) {
+    toolbarMenu.value = null;
+    return;
+  }
+  interactions.hide();
+  closeColorMenu();
+  closeFontSizeSelection();
+  closeFontFamilyMenu();
+  const bounds = trigger.getBoundingClientRect();
+  toolbarMenu.value = { kind, trigger, x: bounds.left, y: bounds.bottom + 6 };
+}
+
+function runToolbarMenuItem(item: ContextMenuOption) {
+  if (item.disabled || !canEdit() || props.loading || !ready.value) return;
+  switch (item.value) {
+    case 'mermaid':
+      openMermaid();
+      break;
+    case 'latex':
+      openLatex();
+      break;
+    case 'cards-horizontal':
+      insertCardList('horizontal');
+      break;
+    case 'cards-vertical':
+      insertCardList('vertical');
+      break;
+    case 'emoji':
+      openEmoji();
+      break;
+    case 'pexels':
+      openPexels();
+      break;
+  }
 }
 
 function insertCardList(layout: CardLayout) {
@@ -698,6 +889,7 @@ function beginOutlineNavigation(target: OutlineScrollTarget) {
       stableSince = now;
     } else if (now - stableSince >= 160) {
       // Covers older browsers, interrupted scrolling and jumps with no movement.
+      // 兼容旧版浏览器、滚动被中断以及没有实际位移的跳转。
       finishOutlineNavigation();
       return;
     }
@@ -822,6 +1014,7 @@ function syncSelection(ctx: Ctx, selection?: Selection, focused?: boolean) {
   // 插件初始化可能先触发选区事件，Created 时再同步完整 EditorView。
   if (!view.state) return;
   // selectionUpdated runs before the view state is updated; use its selection argument.
+  // selectionUpdated 在视图状态更新前执行，应使用其 selection 参数。
   const current = selection ?? view.state.selection;
   let selectedText = '';
   if (!current.empty) {
@@ -847,6 +1040,7 @@ function syncSelection(ctx: Ctx, selection?: Selection, focused?: boolean) {
 
 function refreshToolbar(ctx: Ctx) {
   toolbarFontSize.value = fontSizes.selected(ctx);
+  toolbarFontFamily.value = fontFamilies.selected(ctx);
   componentInsertionBlocked.value = inCardText(ctx.get(editorViewCtx).state.selection);
   toolbarColors.value = {
     textColor: textColors.selected(ctx, 'textColor'),
@@ -857,6 +1051,10 @@ function refreshToolbar(ctx: Ctx) {
       action.id,
       { active: action.active?.(ctx) ?? false, enabled: action.enabled?.(ctx) ?? true },
     ]),
+    [
+      'fontFamily',
+      { active: toolbarFontFamily.value !== null, enabled: fontFamilies.enabled(ctx) },
+    ],
     [
       'fontSize',
       { active: typeof toolbarFontSize.value === 'number', enabled: fontSizes.enabled(ctx) },
@@ -898,13 +1096,16 @@ const selectionPlugin = $prose(
         update: (view, previousState) => {
           refreshToolbar(ctx);
           // Selected text can change without changing the selection offsets.
+          // 即使选区偏移量不变，选中的文本也可能变化。
           if (view.state.doc !== previousState.doc) {
             syncSelection(ctx);
             // Remote Yjs transactions need the same outline and snapshot refresh as local edits.
+            // 远程 Yjs 事务与本地编辑一样，需要刷新大纲和快照。
             queueMicrotask(() => {
               if (disposed || editorRef.value?.status !== EditorStatus.Created) return;
               publishMarkdown(editorRef.value.action(serializeMarkdown()));
               // Yjs updates undo/redo stacks after plugin views finish updating.
+              // Yjs 在插件视图更新完成后更新撤销和重做栈。
               editorRef.value.action(refreshToolbar);
               refreshOutline();
             });
@@ -973,10 +1174,13 @@ function openLatex(position?: number) {
   const editor = editorRef.value;
   if (!canEdit(editor) || !canInsertComponent(editor) || latexSelection.value) return;
   interactions.hide();
-  const initial = editor.action((ctx) => {
-    if (position !== undefined) latexExtension.select(ctx, position);
-    return latexExtension.selected(ctx);
-  });
+  const initial =
+    position === undefined
+      ? null
+      : editor.action((ctx) => {
+          latexExtension.select(ctx, position);
+          return latexExtension.selected(ctx);
+        });
   latexSelection.value = {
     key: rememberSelection(editor),
     editor,
@@ -1020,10 +1224,13 @@ function openMermaid(position?: number) {
   const editor = editorRef.value;
   if (!canEdit(editor) || !canInsertComponent(editor) || mermaidSelection.value) return;
   interactions.hide();
-  const initial = editor.action((ctx) => {
-    if (position !== undefined) mermaidExtension.select(ctx, position);
-    return mermaidExtension.selected(ctx);
-  });
+  const initial =
+    position === undefined
+      ? null
+      : editor.action((ctx) => {
+          mermaidExtension.select(ctx, position);
+          return mermaidExtension.selected(ctx);
+        });
   mermaidSelection.value = {
     key: rememberSelection(editor),
     editor,
@@ -1120,6 +1327,7 @@ function closePexels() {
       };
       scrollToEnd();
       // Attachment images can finish loading after the gallery has closed.
+      // 附件图片可能在图库关闭后才加载完成。
       lastBlock?.querySelectorAll('img').forEach((image) => {
         if (!image.complete || !image.naturalWidth)
           image.addEventListener('load', scrollToEnd, { once: true });
@@ -1175,7 +1383,7 @@ async function insertPexelsPhoto(photo: PexelsPhoto) {
   publishMarkdown(session.editor.action(serializeMarkdown()));
 }
 
-async function uploadAndInsertAttachments() {
+async function uploadAndInsertAttachments(accept: string = FILE_ACCEPT.ALL) {
   const editor = editorRef.value;
   if (
     !canEdit(editor) ||
@@ -1187,9 +1395,9 @@ async function uploadAndInsertAttachments() {
     return;
   const key = rememberSelection(editor);
   const version = readonlyVersion;
-  uploading.value = true;
+  activeUpload.value = accept === FILE_ACCEPT.IMAGE ? 'image' : 'attachment';
   try {
-    const files = await props.uploadAttachments();
+    const files = await props.uploadAttachments(accept);
     if (
       !canEdit(editor) ||
       editor !== editorRef.value ||
@@ -1205,7 +1413,7 @@ async function uploadAndInsertAttachments() {
     if (!disposed) notification.show(errorMessage(cause, '附件上传失败，请重试'), 'error');
   } finally {
     bookmarks.delete(key);
-    uploading.value = false;
+    activeUpload.value = null;
   }
 }
 
@@ -1214,6 +1422,88 @@ function editLink() {
   if (!canEdit(editor)) return;
   interactions.hide();
   editor.action((ctx) => links.edit(ctx));
+}
+
+function closeFontFamilyMenu() {
+  const session = fontFamilySelection.value;
+  if (!session) return;
+  bookmarks.delete(session.key);
+  fontFamilySelection.value = null;
+  fontFamilyLoading.value = false;
+  if (session.source === 'floating')
+    void nextTick(() => {
+      if (!disposed) interactions.refresh();
+    });
+}
+
+function setFontFamilyMenuVisible(visible: boolean, source: ColorMenuSource) {
+  if (!visible) {
+    if (fontFamilySelection.value?.source === source) closeFontFamilyMenu();
+    return;
+  }
+  const editor = editorRef.value;
+  if (!canEdit(editor) || !editor.action(fontFamilies.enabled)) return;
+  if (fontFamilySelection.value?.source === source) return;
+  closeColorMenu();
+  closeFontSizeSelection();
+  closeFontFamilyMenu();
+  if (source === 'toolbar') interactions.hide();
+  fontFamilySelection.value = {
+    source,
+    key: rememberSelection(editor),
+    editor,
+    version: readonlyVersion,
+    marks: editor.action((ctx) => {
+      const { state } = ctx.get(editorViewCtx);
+      return state.storedMarks ?? state.selection.$from.marks();
+    }),
+  };
+}
+
+async function applySelectedFontFamily(value: string | null) {
+  const session = fontFamilySelection.value;
+  if (!session || fontFamilyLoading.value) return;
+  const valid = () =>
+    !disposed &&
+    fontFamilySelection.value === session &&
+    canEdit(session.editor) &&
+    session.editor === editorRef.value &&
+    session.version === readonlyVersion;
+  if (!valid()) {
+    closeFontFamilyMenu();
+    return;
+  }
+  fontFamilyLoading.value = true;
+  try {
+    if (value !== null) {
+      const text = session.editor.action((ctx) => {
+        const view = ctx.get(editorViewCtx);
+        const selection = bookmarks.get(session.key)?.resolve(view.state.doc);
+        if (!selection) throw new Error('选区已失效，请重新选择文字');
+        return selection.empty
+          ? selection.$from.parent.textContent
+          : view.state.doc.textBetween(selection.from, selection.to, ' ');
+      });
+      await loadSelectedFont(value, text);
+    }
+    // Network waits must never apply a font to another document/selection after cancellation.
+    // 网络等待被取消后，绝不能将字体应用到其他文档或选区。
+    if (!valid()) return;
+    session.editor.action((ctx) => {
+      restoreSelection(ctx, session.key);
+      const view = ctx.get(editorViewCtx);
+      if (view.state.selection.empty) view.dispatch(view.state.tr.setStoredMarks(session.marks));
+      fontFamilies.apply(ctx, value);
+      view.focus();
+      refreshToolbar(ctx);
+    });
+    publishMarkdown(session.editor.action(serializeMarkdown()));
+    closeFontFamilyMenu();
+  } catch (cause) {
+    if (valid()) notification.show(errorMessage(cause, '字体设置失败，请重试'), 'error');
+  } finally {
+    if (fontFamilySelection.value === session) fontFamilyLoading.value = false;
+  }
 }
 
 function closeFontSizeSelection() {
@@ -1228,6 +1518,7 @@ function rememberFontSizeSelection(source: ColorMenuSource) {
   if (fontSizeSelection.value?.source === source) return;
   closeFontSizeSelection();
   closeColorMenu();
+  closeFontFamilyMenu();
   fontSizeSelection.value = {
     source,
     key: rememberSelection(editor),
@@ -1292,6 +1583,7 @@ function setColorMenuVisible(kind: TextColorKind, visible: boolean, source: Colo
   if (!canEdit(editor) || !editor.action((ctx) => textColors.enabled(ctx, kind))) return;
   if (colorSelection.value?.kind === kind && colorSelection.value.source === source) return;
   closeColorMenu();
+  closeFontFamilyMenu();
   const initial = editor.action((ctx) => ({
     color: textColors.selected(ctx, kind),
     marks: ctx.get(editorViewCtx).state.storedMarks,
@@ -1494,10 +1786,12 @@ const { loading: initializing } = useEditor((root) => {
     .use(mermaidExtension.plugins)
     .use(textColors.plugins)
     .use(fontSizes.plugins)
+    .use(fontFamilies.plugins)
     .use(interactions.plugins)
     .use(links.plugins)
     .use(tables.plugins)
     .use(codeBlocks.plugins)
+    .use(search.plugins)
     .use(diffPreview?.plugins ?? [])
     .use(selectionPlugin)
     .use(trailing)
@@ -1559,6 +1853,7 @@ watch(
   () => props.readonly,
   () => {
     readonlyVersion++;
+    toolbarMenu.value = null;
     links.hide();
     tables.readonlyChanged();
     codeBlocks.readonlyChanged();
@@ -1576,6 +1871,7 @@ watch(
     closeMermaid();
     closeColorMenu();
     closeFontSizeSelection();
+    closeFontFamilyMenu();
     if (props.readonly) pendingAttachments.length = 0;
     if (editorRef.value?.status === EditorStatus.Created) {
       editorRef.value.action((ctx) => {
@@ -1614,12 +1910,18 @@ watch(
   { flush: 'post' }
 );
 
+watch([() => props.loading, ready], ([loading, isReady]) => {
+  if (loading || !isReady) toolbarMenu.value = null;
+});
+
 watch(
   () => props.showToolbar,
   (visible) => {
     if (!visible) {
+      toolbarMenu.value = null;
       closeColorMenu();
       closeFontSizeSelection();
+      closeFontFamilyMenu();
     }
   }
 );
@@ -1640,6 +1942,7 @@ onBeforeUnmount(() => {
   ready.value = false;
   closeColorMenu();
   closeFontSizeSelection();
+  closeFontFamilyMenu();
   if (editorRef.value?.status === EditorStatus.Created) {
     editorRef.value.action((ctx) => {
       if (props.collaboration) ctx.get(collabServiceCtx).disconnect();
@@ -1657,6 +1960,9 @@ onBeforeUnmount(() => {
   links.hide();
   content.destroy();
   paste.destroy();
+  search.destroy();
+  unsubscribeSearch();
+  document.removeEventListener('keydown', handleSearchHotkey);
   imageImport.destroy();
   interactions.hide();
   attachmentExtensionRef.value = null;
@@ -1711,6 +2017,7 @@ function normalizeMarkdown(markdown: string): string {
 }
 
 // Used only after an explicitly reviewed save; does not open any insertion dialogs.
+// 仅在经过明确审阅的保存完成后使用，不打开任何插入对话框。
 function setMarkdown(markdown: string) {
   if (props.collaboration) throw new Error('协同正文只能通过服务器应用修改');
   const editor = editorRef.value;
@@ -1724,7 +2031,14 @@ function setMarkdown(markdown: string) {
   refreshOutline();
 }
 
-defineExpose({ getMarkdown, insertAttachment, normalizeMarkdown, setMarkdown });
+defineExpose({
+  getMarkdown,
+  insertAttachment,
+  normalizeMarkdown,
+  setMarkdown,
+  openSearch,
+  closeSearch,
+});
 </script>
 
 <style lang="stylus">
@@ -1806,9 +2120,6 @@ defineExpose({ getMarkdown, insertAttachment, normalizeMarkdown, setMarkdown });
       background var(--color-bg-translucent)
     &:active:not(:disabled)
       filter brightness(.9)
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset 2px
     &:disabled
       cursor not-allowed
       opacity .6
@@ -1875,9 +2186,6 @@ defineExpose({ getMarkdown, insertAttachment, normalizeMarkdown, setMarkdown });
       background var(--color-bg-translucent)
     &:active:not(:disabled)
       filter brightness(.9)
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset 2px
     &:disabled
       cursor not-allowed
     &[hidden]
@@ -1970,6 +2278,29 @@ defineExpose({ getMarkdown, insertAttachment, normalizeMarkdown, setMarkdown });
     min-width 0
     min-height 100%
 
+  // 高度为 0 的 sticky 锚：搜索栏浮在正文右上，不挤压正文、滚动时常驻。
+  &__search-anchor
+    position sticky
+    top 52px
+    z-index 20
+    display flex
+    align-items flex-start
+    justify-content flex-end
+    height 0
+    padding-right 12px
+    pointer-events none
+
+  &__search-match
+    background var(--editor-hover)
+    outline 1px solid var(--editor-border)
+    border-radius 2px
+
+  // 当前命中：不加背景，用主题色边框突出。
+  &__search-match--current
+    background transparent
+    outline 2px solid var(--editor-accent)
+    border-radius 2px
+
   &__toolbar
     position sticky
     top 0
@@ -2004,9 +2335,6 @@ defineExpose({ getMarkdown, insertAttachment, normalizeMarkdown, setMarkdown });
       background var(--editor-hover)
       color var(--editor-text)
 
-    &:focus-visible
-      outline 2px solid var(--editor-accent)
-      outline-offset -2px
 
     &:active:not(:disabled)
       background var(--editor-selected)
@@ -2031,6 +2359,22 @@ defineExpose({ getMarkdown, insertAttachment, normalizeMarkdown, setMarkdown });
     &[data-format='undo'], &[data-format='redo']
       font-size 20px
 
+  &__menu-button
+    gap 4px
+
+  &__menu-chevron
+    transform rotate(90deg)
+
+  &__font-size, &__code-language
+    color-scheme light
+
+    [data-theme='dark'] &
+      color-scheme dark
+
+    option
+      background var(--editor-panel)
+      color var(--editor-text)
+
   &__font-size
     flex-shrink 0
     width 76px
@@ -2047,9 +2391,6 @@ defineExpose({ getMarkdown, insertAttachment, normalizeMarkdown, setMarkdown });
     &:hover:not(:disabled)
       background var(--editor-hover)
 
-    &:focus-visible
-      outline 2px solid var(--editor-accent)
-      outline-offset -2px
 
     &:active:not(:disabled)
       background var(--editor-selected)
@@ -2153,8 +2494,6 @@ defineExpose({ getMarkdown, insertAttachment, normalizeMarkdown, setMarkdown });
         background var(--editor-selected)
 
       &:focus-visible
-        outline 2px solid var(--editor-accent)
-        outline-offset 2px
         border-radius 2px
 
     blockquote
@@ -2188,7 +2527,6 @@ defineExpose({ getMarkdown, insertAttachment, normalizeMarkdown, setMarkdown });
 
     li[data-checked='true'] > .milkdown-editor__list-content > p
       color var(--editor-muted)
-      text-decoration line-through
 
     code
       padding 2px 5px
@@ -2319,9 +2657,6 @@ defineExpose({ getMarkdown, insertAttachment, normalizeMarkdown, setMarkdown });
     &:disabled
       cursor default
 
-    &:focus-visible
-      outline 2px solid var(--editor-accent)
-      outline-offset 2px
 
   &__image
     position relative
@@ -2362,9 +2697,6 @@ defineExpose({ getMarkdown, insertAttachment, normalizeMarkdown, setMarkdown });
     &--resizing
       user-select none
 
-    &:focus-visible
-      outline 2px solid var(--editor-accent)
-      outline-offset 2px
 
   &__media
     display block
@@ -2409,9 +2741,6 @@ defineExpose({ getMarkdown, insertAttachment, normalizeMarkdown, setMarkdown });
     &:hover
       filter brightness(1.15)
 
-    &:focus-visible
-      outline 2px solid var(--editor-accent)
-      outline-offset 3px
 
   &__image-controls
     position fixed
@@ -2469,9 +2798,6 @@ defineExpose({ getMarkdown, insertAttachment, normalizeMarkdown, setMarkdown });
         filter brightness(.9)
 
     input, button
-      &:focus-visible
-        outline 2px solid var(--editor-accent)
-        outline-offset 1px
 
       &:disabled
         opacity .5
@@ -2638,9 +2964,6 @@ defineExpose({ getMarkdown, insertAttachment, normalizeMarkdown, setMarkdown });
         fill currentColor
         pointer-events none
 
-    button:focus-visible, .link-display:focus-visible
-      outline 2px solid var(--editor-accent)
-      outline-offset 1px
 
     .input-area
       width 280px
@@ -2774,9 +3097,6 @@ defineExpose({ getMarkdown, insertAttachment, normalizeMarkdown, setMarkdown });
       background var(--editor-hover)
       color var(--editor-text)
 
-    &:focus-visible
-      outline 2px solid var(--editor-accent)
-      outline-offset -2px
 
   &__block-handle
     cursor grab
@@ -2866,9 +3186,6 @@ defineExpose({ getMarkdown, insertAttachment, normalizeMarkdown, setMarkdown });
     max-width 100%
     border-radius 6px
 
-    &:focus-visible
-      outline 2px solid var(--editor-accent)
-      outline-offset 2px
 
   video&__player
     height auto
@@ -2949,9 +3266,6 @@ defineExpose({ getMarkdown, insertAttachment, normalizeMarkdown, setMarkdown });
       background var(--editor-selected)
       color var(--editor-accent)
 
-    &:focus-visible
-      outline 2px solid var(--editor-accent)
-      outline-offset 2px
 
     &[hidden]
       display none
@@ -2997,9 +3311,6 @@ defineExpose({ getMarkdown, insertAttachment, normalizeMarkdown, setMarkdown });
     background var(--color-bg-translucent)
     color var(--color-text-primary)
 
-  &:focus-visible
-    outline 2px solid var(--color-accent)
-    outline-offset -2px
 
   &:active:not(:disabled)
     background var(--color-accent-tint)

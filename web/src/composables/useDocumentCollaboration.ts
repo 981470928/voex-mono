@@ -40,13 +40,14 @@ function base64(bytes: Uint8Array) {
   return btoa(binary);
 }
 
-/** Connection-local presence is disposable. Keep the local clock/state and every Y.Doc type. */
+/** Connection-local presence is disposable. Keep the local clock/state and every Y.Doc type. / 连接内的 presence 可丢弃；保留本地时钟、状态及 Y.Doc 中的所有类型。 */
 function resetRemotePresence(provider: HocuspocusProvider, clientId: number) {
   const awareness = provider.awareness;
   if (!awareness) return;
   const states = awareness.getStates();
   // Hocuspocus removes remote states on close but retains their clocks. The new
   // server's same-clock snapshot must be accepted immediately after reconnect.
+  // Hocuspocus 在关闭连接时移除远端状态但保留其时钟；重连后必须立即接受新服务端具有相同时钟的快照。
   for (const id of new Set([...states.keys(), ...awareness.meta.keys()])) {
     if (id === clientId) continue;
     states.delete(id);
@@ -54,7 +55,7 @@ function resetRemotePresence(provider: HocuspocusProvider, clientId: number) {
   }
 }
 
-/** One owner for transport, persistence acknowledgement and recovery in every document route. */
+/** One owner for transport, persistence acknowledgement and recovery in every document route. / 每个文档路由均由同一管理者负责传输、持久化确认和恢复。 */
 export function useDocumentCollaboration(
   options: {
     onPersisted?: (receipt: PersistenceReceipt) => void;
@@ -292,6 +293,7 @@ export function useDocumentCollaboration(
             clearReauthentication();
             // Reconnect cleanup can skip the previous close handler. Require this
             // socket's real handshake rather than retaining provider.isSynced.
+            // 重连清理可能跳过上一次关闭处理；必须等待当前 socket 的真实握手，不能沿用 provider.isSynced。
             provider.synced = false;
             resetRemotePresence(provider, document.clientID);
             synchronized.value = false;
@@ -317,6 +319,7 @@ export function useDocumentCollaboration(
             if (!isCurrent() || terminal) return;
             clearReauthentication();
             // Never send presence from token(): authentication must reach the server first.
+            // 不要从 token() 发送 presence：认证信息必须先到达服务端。
             provider.setAwarenessField('user', ticket.user);
             resumeAfterSync();
           },
@@ -329,6 +332,7 @@ export function useDocumentCollaboration(
             ) {
               // These machine reasons concern the collab service's temporary grant,
               // not the account session. A fresh ticket rechecks the account and ACL.
+              // 这些机器可读原因码针对协同服务的临时授权，而非账号会话；新票据会重新检查账号和 ACL。
               retryableAuthFailure = true;
               recoverableError = true;
               error.value = '协同连接正在恢复，本地修改已保留。';
@@ -394,6 +398,7 @@ export function useDocumentCollaboration(
               }
               // A state vector does not include deletion state. Only the ordered flush ACK
               // identifies all local updates (including deletes) sent before that request.
+              // 状态向量不包含删除状态；只有有序 flush 的 ACK 能确认该请求之前发送的全部本地更新（包括删除）。
               const id = typeof message.request_id === 'string' ? message.request_id : '';
               const request = pending.get(id);
               if (request) {
@@ -408,6 +413,7 @@ export function useDocumentCollaboration(
               } else if (recoverableError) {
                 // A broadcast proves the service recovered, not that our edits are saved.
                 // Resume through a new ordered flush; only its request_id ACK clears dirty.
+                // 广播只能证明服务已恢复，不能证明本地编辑已保存；通过新的有序 flush 恢复，只有对应 request_id 的 ACK 才能清除 dirty。
                 queueMicrotask(resumeAfterSync);
               }
             } else if (message.type === 'persistence-error') {
@@ -434,6 +440,7 @@ export function useDocumentCollaboration(
               reauthenticating = true;
               // The existing grant remains valid while renewal is in flight.
               // Keep the editor stable until the server confirms or the socket fails.
+              // 续期进行中时现有授权仍有效；在服务端确认或 socket 失败前保持编辑器稳定。
               void provider
                 .sendToken()
                 .then(() => {
@@ -457,6 +464,7 @@ export function useDocumentCollaboration(
               if (message.reason === 'authentication-expired') {
                 // API restarts invalidate in-memory grants. Keep this Y.Doc and its pending
                 // updates; a fresh ticket must still identify the same account and epoch.
+                // API 重启会使内存中的授权失效；保留当前 Y.Doc 及待提交更新，新票据仍必须对应同一账号和 epoch。
                 synchronized.value = false;
                 state.value = 'connecting';
                 error.value = '';

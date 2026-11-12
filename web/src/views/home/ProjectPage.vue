@@ -72,6 +72,15 @@
       </template>
       <template #actions>
         <button
+          v-if="canWrite && folderKey"
+          class="desktop__button"
+          type="button"
+          :disabled="loading || busy || creating"
+          @click="openImport"
+        >
+          <SvgIcon name="cloud-upload" :size="14" />导入文件
+        </button>
+        <button
           v-if="canWrite"
           class="desktop__create"
           type="button"
@@ -91,6 +100,15 @@
         >
       </template>
       <template v-if="canWrite" #empty-actions>
+        <button
+          v-if="folderKey"
+          class="desktop__button"
+          type="button"
+          :disabled="busy || creating"
+          @click="openImport"
+        >
+          <SvgIcon name="cloud-upload" :size="16" />导入文件
+        </button>
         <button
           class="desktop__button"
           type="button"
@@ -200,6 +218,46 @@ const title = computed(() =>
   folderKey.value ? path.value.at(-1)?.name || '文件夹' : projectName.value
 );
 const canWrite = computed(() => !error.value && permission.folder(tree.value?.project).write);
+const importOpen = ref(false);
+const importTarget = ref({ projectKey: '', folderKey: '', name: '' });
+useDialog(ModalType.DOCUMENT_IMPORT_DIALOG, {
+  visible: () => importOpen.value,
+  key: () => `${importTarget.value.projectKey}/${importTarget.value.folderKey}`,
+  props: () => ({
+    projectKey: importTarget.value.projectKey,
+    folderKey: importTarget.value.folderKey,
+    targetName: importTarget.value.name,
+    canImport: canWrite.value,
+    onImported: () => teams.invalidateProjects(),
+  }),
+  onClose: () => {
+    importOpen.value = false;
+  },
+});
+watch(
+  () => route.fullPath,
+  () => {
+    importOpen.value = false;
+  }
+);
+function openImport() {
+  if (
+    !canWrite.value ||
+    !projectKey.value ||
+    !folderKey.value ||
+    loading.value ||
+    busy.value ||
+    creating.value
+  )
+    return;
+  importTarget.value = {
+    projectKey: projectKey.value,
+    folderKey: folderKey.value,
+    name: [projectName.value, ...path.value.map((folder) => folder.name)].join(' / '),
+  };
+  importOpen.value = true;
+}
+
 const PAGE_SIZE = 48;
 const pageCount = computed(() => Math.max(1, Math.ceil(entries.value.length / PAGE_SIZE)));
 const page = computed(() =>
@@ -447,6 +505,7 @@ async function remove(entry: Entry, trigger: HTMLElement | null) {
 }
 
 // Home keys this page by project; folder navigation reuses the loaded tree.
+// Home 按项目设置此页面的 key；文件夹导航复用已加载的树。
 function permissionsSaved() {
   teams.invalidateProjects();
 }
@@ -605,7 +664,4 @@ onBeforeUnmount(() => {
   &:disabled
     cursor not-allowed
     opacity .4
-.desktop__create:focus-visible, .desktop__project-link:focus-visible, .desktop__breadcrumb:focus-visible, .desktop__button:focus-visible
-  outline 2px solid var(--color-accent)
-  outline-offset -2px
 </style>

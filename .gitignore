@@ -1,4 +1,5 @@
 # Local environment and private credentials (keep examples)
+# 本地环境配置和私密凭据（保留示例文件）
 .env
 .env.*
 !.env.example
@@ -8,6 +9,7 @@
 .release-keys/
 
 # Dependencies and build output
+# 依赖和构建产物
 node_modules/
 dist/
 dist-ssr/
@@ -18,19 +20,23 @@ coverage/
 /.pnpm-store/
 
 # MathJax vendor bundle downloaded by the local scripts
+# 本地脚本下载的 MathJax 第三方资源包
 /web/public/vendor/
 
 # Prebuilt artifacts for quick deployment are committed on purpose.
+# 用于快速部署的预构建产物是有意提交到仓库的。
 !prebuilt/
 !prebuilt/**
 /prebuilt.old/
 
 # Logs and operating-system files
+# 日志和操作系统文件
 logs/
 *.log
 .DS_Store
 Thumbs.db
 
 # Local deployment configuration, secrets, data and releases
+# 本地部署配置、密钥、数据和发布产物
 /voex.config.json
 /.voex/

@@ -487,6 +487,7 @@ function openCreateProject() {
         teams.invalidateProjects();
         if (route.fullPath === from) {
           // Navigation failures must not turn a completed creation into a retryable submission.
+          // 导航失败不应使已完成的创建操作变成可重试的提交。
           try {
             await router.push({
               name: 'project',
@@ -506,8 +507,9 @@ function openCreateProject() {
 
 async function switchTeam(event: Event) {
   const input = event.target as HTMLSelectElement;
+  const target = route.name === 'trash' || route.name === 'search' ? route.name : 'recent';
   await router.push({
-    name: route.name === 'trash' ? 'trash' : 'recent',
+    name: target,
     query: { team_key: input.value },
   });
   input.value = currentTeam.value?.team_key ?? '';
@@ -525,6 +527,7 @@ onBeforeUnmount(() => {
 
 const mainItems = [
   { label: '最近文件', icon: 'clock-outline', routeName: 'recent' },
+  { label: '搜索', icon: 'search', routeName: 'search' },
   { label: '回收站', icon: 'trash', routeName: 'trash' },
   { label: '团队与成员', icon: 'users', routeName: 'teams' },
   // { label: 'Pulse', icon: 'pulse' },
@@ -593,8 +596,6 @@ const mainItems = [
   cursor pointer
   &:hover:not(:disabled)
     background var(--color-bg-quaternary)
-  &:focus-visible
-    outline 2px solid var(--color-accent)
   &:disabled
     opacity .5
     cursor not-allowed
@@ -656,9 +657,6 @@ const mainItems = [
   &:hover
     background var(--color-bg-translucent)
 
-  &:focus-visible
-    outline 2px solid var(--color-accent)
-    outline-offset -2px
 
   img
     flex-shrink 0
@@ -738,9 +736,6 @@ const mainItems = [
   &:active:not(:disabled)
     background var(--color-bg-translucent)
 
-  &:focus-visible
-    outline 2px solid var(--color-accent)
-    outline-offset -2px
 
   &:disabled
     cursor not-allowed
@@ -766,10 +761,6 @@ const mainItems = [
 .home-aside__project:active
   background var(--color-bg-translucent)
 
-.home-aside__nav-link:focus-visible,
-.home-aside__project:focus-visible
-  outline 2px solid var(--color-accent)
-  outline-offset -2px
 
 .home-aside__icon
   flex-shrink 0
@@ -810,9 +801,6 @@ const mainItems = [
   background var(--color-bg-translucent)
   color var(--color-text-primary)
 
-.home-aside__create:focus-visible
-  outline 2px solid var(--color-accent)
-  outline-offset -2px
 
 .home-aside__create:active:not(:disabled)
   background var(--color-bg-translucent)
@@ -837,9 +825,6 @@ const mainItems = [
   color var(--color-link-hover)
   text-decoration underline
 
-.home-aside__retry:focus-visible
-  outline 2px solid var(--color-accent)
-  outline-offset 2px
 
 .home-aside__retry:disabled
   cursor not-allowed

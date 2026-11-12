@@ -14,6 +14,7 @@ export interface ResourcePermissions extends DocumentPermissions {
 export const usePermissionStore = defineStore('permission', () => {
   // Read the latest server DTO reactively. A second permission cache could retain
   // grants after a refresh, account change, or revoked share.
+  // 响应式读取最新的服务端 DTO；额外的权限缓存可能在刷新、切换账号或撤销分享后仍保留旧授权。
   function resolve(
     source: PermissionSource | null | undefined,
     projectAccess: boolean
@@ -37,6 +38,7 @@ export const usePermissionStore = defineStore('permission', () => {
   }
 
   // Folders always inherit project permissions; files may carry an explicit DTO.
+  // 文件夹始终继承项目权限；文件可能携带明确的权限 DTO。
   function folder(source?: PermissionSource | null) {
     return resolve(
       {
@@ -57,6 +59,7 @@ export const usePermissionStore = defineStore('permission', () => {
     return {
       ...resolve(source?.access === 'unavailable' ? null : source, source?.access === 'project'),
       // Removing one's history never requires permission to modify the file.
+      // 移除自己的历史记录不需要修改文件的权限。
       removeRecord: !!source,
     };
   }

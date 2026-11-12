@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Builds reviewable artifacts only. Does not migrate a database or restart services.
+# 仅构建可供审查的产物，不执行数据库迁移或重启服务。
 set -euo pipefail
 if [[ ! -v NODE_OPTIONS ]]; then export NODE_OPTIONS=--max-old-space-size=1024; fi
 backend_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)

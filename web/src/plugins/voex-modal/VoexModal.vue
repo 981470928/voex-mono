@@ -20,7 +20,7 @@
         <div class="voex-modal-mask" aria-hidden="true" @click.self="handleMaskClick" />
         <div class="voex-modal-wrapper" :class="wrapperClass">
           <div class="voex-modal" :style="modalStyle">
-            <!-- Header -->
+            <!-- Header / 头部 -->
             <div
               v-if="title || $slots.header"
               :id="$slots.header ? titleId : undefined"
@@ -48,12 +48,12 @@
               </slot>
             </div>
 
-            <!-- Body -->
+            <!-- Body / 主体 -->
             <div class="voex-modal__body">
               <slot />
             </div>
 
-            <!-- Footer -->
+            <!-- Footer / 底部 -->
             <div v-if="$slots.footer" class="voex-modal__footer">
               <slot name="footer" />
             </div>
@@ -85,6 +85,7 @@ type ModalSession = {
 };
 
 // Shared by registered dialogs, drawers, and other VoexModal instances.
+// 由已注册的对话框、抽屉及其他 VoexModal 实例共享。
 const modalStack: ModalSession[] = [];
 let restorePageScroll: (() => void) | undefined;
 
@@ -129,6 +130,7 @@ function releaseModal(session: ModalSession) {
   if (index === -1) return;
   const wasTop = index === modalStack.length - 1;
   // If a lower dialog disappears first, its successor must restore the original opener.
+  // 若下层对话框先消失，后续对话框必须将焦点恢复到最初的打开者。
   for (const other of modalStack.slice(index + 1)) {
     if (other.previousFocus && session.dialog.contains(other.previousFocus)) {
       other.previousFocus = session.previousFocus;
@@ -169,6 +171,7 @@ function getTabStops(root: ParentNode): HTMLElement[] {
       stops.push(element);
     }
     // FileViewer renders controls inside a shadow root; follow the composed tree.
+    // FileViewer 在 shadow root 内渲染控件；应沿组合树遍历。
     const assigned =
       element instanceof HTMLSlotElement ? element.assignedElements({ flatten: true }) : [];
     const children = assigned.length ? assigned : (element.shadowRoot ?? element).children;
@@ -243,9 +246,11 @@ watch(
     session = { dialog, previousFocus };
     modalStack.push(session);
     // showModal supplies the top layer, background inertness and native focus containment.
+    // showModal 提供原生顶层、背景禁用交互及原生焦点约束。
     dialog.showModal();
     const openedSession = session;
     // Retained drawers may finish becoming visible after showModal's native focus step.
+    // 保留的抽屉可能在 showModal 完成原生聚焦步骤后才变为可见。
     nextTick(() => {
       if (session !== openedSession || modalStack.at(-1) !== openedSession) return;
       if (!dialog.contains(document.activeElement)) {
@@ -279,6 +284,7 @@ function handleClose() {
   emit('update:modelValue', false);
   emit('close');
   // A close callback may immediately open another session without a false render.
+  // 关闭回调可能立即打开另一会话，中间不会渲染关闭状态。
   nextTick(() => {
     if (props.modelValue) closeRequested = false;
   });
@@ -286,6 +292,7 @@ function handleClose() {
 
 function handleNativeClose(event: Event) {
   // Ignore the queued native close event after a controlled close/unmount.
+  // 受控关闭或卸载后，忽略已排入队列的原生 close 事件。
   const dialog = session?.dialog;
   if (!dialog || event.target !== dialog || dialog.open) return;
   if (props.busy || props.closeDisabled) dialog.showModal();
@@ -412,9 +419,6 @@ function handleMaskClick() {
     background var(--color-bg-translucent)
     color var(--color-text-primary)
 
-  &:focus-visible
-    outline 2px solid var(--color-accent)
-    outline-offset 2px
 
   &:disabled
     cursor not-allowed
@@ -439,6 +443,7 @@ function handleMaskClick() {
   padding 0 20px 16px
 
 // Transition
+// 过渡动画
 .voex-modal-enter-active,
 .voex-modal-leave-active
   transition opacity 0.25s ease

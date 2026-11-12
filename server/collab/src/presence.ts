@@ -1,3 +1,4 @@
+import { Messages, SocketCloseCode, httpStatus, sizeLimitMessage } from "./errors.js";
 /** Awareness 只传播临时在线信息；客户端只能更新自己绑定的 clientID，用户身份由服务端覆盖。 */
 import type { Connection } from '@hocuspocus/server';
 import * as decoding from 'lib0/decoding';
@@ -7,10 +8,10 @@ import { ServiceError } from './protocol.js';
 import type { Context, Grant, Room } from './types.js';
 
 export function applyPresence(room: Room, connection: Connection, bytes: Uint8Array, grant: Grant) {
-  if (bytes.byteLength > 128 * 1024) throw new ServiceError('Awareness payload too large', 413);
+  if (bytes.byteLength > 128 * 1024) throw new ServiceError(sizeLimitMessage("请求内容"), httpStatus.HTTP_STATUS_PAYLOAD_TOO_LARGE);
   const decoder = decoding.createDecoder(bytes);
   const count = decoding.readVarUint(decoder);
-  if (count > 256) throw new ServiceError('Too many awareness clients', 400);
+  if (count > 256) throw new ServiceError(Messages.InvalidRequest, httpStatus.HTTP_STATUS_BAD_REQUEST);
   const localID = (connection.context as Context).clientId;
   const accepted: { client: number; clock: number; state: unknown }[] = [];
   for (let index = 0; index < count; index++) {
@@ -24,13 +25,13 @@ export function applyPresence(room: Room, connection: Connection, bytes: Uint8Ar
     if (previous && previous.connection !== connection) {
       const previousClosed = previous.connection.webSocket.readyState >= 2;
       if (previous.userId !== String(grant.user.id) && !previousClosed)
-        throw new ServiceError('Awareness client ownership mismatch', 403);
+        throw new ServiceError(Messages.PermissionDenied, httpStatus.HTTP_STATUS_FORBIDDEN);
       // 同账号重连时转移 clientID 的归属，旧连接清理不能移除新连接的状态。
       // 旧匿名连接已关闭时，新的匿名会话也可以重新认领该 ID。
       room.doc.getClients(previous.connection.webSocket).delete(client);
       if (!previousClosed)
         previous.connection.close({
-          code: 4000,
+          code: SocketCloseCode.PresenceReplaced,
           reason: 'presence-reconnected',
         });
       clock = Math.max(clock, (room.doc.awareness.meta.get(client)?.clock || 0) + 1);
@@ -42,7 +43,7 @@ export function applyPresence(room: Room, connection: Connection, bytes: Uint8Ar
     let state = null;
     if (value !== null) {
       if (typeof value !== 'object' || Array.isArray(value))
-        throw new ServiceError('Invalid awareness state', 400);
+        throw new ServiceError(Messages.InvalidRequest, httpStatus.HTTP_STATUS_BAD_REQUEST);
       const cursor = value.cursor && typeof value.cursor === 'object' ? value.cursor : undefined;
       const palette = ['#2563EB', '#7C3AED', '#059669', '#D97706', '#DB2777', '#0891B2'];
       const colorIndex =

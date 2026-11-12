@@ -3,7 +3,7 @@ import type { Ctx } from '@milkdown/kit/ctx';
 import { paragraphSchema } from '@milkdown/kit/preset/commonmark';
 import { Fragment, type Node as ProseNode } from '@milkdown/kit/prose/model';
 
-/** Same paragraph serialization in both runtimes; headless callers provide the real input root. */
+/** Same paragraph serialization in both runtimes; headless callers provide the real input root. / 两种运行环境使用相同的段落序列化方式；无界面的调用方提供实际的输入根节点。 */
 export function configureParagraph(ctx: Ctx, getRoot?: () => ProseNode | null) {
   ctx.update(paragraphSchema.key, (previous) => (schemaCtx) => {
     const base = previous(schemaCtx);

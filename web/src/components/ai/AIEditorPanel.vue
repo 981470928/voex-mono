@@ -7,9 +7,11 @@
     "
   >
     <header class="ai-panel__header">
-      <span>
+      <span class="ai-panel__heading">
         <SvgIcon name="ai" :size="18" />
-        {{ activeConversation ? activeConversation.title : 'AI 文档助手' }}
+        <span class="ai-panel__title" :title="activeConversation?.title || 'AI 文档助手'">{{
+          activeConversation ? activeConversation.title : 'AI 文档助手'
+        }}</span>
       </span>
       <div class="ai-panel__header-actions">
         <button
@@ -181,6 +183,21 @@
           @rendered="scrollEnd"
         />
         <p v-else-if="message.text" class="ai-panel__text">{{ message.text }}</p>
+        <ul
+          v-if="message.attachments?.length"
+          class="ai-panel__sent-files"
+          aria-label="本条消息的附件"
+        >
+          <li
+            v-for="attachment in message.attachments"
+            :key="attachment.id"
+            :title="attachment.name"
+          >
+            <SvgIcon :name="attachment.kind === 'image' ? 'image' : 'attachment'" :size="15" />
+            <span>{{ attachment.name }}</span>
+            <small>{{ attachmentSize(attachment.size) }}</small>
+          </li>
+        </ul>
         <details v-if="message.activity?.length" class="ai-panel__activity">
           <summary>操作记录（{{ message.activity.length }}）</summary>
           <ol>
@@ -223,6 +240,63 @@
     </div>
     <form class="ai-panel__composer" novalidate @submit.prevent="send">
       <div class="ai-panel__input-box">
+        <ul
+          v-if="draftAttachments.length"
+          class="ai-panel__files"
+          aria-label="待发送附件"
+          aria-live="polite"
+        >
+          <li v-for="item in draftAttachments" :key="item.id" class="ai-panel__file">
+            <SvgIcon
+              :name="item.attachment?.kind === 'image' ? 'image' : 'attachment'"
+              :size="18"
+            />
+            <div class="ai-panel__file-info">
+              <span :title="item.name">{{ item.name }}</span>
+              <small :class="{ 'ai-error': item.status === 'error' }">
+                {{
+                  item.status === 'uploading'
+                    ? item.progress < 100
+                      ? `正在上传 ${item.progress}%`
+                      : '正在解析…'
+                    : item.status === 'error'
+                      ? item.error
+                      : attachmentSize(item.size) + ' · 已就绪'
+                }}
+              </small>
+            </div>
+            <button
+              v-if="item.status === 'error'"
+              type="button"
+              class="ai-panel__control"
+              :disabled="running || applying || !selectedModel?.multimodal_enabled"
+              :aria-label="'重新上传：' + item.name"
+              @click="retryAttachment(item)"
+            >
+              重试
+            </button>
+            <button
+              type="button"
+              class="ai-panel__control ai-panel__file-remove"
+              :disabled="running || applying"
+              :aria-label="'移除附件：' + item.name"
+              :title="item.status === 'uploading' ? '取消上传并移除附件' : '移除附件'"
+              @click="removeAttachment(item.id)"
+            >
+              <SvgIcon name="close" :size="16" />
+            </button>
+          </li>
+        </ul>
+        <p v-if="attachmentError" class="ai-error ai-panel__file-error" role="alert">
+          {{ attachmentError }}
+        </p>
+        <p
+          v-if="draftAttachments.length && !selectedModel?.multimodal_enabled"
+          class="ai-error ai-panel__file-error"
+          role="alert"
+        >
+          当前模型未开启多模态，请选择多模态模型或移除附件。
+        </p>
         <textarea
           id="ai-message"
           ref="input"
@@ -261,6 +335,9 @@
               @keydown.up.prevent="modelMenuOpen = true"
             >
               <span>{{ selectedModel?.name || '选择模型' }}</span>
+              <small v-if="selectedModel?.multimodal_enabled" class="ai-panel__multimodal"
+                >多模态</small
+              >
               <SvgIcon
                 name="chevron-right"
                 :size="14"
@@ -272,25 +349,39 @@
               <div ref="modelMenu" class="ai-panel__model-menu" @keydown.tab="onModelMenuTab">
                 <fieldset v-if="models.length" class="ai-panel__model-options">
                   <legend class="ai-panel__sr-only">可用模型</legend>
-                  <label
-                    v-for="model in models"
-                    :key="model.id"
-                    class="ai-panel__model-option"
-                    :class="{ 'ai-panel__model-option--selected': selectedId === model.id }"
-                  >
-                    <input
-                      v-model="selectedId"
-                      type="radio"
-                      :name="modelGroupName"
-                      :value="model.id"
-                      @click="selectModel(model.id)"
-                      @keydown.enter.prevent="selectModel(model.id)"
-                    />
-                    <span>
-                      <strong>{{ model.name }}</strong>
-                      <small>{{ model.model }}</small>
-                    </span>
-                  </label>
+                  <div v-for="model in models" :key="model.id" class="ai-panel__model-row">
+                    <label
+                      class="ai-panel__model-option"
+                      :class="{ 'ai-panel__model-option--selected': selectedId === model.id }"
+                    >
+                      <input
+                        v-model="selectedId"
+                        type="radio"
+                        :name="modelGroupName"
+                        :value="model.id"
+                        @click="selectModel(model.id)"
+                        @keydown.enter.prevent="selectModel(model.id)"
+                      />
+                      <span>
+                        <strong class="ai-panel__model-name"
+                          >{{ model.name
+                          }}<span v-if="model.multimodal_enabled" class="ai-panel__multimodal"
+                            >多模态</span
+                          ></strong
+                        >
+                        <small>{{ model.model }}</small>
+                      </span>
+                    </label>
+                    <button
+                      type="button"
+                      class="ai-panel__control ai-panel__model-edit"
+                      :aria-label="'编辑模型：' + model.name"
+                      :title="'编辑模型：' + model.name"
+                      @click="openModelSettings(model)"
+                    >
+                      <SvgIcon name="write" :size="16" />
+                    </button>
+                  </div>
                 </fieldset>
                 <p v-else class="ai-panel__model-empty">暂无模型，请先配置</p>
                 <button
@@ -306,47 +397,162 @@
                   ref="modelSettingsButton"
                   class="ai-panel__control ai-panel__model-settings"
                   type="button"
-                  @click="openModelSettings"
+                  @click="openModelSettings()"
                 >
-                  <SvgIcon name="setting" :size="16" />
-                  配置模型
+                  <SvgIcon name="add" :size="16" />
+                  新增模型
                 </button>
               </div>
             </template>
           </VoexTrigger>
-          <button
-            ref="exportButton"
-            class="ai-panel__control ai-panel__icon-button"
-            :class="{ 'ai-panel__icon-button--active': allowExport }"
-            type="button"
-            aria-label="允许本轮导出已保存文档"
-            :title="allowExport ? '本轮已允许导出已保存文档（点击关闭）' : '允许本轮导出已保存文档'"
-            :aria-pressed="allowExport"
-            :disabled="running || applying"
-            @click="allowExport = !allowExport"
-          >
-            <SvgIcon name="download" :size="18" />
-          </button>
-          <button
-            v-if="running"
-            type="button"
-            class="ai-panel__control ai-panel__icon-button ai-panel__send"
-            aria-label="停止生成"
-            title="停止生成"
-            @click="stop"
-          >
-            <SvgIcon name="close" :size="18" />
-          </button>
-          <button
-            v-else
-            type="submit"
-            class="ai-panel__control ai-panel__icon-button ai-panel__send"
-            aria-label="发送"
-            title="发送"
-            :disabled="!canSend"
-          >
-            <SvgIcon name="send" :size="18" />
-          </button>
+          <input
+            ref="attachmentInput"
+            type="file"
+            :accept="AI_ATTACHMENT_ACCEPT"
+            multiple
+            hidden
+            aria-label="选择 AI 对话附件"
+            :disabled="!canUpload"
+            @change="selectAttachments"
+          />
+          <div class="ai-panel__toolbar-actions">
+            <VoexTrigger
+              v-model:popup-visible="webMenuOpen"
+              trigger="click"
+              position="top-end"
+              strategy="fixed"
+              :popup-offset="8"
+              :disabled="running || applying"
+              content-class="ai-panel__web-popup"
+              role="dialog"
+              aria-label="选择搜索引擎"
+              @show="focusSelectedWebEngine"
+            >
+              <button
+                ref="webTrigger"
+                class="ai-panel__control ai-panel__icon-button"
+                type="button"
+                :aria-label="webSearchLabel"
+                :title="webSearchLabel"
+                aria-haspopup="dialog"
+                :disabled="running || applying"
+                @keydown.down.prevent="webMenuOpen = true"
+                @keydown.up.prevent="webMenuOpen = true"
+              >
+                <SvgIcon
+                  name="world"
+                  :size="18"
+                  :color="webSearchEnabled ? 'var(--color-brand-bg)' : undefined"
+                />
+              </button>
+              <template #content>
+                <div
+                  ref="webMenu"
+                  class="ai-panel__web-menu"
+                  tabindex="-1"
+                  @keydown.tab="onWebMenuTab"
+                >
+                  <div class="ai-panel__web-heading">
+                    <span>搜索引擎</span>
+                    <VoexTooltip
+                      content="选择引擎后可搜索并读取公开网页；搜索词会发送给该引擎，网页内容会提供给当前模型。选择“无”关闭联网。Bing RSS 无需 Key，可用性可能波动。"
+                    >
+                      <button
+                        type="button"
+                        class="ai-panel__control ai-panel__web-help"
+                        aria-label="联网搜索与网页读取说明"
+                      >
+                        <SvgIcon name="question-mark" :size="16" />
+                      </button>
+                    </VoexTooltip>
+                  </div>
+                  <fieldset class="ai-panel__web-options" :aria-describedby="webStatusId">
+                    <legend class="ai-panel__sr-only">可用搜索引擎</legend>
+                    <label
+                      v-for="engine in webEngineOptions"
+                      :key="engine.id"
+                      class="ai-panel__web-option"
+                      :class="{
+                        'ai-panel__web-option--selected': selectedWebEngineId === engine.id,
+                      }"
+                    >
+                      <input
+                        v-model="selectedWebEngineId"
+                        type="radio"
+                        :name="webGroupName"
+                        :value="engine.id"
+                        :disabled="running || applying || (!!engine.id && webEnginesLoading)"
+                        @change="webEngineError = ''"
+                        @click="selectWebEngine(engine.id)"
+                        @keydown.enter.prevent="selectWebEngine(engine.id)"
+                      />
+                      <span>{{ engine.name }}</span>
+                      <small v-if="!engine.id">不开启搜索</small>
+                    </label>
+                  </fieldset>
+                  <p
+                    :id="webStatusId"
+                    class="ai-panel__web-status"
+                    :class="{ 'ai-error': webEngineError }"
+                    role="status"
+                  >
+                    {{
+                      webEnginesLoading
+                        ? '正在加载搜索引擎…'
+                        : webEngineError ||
+                          (!webEngines.length
+                            ? '暂无可用搜索引擎，请稍后重试。'
+                            : webSearchEnabled
+                              ? '已开启搜索和网页读取'
+                              : '联网搜索已关闭')
+                    }}
+                  </p>
+                  <button
+                    v-if="webEngineError || (!webEnginesLoading && !webEngines.length)"
+                    type="button"
+                    class="ai-panel__control ai-panel__web-retry"
+                    :disabled="running || applying || webEnginesLoading"
+                    @click="loadWebEngines()"
+                  >
+                    重新加载搜索引擎
+                  </button>
+                </div>
+              </template>
+            </VoexTrigger>
+            <button
+              v-if="selectedModel?.multimodal_enabled"
+              ref="attachmentButton"
+              class="ai-panel__control ai-panel__icon-button"
+              type="button"
+              aria-label="上传图片或文档"
+              title="上传图片或文档"
+              :disabled="!canUpload"
+              :aria-busy="uploadBusy"
+              @click="attachmentInput?.click()"
+            >
+              <SvgIcon name="attachment" :size="18" />
+            </button>
+            <button
+              v-if="running"
+              type="button"
+              class="ai-panel__control ai-panel__icon-button ai-panel__send"
+              aria-label="停止生成"
+              title="停止生成"
+              @click="stop"
+            >
+              <SvgIcon name="close" :size="18" />
+            </button>
+            <button
+              v-else
+              type="submit"
+              class="ai-panel__control ai-panel__icon-button ai-panel__send"
+              aria-label="发送"
+              title="发送"
+              :disabled="!canSend"
+            >
+              <SvgIcon name="send" :size="18" />
+            </button>
+          </div>
         </div>
       </div>
     </form>
@@ -370,11 +576,25 @@ import AIMessageMarkdown from './AIMessageMarkdown.vue';
 import { createAIMessageRenderer, type AIMessageRenderer } from './message-markdown';
 import { useMessageBox } from '@/composables/useMessageBox';
 import { VoexTrigger } from '@/plugins/trigger';
+import { VoexTooltip } from '@/plugins/tooltip';
 import { useDialog } from '@/composables/useDialog';
 import { useConfirm } from '@/composables/useConfirm';
 import { MessageType } from '@/constant/status';
 import { ModalType } from '@/stores/modal';
-import { getAIReview, listAIModels } from '@/service/api/ai-api';
+import {
+  getAIReview,
+  listAIModels,
+  listAIWebEngines,
+  uploadAIAttachment,
+} from '@/service/api/ai-api';
+import { randomUUID } from '@/utils/id';
+import {
+  AI_ATTACHMENT_ACCEPT,
+  AI_ATTACHMENT_MAX_COUNT,
+  AI_ATTACHMENT_TOTAL_SIZE,
+  attachmentSize,
+  validateAIAttachment,
+} from '@/agent/attachments';
 import { authUser } from '@/service/auth-session';
 import { useAgentStore } from '@/stores/agent';
 import { errorMessage } from '@/utils/error';
@@ -386,8 +606,11 @@ import {
   type FileCapabilities,
 } from '@/agent/editor-tools';
 import { runAgent } from '@/agent/run';
+import { registerWebTools } from '@/agent/web-tools';
 import type {
   AIModel,
+  AIWebEngine,
+  AIAttachmentDraft,
   AIConversationSession,
   ChatMessage,
   DocumentSnapshot,
@@ -402,19 +625,37 @@ const props = defineProps<{
   canWrite: boolean;
   busy: boolean;
   prepare: () => Promise<DocumentSnapshot>;
-  apply: (review: ReviewSnapshot) => Promise<void>;
+  apply: (review: ReviewSnapshot) => Promise<boolean>;
   normalize: (content: string) => string;
   capabilities: FileCapabilities;
 }>();
 const emit = defineEmits<{ close: [] }>();
 const models = ref<AIModel[]>([]);
 const selectedId = ref('');
+const webEngines = ref<AIWebEngine[]>([]);
+const selectedWebEngineId = ref('');
+const webSearchEnabled = computed(() => selectedWebEngineId.value !== '');
+const webEngineOptions = computed(() => [{ id: '', name: '无' }, ...webEngines.value]);
+const webMenuOpen = ref(false);
+const webTrigger = ref<HTMLButtonElement>();
+const webMenu = ref<HTMLElement>();
+const webGroupName = useId() + '-web-engine';
+const webEnginesLoading = ref(false);
+const webEngineError = ref('');
+const webStatusId = useId() + '-web-status';
+const selectedWebEngine = computed(() =>
+  webEngines.value.find((engine) => engine.id === selectedWebEngineId.value)
+);
+const webSearchLabel = computed(() =>
+  webSearchEnabled.value ? `联网搜索：${selectedWebEngine.value?.name || '已开启'}` : '联网搜索：无'
+);
 const selectedModel = computed(() => models.value.find((model) => model.id === selectedId.value));
 const messageBox = useMessageBox();
 const { confirm } = useConfirm();
 const modelMessages = useMessageBox();
 const pending = reactive(new Set<'models' | 'review' | 'delete'>());
 const settingsOpen = ref(false);
+const editingModel = shallowRef<AIModel | null>(null);
 const modelMenuOpen = ref(false);
 const conversationMenuOpen = ref(false);
 const conversationTrigger = ref<HTMLButtonElement>();
@@ -424,7 +665,10 @@ const modelGroupName = useId() + '-ai-model';
 const modelTrigger = ref<HTMLButtonElement>();
 const modelMenu = ref<HTMLElement>();
 const modelSettingsButton = ref<HTMLButtonElement>();
-const exportButton = ref<HTMLButtonElement>();
+const attachmentInput = ref<HTMLInputElement>();
+const attachmentButton = ref<HTMLButtonElement>();
+const attachmentError = ref('');
+const uploads = new Map<string, { controller: AbortController; draft: AIAttachmentDraft }>();
 const agentStore = useAgentStore();
 const conversationId = computed(() => agentStore.selectedSessions[props.documentKey] ?? '');
 const conversations = computed(() => agentStore.conversations[props.documentKey] ?? []);
@@ -442,7 +686,12 @@ const prompt = computed({
   get: () => agentStore.draft(props.documentKey, conversationId.value),
   set: (value: string) => agentStore.setDraft(props.documentKey, conversationId.value, value),
 });
-const allowExport = ref(false);
+const draftAttachments = computed(() =>
+  agentStore.attachments(props.documentKey, conversationId.value)
+);
+const uploadBusy = computed(() =>
+  draftAttachments.value.some((item) => item.status === 'uploading')
+);
 const running = ref(false);
 const review = ref<ReviewSnapshot | null>(null);
 const applying = ref(false);
@@ -480,6 +729,7 @@ watch(
 let followScroll = true;
 let controller: AbortController | undefined;
 let modelController: AbortController | undefined;
+let webEngineController: AbortController | undefined;
 let reviewController: AbortController | undefined;
 let disposed = false;
 const markdownRenderer = shallowRef<AIMessageRenderer>();
@@ -500,13 +750,26 @@ const conversationLocked = computed(
     conversationList.value.creating ||
     pending.has('review') ||
     pending.has('delete') ||
+    uploadBusy.value ||
     history.value.loading ||
     messages.value.some((message) => message.persistence === 'saving')
 );
+const canUpload = computed(
+  () =>
+    !!selectedModel.value?.multimodal_enabled &&
+    !conversationLocked.value &&
+    !props.busy &&
+    !pending.has('models') &&
+    !settingsOpen.value
+);
 const canSend = computed(
   () =>
-    !!prompt.value.trim() &&
+    (!!prompt.value.trim() || draftAttachments.value.length > 0) &&
+    draftAttachments.value.every((item) => item.status === 'ready') &&
+    (!draftAttachments.value.length || !!selectedModel.value?.multimodal_enabled) &&
     !!selectedModel.value &&
+    (!webSearchEnabled.value ||
+      (!webEnginesLoading.value && !webEngineError.value && !!selectedWebEngine.value)) &&
     !!props.documentKey &&
     !props.busy &&
     !conversationLocked.value &&
@@ -517,7 +780,7 @@ const canSend = computed(
 );
 useDialog(ModalType.AI_MODEL_DIALOG, {
   visible: () => settingsOpen.value,
-  props: () => ({ models: models.value, selectedId: selectedId.value, onSaved: modelSaved }),
+  props: () => ({ model: editingModel.value, onSaved: modelSaved }),
   onClose: () => {
     settingsOpen.value = false;
   },
@@ -743,6 +1006,82 @@ async function loadModels() {
     }
   }
 }
+async function loadWebEngines(signal?: AbortSignal): Promise<AIWebEngine[] | undefined> {
+  webEngineController?.abort();
+  const request = new AbortController();
+  webEngineController = request;
+  const cancel = () => request.abort();
+  signal?.addEventListener('abort', cancel, { once: true });
+  if (signal?.aborted) request.abort();
+  const user = authUser.value?.id;
+  webEnginesLoading.value = true;
+  webEngineError.value = '';
+  try {
+    const { engines } = await listAIWebEngines(request.signal);
+    if (request.signal.aborted || disposed || user !== authUser.value?.id) return;
+    const removed =
+      !!selectedWebEngineId.value &&
+      !engines.some((engine) => engine.id === selectedWebEngineId.value);
+    webEngines.value = engines;
+    if (removed) {
+      selectedWebEngineId.value = '';
+      webEngineError.value = '原搜索引擎已不可用，已切换为“无”，请重新选择。';
+    }
+    return engines;
+  } catch (cause) {
+    if (!request.signal.aborted && !disposed && user === authUser.value?.id) {
+      webEngines.value = [];
+      selectedWebEngineId.value = '';
+      webEngineError.value = errorMessage(cause, '搜索引擎加载失败，请重试');
+    }
+  } finally {
+    signal?.removeEventListener('abort', cancel);
+    if (webEngineController === request) {
+      webEnginesLoading.value = false;
+      webEngineController = undefined;
+    }
+  }
+}
+watch(modelMenuOpen, (open) => {
+  if (open) webMenuOpen.value = false;
+});
+watch(webMenuOpen, (open) => {
+  if (!open) return;
+  modelMenuOpen.value = false;
+  if (!running.value && !applying.value) void loadWebEngines();
+});
+function focusSelectedWebEngine() {
+  if (!webMenuOpen.value) return;
+  const selected = webMenu.value?.querySelector<HTMLInputElement>('input:checked:not(:disabled)');
+  (selected ?? webMenu.value)?.focus({ preventScroll: true });
+}
+function selectWebEngine(id: string) {
+  if (running.value || applying.value) return;
+  if (id && (webEnginesLoading.value || !webEngines.value.some((engine) => engine.id === id)))
+    return;
+  selectedWebEngineId.value = id;
+  webEngineError.value = '';
+  webMenuOpen.value = false;
+  webTrigger.value?.focus({ preventScroll: true });
+}
+function onWebMenuTab(event: KeyboardEvent) {
+  const controls = webMenu.value?.querySelectorAll<HTMLElement>(
+    'button:enabled, input:checked:not(:disabled)'
+  );
+  if (!controls?.length) return;
+  if (event.shiftKey && event.target === controls[0]) {
+    event.preventDefault();
+    webMenuOpen.value = false;
+    webTrigger.value?.focus({ preventScroll: true });
+  } else if (!event.shiftKey && event.target === controls[controls.length - 1]) {
+    event.preventDefault();
+    webMenuOpen.value = false;
+    const nextControl = attachmentButton.value;
+    (nextControl && !nextControl.disabled ? nextControl : input.value)?.focus({
+      preventScroll: true,
+    });
+  }
+}
 function modelSaved(model: AIModel) {
   models.value = [...models.value.filter((item) => item.id !== model.id), model];
   selectedId.value = model.id;
@@ -758,16 +1097,16 @@ function selectModel(id: string) {
   modelMenuOpen.value = false;
   modelTrigger.value?.focus({ preventScroll: true });
 }
-async function openModelSettings() {
+async function openModelSettings(model: AIModel | null = null) {
+  editingModel.value = model;
   modelMenuOpen.value = false;
   modelTrigger.value?.focus({ preventScroll: true });
   await nextTick();
   settingsOpen.value = true;
 }
 function onModelMenuTab(event: KeyboardEvent) {
-  const atStart =
-    event.target instanceof HTMLInputElement ||
-    (!models.value.length && event.target === modelMenu.value?.querySelector('button'));
+  const firstControl = modelMenu.value?.querySelector('input:checked, button:enabled');
+  const atStart = event.target === firstControl;
   if (event.shiftKey && atStart) {
     event.preventDefault();
     modelMenuOpen.value = false;
@@ -775,9 +1114,117 @@ function onModelMenuTab(event: KeyboardEvent) {
   } else if (!event.shiftKey && event.target === modelSettingsButton.value) {
     event.preventDefault();
     modelMenuOpen.value = false;
-    exportButton.value?.focus({ preventScroll: true });
+    (webTrigger.value ?? input.value)?.focus({ preventScroll: true });
   }
 }
+async function selectAttachments(event: Event) {
+  const target = event.target as HTMLInputElement;
+  const files = Array.from(target.files ?? []);
+  target.value = '';
+  const model = selectedModel.value;
+  if (!model?.multimodal_enabled || !canUpload.value || !files.length) return;
+  const key = props.documentKey;
+  const session = conversationId.value;
+  const queue = agentStore.attachments(key, session);
+  const failures: string[] = [];
+  const added: AIAttachmentDraft[] = [];
+  for (const file of files) {
+    const issue = validateAIAttachment(file);
+    if (issue) {
+      failures.push(`${file.name}：${issue}`);
+      continue;
+    }
+    if (queue.length >= AI_ATTACHMENT_MAX_COUNT) {
+      failures.push('每轮最多上传 4 个文件');
+      break;
+    }
+    if (queue.reduce((size, item) => size + item.size, 0) + file.size > AI_ATTACHMENT_TOTAL_SIZE) {
+      failures.push(`${file.name}：本轮文件总大小不能超过 12 MiB`);
+      continue;
+    }
+    const item = reactive<AIAttachmentDraft>({
+      id: randomUUID(),
+      name: file.name,
+      size: file.size,
+      file,
+      status: 'uploading',
+      progress: 0,
+      error: '',
+    });
+    queue.push(item);
+    added.push(item);
+  }
+  attachmentError.value = failures.join('；');
+  await Promise.allSettled(added.map((item) => uploadAttachment(item, key, session, model.id)));
+}
+async function uploadAttachment(
+  item: AIAttachmentDraft,
+  fileKey: string,
+  sessionId: string,
+  modelId: string
+) {
+  if (!item.file) return;
+  const user = authUser.value?.id;
+  const request = new AbortController();
+  const active = { controller: request, draft: item };
+  uploads.set(item.id, active);
+  item.status = 'uploading';
+  item.progress = 0;
+  item.error = '';
+  try {
+    const result = await uploadAIAttachment(modelId, item.file, request.signal, (percent) => {
+      item.progress = percent;
+    });
+    if (
+      request.signal.aborted ||
+      user !== authUser.value?.id ||
+      disposed ||
+      !agentStore.attachments(fileKey, sessionId).includes(item)
+    )
+      return;
+    item.attachment = result;
+    item.status = 'ready';
+    item.file = undefined;
+  } catch (cause) {
+    if (user === authUser.value?.id && agentStore.attachments(fileKey, sessionId).includes(item)) {
+      item.status = 'error';
+      item.error = request.signal.aborted
+        ? '上传已取消，可重试'
+        : errorMessage(cause, '上传失败，请重试');
+    }
+  } finally {
+    if (uploads.get(item.id) === active) uploads.delete(item.id);
+  }
+}
+function retryAttachment(item: AIAttachmentDraft) {
+  if (
+    running.value ||
+    applying.value ||
+    !selectedModel.value?.multimodal_enabled ||
+    item.status !== 'error'
+  )
+    return;
+  void uploadAttachment(item, props.documentKey, conversationId.value, selectedModel.value.id);
+}
+function removeAttachment(id: string) {
+  if (running.value || applying.value) return;
+  uploads.get(id)?.controller.abort();
+  agentStore.setAttachments(
+    props.documentKey,
+    conversationId.value,
+    draftAttachments.value.filter((item) => item.id !== id)
+  );
+  attachmentError.value = '';
+}
+function cancelAttachmentUploads() {
+  for (const { controller, draft } of uploads.values()) {
+    controller.abort();
+    draft.status = 'error';
+    draft.error = '上传已取消，可重试';
+  }
+  uploads.clear();
+}
+
 function onInputKeydown(event: KeyboardEvent) {
   if (event.key !== 'Enter' || event.shiftKey || event.isComposing || event.keyCode === 229) return;
   event.preventDefault();
@@ -827,6 +1274,9 @@ function closeReview() {
 async function send() {
   const model = selectedModel.value;
   if (!model || !canSend.value) return;
+  const webEngine = selectedWebEngineId.value;
+  modelMenuOpen.value = false;
+  webMenuOpen.value = false;
   const sourceKey = props.documentKey;
   const originalSessionId = conversationId.value;
   let sessionId = originalSessionId;
@@ -841,9 +1291,19 @@ async function send() {
   let draft: AgentDraft | undefined;
   let assistant: ChatMessage | undefined;
   const submittedDraft = prompt.value;
-  const text = submittedDraft.trim();
-  const exportGranted = allowExport.value;
+  const submittedItems = draftAttachments.value.slice();
+  const submittedAttachments = submittedItems.flatMap((item) =>
+    item.attachment ? [item.attachment] : []
+  );
+  const text = submittedDraft.trim() || '请分析上传的文件。';
   try {
+    if (webEngine) {
+      notice.update('正在检查搜索引擎…');
+      const engines = await loadWebEngines(request.signal);
+      request.signal.throwIfAborted();
+      if (!engines?.some((engine) => engine.id === webEngine))
+        throw new Error(webEngineError.value || '所选搜索引擎不可用，请重新选择或关闭联网搜索。');
+    }
     const source = await props.prepare();
     request.signal.throwIfAborted();
     if (source.file_key !== sourceKey) throw new Error('文档已切换，请重新发送');
@@ -856,7 +1316,14 @@ async function send() {
         throw new Error(createdHistory.error || '对话历史尚未加载，请重试加载');
     }
     notice.update('正在保存指令…');
-    assistant = await agentStore.begin(sourceKey, sessionId, model.id, text, request.signal);
+    assistant = await agentStore.begin(
+      sourceKey,
+      sessionId,
+      model.id,
+      text,
+      request.signal,
+      submittedAttachments
+    );
     activeTurnId.value = assistant.id;
     thinkingTurnId.value = assistant.id;
     request.signal.throwIfAborted();
@@ -868,8 +1335,15 @@ async function send() {
     for (const id of new Set([originalSessionId, sessionId])) {
       if (agentStore.draft(sourceKey, id) === submittedDraft)
         agentStore.setDraft(sourceKey, id, '');
+      agentStore.setAttachments(
+        sourceKey,
+        id,
+        agentStore
+          .attachments(sourceKey, id)
+          .filter((item) => !submittedItems.some((submitted) => submitted.id === item.id))
+      );
     }
-    allowExport.value = false;
+    attachmentError.value = '';
     followScroll = true;
     void scrollEnd();
     draft = new AgentDraft(source);
@@ -880,13 +1354,14 @@ async function send() {
       getComputedStyle(document.documentElement).getPropertyValue('--color-text-primary').trim()
     );
     registerFileTools(registry, draft, props.capabilities);
+    registerWebTools(registry, webEngine);
     await runAgent({
       model,
       registry,
       context: {
         document: source,
         userRequest: text,
-        allowExport: exportGranted,
+        webSearchEngine: webEngine,
         signal: request.signal,
       },
       history: conversation,
@@ -992,7 +1467,10 @@ async function applyReview() {
   const current = captureContext(conversationId.value);
   const notice = messageBox.loading('正在应用并保存…', { key: 'apply' });
   try {
-    await props.apply(snapshot);
+    if (!(await props.apply(snapshot))) {
+      notice.close();
+      return;
+    }
     snapshot.status = 'applied';
     if (current()) review.value = null;
     notice.close();
@@ -1013,21 +1491,24 @@ watch(
   () => props.documentKey,
   () => {
     messageBox.clear();
+    cancelAttachmentUploads();
+    attachmentError.value = '';
     stop();
     reviewController?.abort();
     review.value = null;
-    allowExport.value = false;
     modelMenuOpen.value = false;
+    webMenuOpen.value = false;
     conversationMenuOpen.value = false;
   }
 );
 watch(conversationId, () => {
+  attachmentError.value = '';
   messageBox.clear('review');
   messageBox.clear('apply');
   reviewController?.abort();
   review.value = null;
-  allowExport.value = false;
   modelMenuOpen.value = false;
+  webMenuOpen.value = false;
   conversationMenuOpen.value = false;
   followScroll = true;
   void scrollEnd();
@@ -1037,16 +1518,27 @@ watch(
   (id) => {
     messageBox.clear();
     modelMessages.clear();
+    cancelAttachmentUploads();
+    attachmentError.value = '';
     stop();
     modelController?.abort();
+    webEngineController?.abort();
+    webEngines.value = [];
+    selectedWebEngineId.value = '';
+    webEngineError.value = '';
+    webEnginesLoading.value = false;
     reviewController?.abort();
     models.value = [];
     selectedId.value = '';
     settingsOpen.value = false;
     modelMenuOpen.value = false;
+    webMenuOpen.value = false;
     conversationMenuOpen.value = false;
     review.value = null;
-    if (id) void loadModels();
+    if (id) {
+      void loadModels();
+      void loadWebEngines();
+    }
   },
   { immediate: true }
 );
@@ -1059,9 +1551,11 @@ watch(
 );
 onBeforeUnmount(() => {
   disposed = true;
+  cancelAttachmentUploads();
   void markdownRenderer.value?.destroy();
   stop();
   modelController?.abort();
+  webEngineController?.abort();
   reviewController?.abort();
 });
 </script>
@@ -1094,7 +1588,12 @@ onBeforeUnmount(() => {
         gap 8px
         > svg
           flex-shrink 0
+  &__heading
+    flex 1
+    min-width 0
   &__title
+    flex 1
+    min-width 0
     display block
     overflow hidden
     text-overflow ellipsis
@@ -1121,9 +1620,6 @@ onBeforeUnmount(() => {
     &:hover:not(:disabled)
       background var(--color-bg-tertiary)
       color var(--color-text-primary)
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset 2px
     &:active:not(:disabled)
       transform translateY(1px)
     &[aria-expanded='true']
@@ -1140,9 +1636,6 @@ onBeforeUnmount(() => {
     width 280px
     max-width unquote('min(calc(100vw - 18px), var(--voex-trigger-available-width, 280px))')
     padding 4px
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset -2px
   &__history-list
     margin 0
     padding 0
@@ -1167,9 +1660,6 @@ onBeforeUnmount(() => {
     &:hover:not(:disabled)
       background var(--color-bg-tertiary)
       color var(--color-red)
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset -2px
     &:active:not(:disabled)
       background var(--color-selection-dim)
     &:disabled
@@ -1189,9 +1679,6 @@ onBeforeUnmount(() => {
     cursor pointer
     &:hover:not(:disabled)
       background var(--color-bg-tertiary)
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset -2px
     &:active:not(:disabled)
       background var(--color-selection-bg)
     &[aria-current='true']
@@ -1225,9 +1712,6 @@ onBeforeUnmount(() => {
     overflow-y auto
     overscroll-behavior contain
     padding 16px
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset -2px
   &__empty
     color var(--color-text-tertiary)
     font-size 13px
@@ -1258,9 +1742,6 @@ onBeforeUnmount(() => {
       cursor pointer
       &:hover
         color var(--color-text-primary)
-      &:focus-visible
-        outline 2px solid var(--color-accent)
-        outline-offset 2px
       &:active
         color var(--color-accent)
   &__thinking
@@ -1284,6 +1765,78 @@ onBeforeUnmount(() => {
     width 100%
     text-align left
     border-color var(--color-accent)
+  &__multimodal
+    display inline-block
+    flex-shrink 0
+    padding 1px 4px
+    border 1px solid var(--color-border-secondary)
+    border-radius 4px
+    color var(--color-accent)
+    font-size 10px
+    font-weight 400
+    line-height 1.4
+    white-space nowrap
+  &__model-option strong.ai-panel__model-name
+    display flex
+    align-items center
+    gap 6px
+  &__sent-files, &__files
+    list-style none
+    margin 6px 0
+    padding 0
+  &__sent-files li
+    display flex
+    align-items center
+    gap 6px
+    min-width 0
+    color var(--color-text-secondary)
+    font-size 12px
+    svg, small
+      flex-shrink 0
+    span
+      min-width 0
+      overflow hidden
+      text-overflow ellipsis
+      white-space nowrap
+    small
+      color var(--color-text-tertiary)
+  &__files
+    max-height 180px
+    overflow-y auto
+    padding 0 8px
+  &__file
+    display flex
+    align-items center
+    gap 6px
+    padding 6px 0
+    min-width 0
+    > svg
+      flex-shrink 0
+      color var(--color-text-secondary)
+  &__file-info
+    flex 1
+    min-width 0
+    font-size 12px
+    > span
+      display block
+      overflow hidden
+      text-overflow ellipsis
+      white-space nowrap
+    small
+      display block
+      color var(--color-text-tertiary)
+      font-size 11px
+      overflow-wrap anywhere
+      &.ai-error
+        color var(--color-red)
+  &__file-remove
+    flex-shrink 0
+    width 28px
+    min-height 28px
+  &__file-error
+    padding 0 8px
+    margin 4px 0 8px
+    font-size 12px
   &__composer
     flex-shrink 0
     padding 12px 16px 16px
@@ -1320,39 +1873,39 @@ onBeforeUnmount(() => {
   &__toolbar
     display flex
     align-items center
+    justify-content space-between
     gap 6px
     padding 8px
+  &__toolbar-actions
+    display flex
+    align-items center
+    flex-shrink 0
+    gap 6px
   &__control
     display inline-flex
     align-items center
     justify-content center
-    min-height 32px
     padding 6px
-    border 0
     border-radius var(--border-radius-item-s, 6px)
-    background transparent
     color var(--color-text-secondary)
-    font inherit
     font-size 12px
     cursor pointer
     &:hover:not(:disabled)
       background var(--color-bg-tertiary)
       color var(--color-text-primary)
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset 2px
     &:active:not(:disabled)
       transform translateY(1px)
     &:disabled
       opacity .4
       cursor not-allowed
   &__model-trigger
-    flex 1
-    min-width 0
     justify-content space-between
     gap 6px
     padding-inline 8px
     span
+      flex 1
+      min-width 0
+      text-align left
       overflow hidden
       text-overflow ellipsis
       white-space nowrap
@@ -1363,20 +1916,33 @@ onBeforeUnmount(() => {
       transform rotate(90deg)
   &__model-popup
     border 1px solid var(--color-border-secondary)
+    min-width unquote('min(280px, calc(100vw - 24px))')
   &__model-menu
     display flex
     flex-direction column
     max-height unquote('min(320px, var(--voex-trigger-available-height, 320px))')
     padding 4px
+    overflow-y auto
+    overscroll-behavior contain
   &__model-options
+    flex-shrink 0
     min-width 0
     min-height 0
     margin 0
     padding 0
     border 0
-    overflow-y auto
-    overscroll-behavior contain
+  &__model-row
+    display flex
+    align-items center
+    gap 4px
+  &__model-edit
+    flex-shrink 0
+    width 32px
+    height 32px
+    padding 6px
   &__model-option
+    flex 1
+    min-width 0
     display flex
     align-items center
     gap 8px
@@ -1385,9 +1951,7 @@ onBeforeUnmount(() => {
     cursor pointer
     &:hover
       background var(--color-bg-tertiary)
-    &:focus-within
-      outline 2px solid var(--color-accent)
-      outline-offset -2px
+
     &:active
       background var(--color-bg-tertiary)
     &--selected
@@ -1417,6 +1981,75 @@ onBeforeUnmount(() => {
     padding 12px 8px
     color var(--color-text-tertiary)
     font-size 12px
+  &__web-popup
+    width unquote('min(240px, calc(100vw - 24px))')
+    border 1px solid var(--color-border-secondary)
+  &__web-menu
+    box-sizing border-box
+    max-height unquote('min(320px, var(--voex-trigger-available-height, 320px))')
+    padding 8px
+    overflow-y auto
+    overscroll-behavior contain
+  &__web-heading
+    display flex
+    align-items center
+    gap 4px
+    padding 0 4px 4px
+    color var(--color-text-primary)
+    font-size 12px
+    font-weight 500
+  &__web-help
+    width 28px
+    min-height 28px
+    padding 4px
+  &__web-options
+    margin 0
+    padding 0
+    border 0
+    min-width 0
+  &__web-option
+    display flex
+    align-items center
+    gap 8px
+    min-height 36px
+    padding 8px
+    border-radius var(--border-radius-item-s, 6px)
+    color var(--color-text-primary)
+    font-size 12px
+    cursor pointer
+    &:hover:not(:has(input:disabled))
+      background var(--color-bg-tertiary)
+
+    &:active:not(:has(input:disabled))
+      background var(--color-selection-dim)
+    &--selected
+      background var(--color-selection-dim)
+    &:has(input:disabled)
+      opacity .5
+      cursor not-allowed
+    input
+      flex-shrink 0
+      margin 0
+      width 14px
+      height 14px
+      accent-color var(--color-accent)
+      cursor inherit
+    span
+      overflow-wrap anywhere
+    small
+      color var(--color-text-tertiary)
+      font-size 11px
+  &__web-retry
+    margin-top 4px
+  &__web-status
+    min-height 18px
+    margin 6px 0 0
+    color var(--color-text-tertiary)
+    font-size 11px
+    line-height 1.6
+    overflow-wrap anywhere
+    &.ai-error
+      color var(--color-red)
   &__model-settings
     flex-shrink 0
     justify-content flex-start
@@ -1427,15 +2060,8 @@ onBeforeUnmount(() => {
     border-top 1px solid var(--color-border-secondary)
   &__icon-button
     flex-shrink 0
-    width 32px
-    height 32px
-    &--active
-      background var(--color-selection-dim)
-      color var(--color-accent-hover)
-      box-shadow inset 0 0 0 1px var(--color-accent)
-      &:hover:not(:disabled)
-        background var(--color-selection-bg)
-        color var(--color-brand-text)
+    width 28px
+    height 28px
   &__send
     background var(--color-brand-bg)
     color var(--color-brand-text)

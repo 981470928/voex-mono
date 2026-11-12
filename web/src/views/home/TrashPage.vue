@@ -495,9 +495,6 @@ onBeforeUnmount(() => {
     overflow auto
     scrollbar-gutter stable
     padding 6px 18px
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset -2px
   &__state
     display flex
     flex-direction column

@@ -2,6 +2,7 @@ import type { Node as ProseNode, Schema, ResolvedPos } from '@milkdown/kit/prose
 import type { Selection } from '@milkdown/kit/prose/state';
 import { normalizeHexColor } from './text-color';
 import { normalizeFontSize } from '@voex/editor-schema/font-size';
+import { normalizeFontFamily } from '@voex/editor-schema/font-catalog';
 
 export const CARD_LIST = 'voex_card_list';
 export const CARD_ITEM = 'voex_card_item';
@@ -94,6 +95,10 @@ export function validCardList(node: ProseNode): boolean {
         for (const mark of text.marks) {
           const name = mark.type.name;
           if (['strong', 'emphasis', 'strike_through', 'inlineCode'].includes(name)) continue;
+          if (name === 'fontFamily') {
+            if (!normalizeFontFamily(mark.attrs.family)) valid = false;
+            continue;
+          }
           if (name === 'fontSize') {
             if (typeof mark.attrs.size !== 'number' || normalizeFontSize(mark.attrs.size) === null)
               valid = false;

@@ -106,6 +106,7 @@ cp voex.config.example.json voex.config.json
     "name": "voex" // 数据库名
   },
   "pexelsKey": "", // pexels免费图片网站，参考网站https://www.pexels.com/zh-cn/api/key/
+  "web_search_key": { "tavily": "", "querit": "" }, // 填入对应 Key 后启用；Bing RSS 无需配置
   "collaboration": false, // 是否开启协同功能
   "collaborationPort": 8091 // 协同端口号
 }
@@ -195,6 +196,7 @@ node scripts/dev.mjs
 | `database.password` | 数据库密码；确实无密码的账号允许空字符串                                   |
 | `database.name`     | 必填；正常启动时自动创建缺失数据库及表                                     |
 | `pexelsKey`         | 可选，空字符串表示图库不可用；通过 `/api/public/config` 在运行时提供给前端 |
+| `web_search_key`    | 可选对象，如 `{ "tavily": "tvly-...", "querit": "querit-sk-..." }`；非空 Key 启用对应引擎，仅服务端使用；Bing RSS 始终可用、无需 Key。修改后重启服务 |
 | `collaboration`     | 默认 `false`，按需启用多人协同                                             |
 | `collaborationPort` | 协同内部端口，默认 `8091`，启用时不可与 HTTP 端口相同                      |
 

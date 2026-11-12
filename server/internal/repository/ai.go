@@ -2,36 +2,60 @@ package repository
 
 import (
 	"gorm.io/gorm"
+	"voex-server/internal/dbschema"
 	"voex-server/internal/shared"
 )
 
 func AIModels(db *gorm.DB, user string) []shared.Row {
-	return Rows(db.Table("ai_models").Where("user_id=?", user).Order("created_at, id"))
+	mt := dbschema.AIModels
+	return Rows(
+		db.Table(mt.Name).
+			Where(mt.Columns.USER_ID+"=?", user).
+			Order(dbschema.List(mt.Columns.CREATED_AT, mt.Columns.ID)),
+	)
 }
 
 func AIModel(db *gorm.DB, user, id string) shared.Row {
-	return One(db.Table("ai_models").Where("user_id=? AND id=?", user, id))
+	mt := dbschema.AIModels
+	return One(db.Table(mt.Name).Where(mt.Columns.USER_ID+"=? AND "+mt.Columns.ID+"=?", user, id))
 }
 
 func SaveAIModel(db *gorm.DB, user, id string, values shared.Row, exists bool) {
+	mt := dbschema.AIModels
 	if exists {
-		Must(db.Table("ai_models").Where("user_id=? AND id=?", user, id).Updates(map[string]any(values)))
+		Must(
+			db.Table(mt.Name).
+				Where(mt.Columns.USER_ID+"=? AND "+mt.Columns.ID+"=?", user, id).
+				Updates(map[string]any(values)),
+		)
 		return
 	}
-	values["id"], values["user_id"] = id, user
-	Must(db.Table("ai_models").Create(map[string]any(values)))
+	values[mt.Columns.ID], values[mt.Columns.USER_ID] = id, user
+	Must(db.Table(mt.Name).Create(map[string]any(values)))
 }
 
 func DeleteAIModel(db *gorm.DB, user, id string) {
-	Must(db.Table("ai_models").Where("user_id=? AND id=?", user, id).Delete(&map[string]any{}))
+	mt := dbschema.AIModels
+	Must(
+		db.Table(mt.Name).
+			Where(mt.Columns.USER_ID+"=? AND "+mt.Columns.ID+"=?", user, id).
+			Delete(&map[string]any{}),
+	)
 }
 
 func AIApplication(db *gorm.DB, user, id string) shared.Row {
-	return One(db.Table("ai_review_applications").Where("user_id=? AND review_id=?", user, id))
+	rt := dbschema.AIReviewApplications
+	return One(
+		db.Table(rt.Name).Where(rt.Columns.USER_ID+"=? AND "+rt.Columns.REVIEW_ID+"=?", user, id),
+	)
 }
 
 func RecordAIApplication(db *gorm.DB, user, id, hash, result string) {
-	Must(db.Table("ai_review_applications").Create(map[string]any{
-		"user_id": user, "review_id": id, "payload_hash": hash, "result_json": result,
+	rt := dbschema.AIReviewApplications
+	Must(db.Table(rt.Name).Create(map[string]any{
+		rt.Columns.USER_ID:      user,
+		rt.Columns.REVIEW_ID:    id,
+		rt.Columns.PAYLOAD_HASH: hash,
+		rt.Columns.RESULT_JSON:  result,
 	}))
 }

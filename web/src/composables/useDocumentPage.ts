@@ -14,6 +14,7 @@ import {
 } from '@/service/api/document-api';
 import { getProjectTree, type ProjectTree } from '@/service/api/workspace-api';
 import { FILE_ACCEPT, originalGetImportFiles } from '@/utils/dom';
+import { getFileExtension } from '@/utils/file';
 import { desktopLocation, formatTime } from '@/utils/workspace';
 import { errorMessage } from '@/utils/error';
 import { useUploadStore } from '@/stores/upload';
@@ -56,6 +57,7 @@ export function useDocumentPage() {
   const { creating, openCreateDocument } = useCreateDocument();
   const activeDocKey = computed(() => activeDoc.value?.file_key ?? '');
   const editorContent = computed(() => activeDoc.value?.file_content ?? '');
+  let pendingAIReplacement = false;
   const collaboration = useDocumentCollaboration({
     onPersisted: (receipt) => {
       if (activeDoc.value) activeDoc.value.revision = receipt.revision;
@@ -64,7 +66,8 @@ export function useDocumentPage() {
       if (activeDoc.value) activeDoc.value.permissions = permissions;
     },
     onReplaced: () => {
-      if (!aiBusy.value) void loadDocument();
+      if (aiBusy.value) pendingAIReplacement = true;
+      else void loadDocument();
     },
     onAttachmentsChanged: () => void loadAttachments(),
     onMetadataChanged: () => void refreshMetadata(),
@@ -133,6 +136,7 @@ export function useDocumentPage() {
   window.addEventListener('beforeunload', beforeUnload);
 
   async function loadDocument() {
+    pendingAIReplacement = false;
     collaboration.close();
     controller?.abort();
     controller = new AbortController();
@@ -150,6 +154,7 @@ export function useDocumentPage() {
       const doc = await getDocument(key, signal);
       const tree = await getProjectTree(doc.project_key, signal).catch((cause: unknown) => {
         // A direct file grant does not grant access to its project's directory.
+        // 对文件的直接授权不授予其所属项目目录的访问权限。
         if (isAxiosError(cause) && cause.response?.status === 403) return null;
         throw cause;
       });
@@ -223,7 +228,9 @@ export function useDocumentPage() {
       throw new Error('请先等待当前编辑保存完成，再发送 AI 指令');
     const doc = activeDoc.value;
     // Capturing context is read-only, including when Milkdown normalizes stored Markdown.
+    // 捕获上下文为只读操作，即使 Milkdown 会规范化已存储的 Markdown。
     // Only the explicit apply action may persist an AI draft.
+    // 只有显式的应用操作才可持久化 AI 草稿。
     return {
       file_key: doc.file_key,
       file_name: doc.file_name,
@@ -235,7 +242,7 @@ export function useDocumentPage() {
     };
   }
 
-  async function applyDocumentReview(review: ReviewSnapshot) {
+  async function applyDocumentReview(review: ReviewSnapshot): Promise<boolean> {
     await ensureSaved();
     if (
       !activeDoc.value ||
@@ -249,41 +256,88 @@ export function useDocumentPage() {
     if (hasUnsavedChanges() || saveError.value)
       throw new Error('当前正文还有未保存的修改，请先完成保存后再审阅');
     const key = activeDocKey.value;
+    const current = generation;
     const change = review.changes.find((item) => item.kind === 'update' && item.file_key === key);
-    if (
+    const changed =
       change &&
       (activeDoc.value.revision !== change.revision ||
         activeDoc.value.file_name !== change.before_name ||
-        (activeDoc.value.file_content ?? '') !== change.before_content)
-    )
-      throw new Error('文档已发生变化，请基于最新内容重新生成建议；旧建议仍可查看');
-    for (const item of review.changes) {
-      if (
-        item.project_key !== activeDoc.value.project_key ||
-        item.folder_key !== activeDoc.value.folder_key
-      )
-        throw new Error('请回到生成该建议的文件夹后再应用');
-      if (item.kind === 'update' && item.file_key !== key)
-        throw new Error('请回到生成该建议的文档后再应用');
-      editorRef.value!.normalizeMarkdown(item.after_content);
+        (activeDoc.value.file_content ?? '') !== change.before_content);
+
+    function checkTarget() {
+      const doc = activeDoc.value;
+      if (disposed || current !== generation || !doc || activeDocKey.value !== key)
+        throw new Error('文档已切换，请重新打开审阅');
+      for (const item of review.changes) {
+        if (item.project_key !== doc.project_key || item.folder_key !== doc.folder_key)
+          throw new Error('请回到生成该建议的文件夹后再应用');
+        if (item.kind === 'update' && item.file_key !== key)
+          throw new Error('请回到生成该建议的文档后再应用');
+        editorRef.value!.normalizeMarkdown(item.after_content);
+      }
     }
+
+    async function confirmForceApply() {
+      checkTarget();
+      const accepted = await confirm({
+        type: MessageType.WARNING,
+        title: '文档已发生变化',
+        content:
+          '强制应用将使用这份 AI 建议中的文件名和正文覆盖当前文档，生成建议后的修改可能丢失。是否继续？',
+        confirmText: '强制应用',
+        cancelText: '取消',
+      });
+      if (!accepted) return false;
+      checkTarget();
+      await ensureSaved();
+      checkTarget();
+      if (!editorReady.value || !canWrite.value || saving.value || busy.value)
+        throw new Error('当前文档不可应用修改，请等待保存完成');
+      if (hasUnsavedChanges() || saveError.value)
+        throw new Error('当前正文还有未保存的修改，请先完成保存后再审阅');
+      return true;
+    }
+
+    checkTarget();
     aiBusy.value = true;
     try {
-      await applyAIReview(review);
+      let force = false;
+      if (changed) {
+        force = await confirmForceApply();
+        if (!force) return false;
+      }
+      try {
+        await applyAIReview(review, force);
+      } catch (cause) {
+        // 只对明确的旧快照冲突提供覆盖确认，权限、网络和协同状态错误保留原处理。
+        if (
+          force ||
+          !isAxiosError<{ code?: string }>(cause) ||
+          cause.response?.status !== 409 ||
+          cause.response.data?.code !== 'ai_review_conflict'
+        )
+          throw cause;
+        if (!(await confirmForceApply())) return false;
+        await applyAIReview(review, true);
+      }
       review.status = 'applied';
-      if (disposed || activeDocKey.value !== key) return;
+      if (disposed || current !== generation || activeDocKey.value !== key) return true;
       // 后端已原子提交候选状态并切换 epoch，重新连接新的 Y.Doc。
       await loadDocument();
       notification.show('AI 修改已应用', 'success');
       teams.invalidateProjects();
       // Refresh failure must not mislabel an already committed review as failed.
+      // 刷新失败不得将已提交的审阅误标为失败。
       try {
         await refreshTree();
       } catch {
         notification.show('AI 修改已应用，目录刷新失败，请稍后刷新', 'error');
       }
+      return true;
     } finally {
       aiBusy.value = false;
+      // 等待确认时外部也可能替换文档，取消或失败后仍需处理已收到的重载通知。
+      if (pendingAIReplacement && !disposed && !hasUnsavedChanges()) void loadDocument();
     }
   }
 
@@ -433,11 +487,22 @@ export function useDocumentPage() {
     );
   }
 
-  async function triggerFileUpload(): Promise<FileInfo[]> {
+  async function triggerFileUpload(accept: string = FILE_ACCEPT.ALL): Promise<FileInfo[]> {
     const key = activeDocKey.value;
     if (!key || !canWrite.value) return [];
-    const files = await originalGetImportFiles(FILE_ACCEPT.ALL);
+    const files = await originalGetImportFiles(accept);
     if (!files.length || key !== activeDocKey.value) return [];
+    if (accept === FILE_ACCEPT.IMAGE) {
+      const extensions = FILE_ACCEPT.IMAGE.split(',');
+      const mimeTypes = ['image/webp', 'image/jpeg', 'image/png', 'image/gif'];
+      if (
+        files.some(
+          (file) =>
+            !extensions.includes(getFileExtension(file.name)) || !mimeTypes.includes(file.type)
+        )
+      )
+        throw new Error('插入图片仅支持 webp、jpg、jpeg、png、gif 格式');
+    }
     return uploadAttachments(files);
   }
 

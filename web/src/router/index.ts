@@ -63,6 +63,11 @@ const router = createRouter({
           name: 'recent',
           component: () => import('@/views/home/RecentPage.vue'),
         },
+        {
+          path: 'search',
+          name: 'search',
+          component: () => import('@/views/home/SearchPage.vue'),
+        },
       ],
     },
     {
@@ -81,6 +86,7 @@ const router = createRouter({
 
 router.beforeEach(async (to, from) => {
   // Resolve old share editor URLs once, then use the account's document permissions.
+  // 仅解析一次旧分享编辑器 URL，之后使用账号的文档权限。
   if (to.name === 'edit' && to.query.access === 'share' && to.hash) {
     return { name: 'share', hash: to.hash, replace: true };
   }
@@ -97,6 +103,7 @@ router.beforeEach(async (to, from) => {
     return { path: to.path, query: to.query, hash: from.hash, replace: true };
   }
   // Invitation and share credentials stay in fragments throughout authentication.
+  // 整个认证过程中，邀请和分享凭据始终保留在 URL fragment 中。
   if (
     (to.name === 'join' || (to.name === 'share' && from.query.return === '/share')) &&
     !to.hash &&
@@ -113,7 +120,7 @@ router.beforeEach(async (to, from) => {
     try {
       await refreshSession();
     } catch {
-      /* The login form remains available while offline. */
+      /* The login form remains available while offline. / 离线时登录表单仍可使用。 */
     }
   }
   if (to.meta.anonymous) {
@@ -125,6 +132,7 @@ router.beforeEach(async (to, from) => {
   }
   if (authenticated.value) return true;
   // Re-authenticate over the existing screen so unsaved document contents stay mounted.
+  // 在现有界面上重新认证，确保未保存的文档内容保持挂载。
   if (authUser.value && sessionExpired.value) return false;
   return {
     name: 'login',

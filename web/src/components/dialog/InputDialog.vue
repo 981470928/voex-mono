@@ -101,6 +101,7 @@ function handleCompositionEnd(event: CompositionEvent) {
 
 function handleEnter(event: KeyboardEvent) {
   // Some IMEs end composition immediately before dispatching the confirming Enter.
+  // 部分输入法会在派发确认用的 Enter 事件前立即结束文本组合。
   if (event.isComposing || composing.value || event.timeStamp - compositionEndedAt < 50) return;
   event.preventDefault();
   if (!event.repeat) void handleOK();
@@ -137,6 +138,7 @@ async function handleOK() {
     if (state.value === current) submitting.value = false;
   }
   // An older request must never close a newly opened input dialog.
+  // 旧请求绝不能关闭新打开的输入对话框。
   if (state.value !== current || !visible.value) return;
   state.value = undefined;
   hide();
@@ -213,9 +215,6 @@ function handleCancel() {
   cursor pointer
   transition all 0.2s
 
-  &:focus-visible
-    outline 2px solid var(--color-accent)
-    outline-offset 2px
 
   &:disabled
     cursor not-allowed

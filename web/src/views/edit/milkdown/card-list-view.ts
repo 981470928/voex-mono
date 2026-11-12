@@ -454,6 +454,19 @@ export function createCardItemView(
   const image = doc.createElement('img');
   image.className = 'milkdown-card__image';
   image.draggable = false;
+  image.ondragstart = (event) => {
+    event.stopPropagation();
+    const pos = getPos();
+    if (!canEdit() || busy || pos === undefined) {
+      event.preventDefault();
+      return;
+    }
+    options.startImageDrag(view, event, pos, image);
+  };
+  image.ondragend = (event) => {
+    event.stopPropagation();
+    options.cancelImageDrag(image);
+  };
   const feedback = doc.createElement('span');
   feedback.className = 'milkdown-card__feedback';
   feedback.setAttribute('role', 'status');
@@ -550,7 +563,10 @@ export function createCardItemView(
       const imported = files
         ? (await options.imageImport.importImages(view, files))[0]
         : dragged
-          ? await options.imageImport.importSource(view, dragged)
+          ? // 公网外链可直接持久化；附件和临时图片仍走原有复用/导入流程。
+            /^https?:\/\//i.test(String(dragged.attrs.src)) && safeCardImage(dragged.attrs.src)
+            ? dragged
+            : await options.imageImport.importSource(view, dragged)
           : null;
       const pos = getPos();
       if (
@@ -614,9 +630,14 @@ export function createCardItemView(
     event.preventDefault();
     event.stopPropagation();
     media.classList.remove('milkdown-card__media--dragover');
+    if (!canEdit() || busy) {
+      options.cancelImageDrag();
+      view.dragging = null;
+      return;
+    }
+    if (options.dropImage(view, event, getPos())) return;
     const dragging = view.dragging;
     view.dragging = null;
-    if (!canEdit() || busy) return;
     if (node.attrs.src) {
       feedbackError('请先移除图片，再拖入新图片');
       return;
@@ -690,6 +711,9 @@ export function createCardItemView(
           });
     }
     image.hidden = !filled || loading || failed;
+    image.draggable = editable && filled && !busy && !loading && !failed;
+    image.style.cursor = image.draggable ? 'grab' : '';
+    image.title = image.draggable ? '拖到正文或空图片位；按住 Ctrl（Mac 为 Option）复制' : '';
     upload.hidden = filled || !editable || busy;
     upload.disabled = !editable || busy;
     actions.hidden = !filled || !editable;
@@ -729,6 +753,8 @@ export function createCardItemView(
       operation++;
       loadVersion++;
       options.refreshers.delete(refresh);
+      options.cancelImageDrag(image);
+      image.ondragstart = image.ondragend = null;
       image.onload = image.onerror = null;
     },
   };

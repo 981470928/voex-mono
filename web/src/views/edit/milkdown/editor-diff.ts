@@ -13,7 +13,7 @@ import { LATEX_NODE_ID } from '@voex/editor-schema/latex';
 import { MERMAID_NODE_ID } from '@voex/editor-schema/mermaid';
 import { CARD_LIST } from './card-list-model';
 
-/** Official diff rendering inside an isolated, read-only editor; no apply commands are exposed. */
+/** Official diff rendering inside an isolated, read-only editor; no apply commands are exposed. 在独立的只读编辑器中使用官方差异渲染，不暴露应用变更的命令。 */
 export function createEditorDiffPreview() {
   return {
     plugins: [...diff, ...diffComponent],

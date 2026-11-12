@@ -3,6 +3,9 @@ import { editorViewCtx } from '@milkdown/kit/core';
 import { hrSchema } from '@milkdown/kit/preset/commonmark';
 import { InputRule } from '@milkdown/kit/prose/inputrules';
 import { splitBlock } from '@milkdown/kit/prose/commands';
+import { closeHistory } from '@milkdown/kit/prose/history';
+import { dropPoint } from '@milkdown/kit/prose/transform';
+import type { EditorView } from '@milkdown/kit/prose/view';
 import type { Ctx } from '@milkdown/kit/ctx';
 import { Fragment, Slice, type Node as ProseNode } from '@milkdown/kit/prose/model';
 import {
@@ -16,7 +19,10 @@ import type { createImageImport } from './image-import';
 import { createCardListView, createCardItemView } from './card-list-view';
 import {
   CARD_LIST,
+  CARD_ITEM,
   CARD_TEXT,
+  safeCardImage,
+  cardImageSize,
   cardAncestor,
   emptyCard,
   inCardText,
@@ -34,6 +40,9 @@ export interface CardViewContext extends CardListOptions {
   selectionRefreshers: Set<() => void>;
   epoch: () => number;
   sources: Map<symbol, { bookmark: SelectionBookmark; node: ProseNode }>;
+  startImageDrag: (view: EditorView, event: DragEvent, pos: number, owner: HTMLElement) => void;
+  cancelImageDrag: (owner?: HTMLElement) => void;
+  dropImage: (view: EditorView, event: DragEvent, targetCard?: number) => boolean;
 }
 
 export function createCardListExtension(options: CardListOptions) {
@@ -41,11 +50,111 @@ export function createCardListExtension(options: CardListOptions) {
   const refreshers = new Set<() => void>();
   const selectionRefreshers = new Set<() => void>();
   const sources: CardViewContext['sources'] = new Map();
+  const imageDragType = 'application/x-voex-card-image';
+  let imageDrag: {
+    view: EditorView;
+    owner: HTMLElement;
+    pos: number;
+    src: string;
+    alt: string;
+    slice: Slice;
+  } | null = null;
+
+  function cancelImageDrag(owner?: HTMLElement) {
+    if (!imageDrag || (owner && imageDrag.owner !== owner)) return;
+    if (imageDrag.view.dragging?.slice === imageDrag.slice) imageDrag.view.dragging = null;
+    imageDrag = null;
+  }
+
+  function startImageDrag(view: EditorView, event: DragEvent, pos: number, owner: HTMLElement) {
+    cancelImageDrag();
+    const source = view.state.doc.nodeAt(pos);
+    const src = safeCardImage(source?.attrs.src);
+    if (options.readonly() || !event.dataTransfer || source?.type.name !== CARD_ITEM || !src) {
+      event.preventDefault();
+      return;
+    }
+    const parent = cardAncestor(view.state.doc.resolve(pos));
+    const image = view.state.schema.nodes.image!.create({
+      src,
+      alt: source.attrs.alt,
+      width: cardImageSize(parent?.node.attrs.imageSize),
+    });
+    const { dom, text, slice } = view.serializeForClipboard(new Slice(Fragment.from(image), 0, 0));
+    event.dataTransfer.clearData();
+    event.dataTransfer.setData('text/html', dom.innerHTML);
+    event.dataTransfer.setData('text/plain', text);
+    event.dataTransfer.setData(imageDragType, '1');
+    event.dataTransfer.effectAllowed = 'copyMove';
+    // 源图片是卡片属性，不可让 ProseMirror 默认移动逻辑删除当前文字选区。
+    view.dragging = { slice, move: false };
+    imageDrag = { view, owner, pos, src, alt: source.attrs.alt, slice };
+  }
+
+  function dropImage(view: EditorView, event: DragEvent, targetCard?: number): boolean {
+    if (!imageDrag && !event.dataTransfer?.types.includes(imageDragType)) return false;
+    const drag = imageDrag;
+    cancelImageDrag();
+    if (!drag || drag.view !== view || view.isDestroyed || options.readonly()) return true;
+    const source = view.state.doc.nodeAt(drag.pos);
+    if (
+      source?.type.name !== CARD_ITEM ||
+      source.attrs.src !== drag.src ||
+      source.attrs.alt !== drag.alt
+    )
+      return true;
+    const copy = /Mac|iP/.test(view.dom.ownerDocument.defaultView!.navigator.platform)
+      ? event.altKey
+      : event.ctrlKey;
+    const tr = closeHistory(view.state.tr);
+    if (targetCard !== undefined) {
+      if (targetCard === drag.pos) return true;
+      const target = tr.doc.nodeAt(targetCard);
+      if (target?.type.name !== CARD_ITEM) return true;
+      if (target.attrs.src) {
+        options.onError('请先移除图片，再拖入新图片');
+        return true;
+      }
+      tr.setNodeMarkup(targetCard, undefined, { ...target.attrs, src: drag.src, alt: drag.alt });
+    } else {
+      const position = view.posAtCoords({ left: event.clientX, top: event.clientY });
+      if (!position) return true;
+      const resolved = view.state.doc.resolve(position.pos);
+      if (cardAncestor(resolved) || resolved.parent.type.spec.code) {
+        options.onError('请将图片拖到正文或卡片的空图片位');
+        return true;
+      }
+      const insertPos = dropPoint(view.state.doc, position.pos, drag.slice);
+      if (insertPos === null) return true;
+      const image = drag.slice.content.firstChild!;
+      tr.replaceRangeWith(insertPos, insertPos, image);
+      let imagePos = -1;
+      tr.doc.descendants((node, pos) => {
+        if (node === image) imagePos = pos;
+      });
+      // 落点不能容纳图片时，不清空源卡片。
+      if (imagePos < 0) return true;
+      // 协同撤销会移除新图片，保留文字光标，避免 Yjs 恢复已删除的节点选区。
+      tr.setSelection(TextSelection.near(tr.doc.resolve(imagePos + image.nodeSize)));
+    }
+    if (!copy) {
+      const sourcePos = tr.mapping.map(drag.pos);
+      tr.setNodeMarkup(sourcePos, undefined, { ...source.attrs, src: '', alt: '' });
+    }
+    view.dispatch(tr.setMeta('uiEvent', 'drop').scrollIntoView());
+    view.dispatch(closeHistory(view.state.tr));
+    view.focus();
+    return true;
+  }
+
   const context: CardViewContext = {
     ...options,
     refreshers,
     selectionRefreshers,
     sources,
+    startImageDrag,
+    cancelImageDrag,
+    dropImage,
     epoch: () => epoch,
   };
   const { remarkCards, cardText, cardItem, cardList } = createCardSchema();
@@ -88,6 +197,18 @@ export function createCardListExtension(options: CardListOptions) {
         state: {
           init: () => null,
           apply: (tr) => {
+            if (imageDrag) {
+              const mapped = tr.mapping.mapResult(imageDrag.pos);
+              const source = tr.doc.nodeAt(mapped.pos);
+              if (
+                mapped.deleted ||
+                source?.type.name !== CARD_ITEM ||
+                source.attrs.src !== imageDrag.src ||
+                source.attrs.alt !== imageDrag.alt
+              )
+                cancelImageDrag();
+              else imageDrag.pos = mapped.pos;
+            }
             sources.forEach((source, key) =>
               sources.set(key, { ...source, bookmark: source.bookmark.map(tr.mapping) })
             );
@@ -125,6 +246,7 @@ export function createCardListExtension(options: CardListOptions) {
             return true;
           },
           handleDrop(view, event, slice, moved) {
+            if (dropImage(view, event)) return true;
             const target = event.target instanceof Element ? event.target : null;
             const position = view.posAtCoords({ left: event.clientX, top: event.clientY });
             if (
@@ -202,6 +324,7 @@ export function createCardListExtension(options: CardListOptions) {
     ],
     readonlyChanged() {
       epoch++;
+      cancelImageDrag();
       sources.clear();
       refreshers.forEach((refresh) => refresh());
     },

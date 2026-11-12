@@ -525,7 +525,7 @@ async function reload() {
     await store.refresh();
     await loadDetail();
   } catch {
-    /* Store exposes retryable error. */
+    /* Store exposes retryable error. Store 提供可重试的错误状态。 */
   }
 }
 function refreshAll() {
@@ -598,7 +598,7 @@ async function mutate(
     try {
       await store.refresh();
     } catch {
-      /* Store error remains visible. */
+      /* Store error remains visible. Store 中的错误继续显示。 */
     }
     store.invalidateProjects();
     await loadDetail();
@@ -639,7 +639,7 @@ function editName() {
       try {
         await store.refresh();
       } catch {
-        /* Store exposes failure. */
+        /* Store exposes failure. Store 提供失败状态。 */
       }
     },
   });
@@ -809,9 +809,6 @@ onBeforeUnmount(() => {
   text-decoration none
   &:hover
     background var(--color-bg-translucent)
-  &:focus-visible
-    outline 2px solid var(--color-accent)
-    outline-offset 2px
   &:active
     opacity .8
   &--active
@@ -869,8 +866,6 @@ onBeforeUnmount(() => {
   text-decoration none
   &:hover
     color var(--color-text-primary)
-  &:focus-visible
-    outline 2px solid var(--color-accent)
   &--active
     color var(--color-text-primary)
     border-bottom-color var(--color-accent)

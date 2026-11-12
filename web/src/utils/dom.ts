@@ -3,7 +3,7 @@ import { fillMimeTypeIfNeed } from './file';
 /** 文件选择器的常用 accept；ALL 不限制文件类型，业务校验仍由调用方负责。 */
 export const FILE_ACCEPT = {
   ALL: '',
-  IMAGE: 'image/*',
+  IMAGE: '.webp,.jpg,.jpeg,.png,.gif',
   AVATAR: 'image/jpeg,image/png,image/webp',
   AUDIO: 'audio/*',
   VIDEO: 'video/*',

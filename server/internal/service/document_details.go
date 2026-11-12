@@ -8,12 +8,16 @@ import (
 )
 
 // Call only after authorizing this document. Share access never exposes a parent.
+// 仅在完成该文档的授权检查后调用；分享访问绝不暴露父级信息。
 func documentDetailsDTO(doc, permissions shared.Row, access string) shared.Row {
 	var path any
 	if access == "project" {
 		path = shared.Row{
-			"team_key": doc["team_key"], "project_key": doc["project_key"], "project_name": doc["project_name"],
-			"folder_key": doc["folder_key"], "folder_name": doc["folder_name"],
+			"team_key":     doc["team_key"],
+			"project_key":  doc["project_key"],
+			"project_name": doc["project_name"],
+			"folder_key":   doc["folder_key"],
+			"folder_name":  doc["folder_name"],
 		}
 	}
 	var updatedBy any
@@ -25,14 +29,22 @@ func documentDetailsDTO(doc, permissions shared.Row, access string) shared.Row {
 		updatedByKind = "user"
 	}
 	return shared.Row{
-		"file_key": doc["file_key"], "file_name": doc["file_name"],
-		"created_at": shared.Timestamp(doc["created_at"]), "updated_at": shared.Timestamp(doc["updated_at"]),
-		"updated_by": updatedBy, "updated_by_kind": updatedByKind,
-		"access": access, "permissions": permissions, "path": path,
+		"file_key":  doc["file_key"],
+		"file_name": doc["file_name"],
+		"created_at": shared.Timestamp(
+			doc["created_at"],
+		),
+		"updated_at":      shared.Timestamp(doc["updated_at"]),
+		"updated_by":      updatedBy,
+		"updated_by_kind": updatedByKind,
+		"access":          access,
+		"permissions":     permissions,
+		"path":            path,
 	}
 }
 
 // GetDocumentDetails Metadata reads do not fetch document content/attachments or record a visit.
+// GetDocumentDetails 读取元数据时，不获取文档正文或附件，也不记录访问。
 func (s *Service) GetDocumentDetails(ctx context.Context, key string) shared.Row {
 	return s.tx(ctx, false, func(db *gorm.DB) any {
 		doc := s.FindDocument(db, ctx, key, "read", false)

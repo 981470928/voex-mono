@@ -19,7 +19,7 @@ import { createAttachmentMedia, type AttachmentMediaOptions } from './attachment
 
 let mediaViewId = 0;
 
-/** Shares image control styles, layout validation and sizing/positioning behavior. */
+/** Shares image control styles, layout validation and sizing/positioning behavior. 复用图片控件的样式、布局校验以及尺寸和定位行为。 */
 export function createResizableMediaView(
   initialNode: ProseMirrorNode,
   view: EditorView,
@@ -415,6 +415,7 @@ export function createResizableMediaView(
   };
   handle.onclick = () => input.focus();
   // Selecting the block must not consume clicks on the native media controls.
+  // 选择此块时，不应拦截原生媒体控件的点击。
   dom.onpointerdown = (event) => {
     if (
       !canEdit() ||

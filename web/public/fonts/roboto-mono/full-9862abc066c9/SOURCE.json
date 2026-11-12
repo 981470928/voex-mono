@@ -1,0 +1,37 @@
+{
+  "id": "roboto-mono",
+  "label": "Roboto Mono",
+  "group": "English",
+  "languages": "EN",
+  "family": "Roboto Mono",
+  "version": "full-9862abc066c9",
+  "license": "OFL-1.1",
+  "sourceCommit": "9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0",
+  "variants": [
+    {
+      "file": "Variable.woff2",
+      "weights": [
+        "Regular",
+        "Medium",
+        "Bold"
+      ],
+      "cssWeight": "100 700",
+      "bytes": 105204,
+      "characters": 876,
+      "glyphs": 1006,
+      "axes": {
+        "wght": [
+          100.0,
+          400.0,
+          700.0
+        ]
+      },
+      "sha256": "aafaa5d57a7180d02d1c6a5925523e06b3bcde4b182544a4d793d5ee87e61817",
+      "source": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/robotomono/RobotoMono%5Bwght%5D.ttf",
+      "sourceGitSha": "f21d1d716bce3cc756bc618d32be71ce6f733f81",
+      "sourceSha256": "66a80e79d17e4c7cabd162e2916578a4cc08fd19eef6e2a643305eae9c567b2b"
+    }
+  ],
+  "woff2Files": 1,
+  "bytes": 105204
+}

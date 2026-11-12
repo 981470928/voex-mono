@@ -5,6 +5,8 @@ import InputDialog from '@/components/dialog/InputDialog.vue';
 import AIModelDialog from '@/components/ai/AIModelDialog.vue';
 import AIReviewDialog from '@/components/ai/AIReviewDialog.vue';
 import FileDetailsDialog from '@/components/files/FileDetailsDialog.vue';
+import DocumentExportDialog from '@/components/files/DocumentExportDialog.vue';
+import DocumentImportDialog from '@/components/files/DocumentImportDialog.vue';
 import FileViewerDialog from '@/components/dialog/FileViewerDialog.vue';
 import JoinTeamDialog from '@/components/team/JoinTeamDialog.vue';
 import ProjectPrivilegesDialog from '@/components/team/ProjectPrivilegesDialog.vue';
@@ -31,6 +33,8 @@ export enum ModalType {
   PEXELS_DIALOG,
   LATEX_DIALOG,
   MERMAID_DIALOG,
+  DOCUMENT_EXPORT_DIALOG,
+  DOCUMENT_IMPORT_DIALOG,
 }
 
 type DialogProps<C> = C extends new (...args: never[]) => { $props: infer P }
@@ -38,6 +42,8 @@ type DialogProps<C> = C extends new (...args: never[]) => { $props: infer P }
   : never;
 
 export interface HostedModalProps {
+  [ModalType.DOCUMENT_EXPORT_DIALOG]: DialogProps<typeof DocumentExportDialog>;
+  [ModalType.DOCUMENT_IMPORT_DIALOG]: DialogProps<typeof DocumentImportDialog>;
   [ModalType.AI_MODEL_DIALOG]: DialogProps<typeof AIModelDialog>;
   [ModalType.AI_REVIEW_DIALOG]: DialogProps<typeof AIReviewDialog>;
   [ModalType.FILE_DETAILS_DIALOG]: DialogProps<typeof FileDetailsDialog>;
@@ -88,6 +94,14 @@ export type ModalInstanceMap<T extends ModalType> = Record<
 
 export const useModalStore = defineStore('modal', () => {
   const modalInstanceMap = ref<ModalInstanceMap<ModalType>>({
+    [ModalType.DOCUMENT_EXPORT_DIALOG]: {
+      component: markRaw(DocumentExportDialog),
+      onDemand: true,
+    },
+    [ModalType.DOCUMENT_IMPORT_DIALOG]: {
+      component: markRaw(DocumentImportDialog),
+      onDemand: true,
+    },
     [ModalType.CONFIRM]: { component: markRaw(ConfirmDialog) },
     [ModalType.INPUT_DIALOG]: { component: markRaw(InputDialog) },
     [ModalType.AI_MODEL_DIALOG]: {
@@ -141,6 +155,7 @@ export const useModalStore = defineStore('modal', () => {
   });
   const showModalList = ref<ModalType[]>([]);
   // Shallow storage preserves callback identity and keeps File/editor payloads out of deep proxies.
+  // 浅层存储保留回调函数的身份，避免对 File 或编辑器载荷进行深层代理。
   const modalData = shallowReactive<Partial<{ [T in ModalType]: ModalDataType[T] }>>({});
   const sessions = shallowReactive<Partial<Record<ModalType, number>>>({});
   const pendingShows = new Map<ModalType, { data: ModalDataType[ModalType] }>();
@@ -159,6 +174,7 @@ export const useModalStore = defineStore('modal', () => {
       .map(Number)
       .filter((type) => !modalInstanceMap.value[type as ModalType].onDemand);
     // Newly opened dialogs mount last so native modal focus follows opening order.
+    // 新打开的对话框最后挂载，使原生模态焦点遵循打开顺序。
     const types = [
       ...persistent,
       ...showModalList.value.filter((type) => modalInstanceMap.value[type].onDemand),

@@ -87,8 +87,4 @@ const emit = defineEmits<{ close: [] }>();
 
     &:active
       background var(--color-bg-primary)
-
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset 2px
 </style>

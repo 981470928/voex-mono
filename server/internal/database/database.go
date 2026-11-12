@@ -1,4 +1,5 @@
 // Package database manages MySQL connections and initial schema creation.
+// database 包管理 MySQL 连接和初始 schema 创建。
 package database
 
 import (
@@ -24,6 +25,7 @@ func connectionConfig(settings config.Database) *driver.Config {
 }
 
 // Open connects to an existing database; Initialize creates missing databases and tables.
+// Open 连接已有数据库；Initialize 创建缺失的数据库和表。
 func Open(settings config.Database) (*gorm.DB, error) {
 	cfg := connectionConfig(settings)
 	db, err := gorm.Open(mysql.Open(cfg.FormatDSN()), &gorm.Config{

@@ -47,7 +47,9 @@ type collaborationRuntime struct {
 
 func (s *Service) ConfigureCollaboration(cfg config.Collaboration) error {
 	s.collabModeColumn = s.db.Migrator().HasColumn("documents", "content_mode")
-	s.collabSchema = s.collabModeColumn && s.db.Migrator().HasTable("document_collaboration") && s.db.Migrator().HasTable("collaboration_outbox") && s.db.Migrator().HasTable("collaboration_commits")
+	s.collabSchema = s.collabModeColumn && s.db.Migrator().HasTable("document_collaboration") &&
+		s.db.Migrator().HasTable("collaboration_outbox") &&
+		s.db.Migrator().HasTable("collaboration_commits")
 	if !cfg.Enabled {
 		return nil
 	}
@@ -55,7 +57,10 @@ func (s *Service) ConfigureCollaboration(cfg config.Collaboration) error {
 		return fmt.Errorf("collaboration schema missing; apply internal/database/collaboration.sql")
 	}
 	endpoint, err := url.Parse(cfg.URL)
-	if err != nil || endpoint.Scheme != "http" || endpoint.User != nil || (endpoint.Hostname() != "localhost" && (net.ParseIP(endpoint.Hostname()) == nil || !net.ParseIP(endpoint.Hostname()).IsLoopback())) {
+	if err != nil || endpoint.Scheme != "http" || endpoint.User != nil ||
+		(endpoint.Hostname() != "localhost" &&
+			(net.ParseIP(endpoint.Hostname()) == nil ||
+				!net.ParseIP(endpoint.Hostname()).IsLoopback())) {
 		return fmt.Errorf("VOEX_COLLAB_URL must use loopback HTTP")
 	}
 	secret, err := os.ReadFile(cfg.SecretFile)
@@ -66,7 +71,12 @@ func (s *Service) ConfigureCollaboration(cfg config.Collaboration) error {
 	if len(secret) < 32 {
 		return fmt.Errorf("collaboration secret must contain at least 32 bytes")
 	}
-	s.collab = &collaborationRuntime{config: cfg, secret: secret, client: &http.Client{Timeout: 20 * time.Second}, grants: map[string]collaborationGrant{}}
+	s.collab = &collaborationRuntime{
+		config: cfg,
+		secret: secret,
+		client: &http.Client{Timeout: 20 * time.Second},
+		grants: map[string]collaborationGrant{},
+	}
 	return nil
 }
 func (s *Service) CollaborationInternal(secret string) bool {
@@ -80,7 +90,12 @@ func (s *Service) collaborationCall(ctx context.Context, path string, input, out
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(s.collab.config.URL, "/")+"/internal/collab/"+path, bytes.NewReader(data))
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		strings.TrimRight(s.collab.config.URL, "/")+"/internal/collab/"+path,
+		bytes.NewReader(data),
+	)
 	if err != nil {
 		return err
 	}
@@ -88,10 +103,10 @@ func (s *Service) collaborationCall(ctx context.Context, path string, input, out
 	req.Header.Set("X-Collab-Secret", string(s.collab.secret))
 	res, err := s.collab.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("collaboration service unavailable")
+		return fmt.Errorf("collaboration request failed: %w", err)
 	}
 	defer res.Body.Close()
-	if res.StatusCode < 200 || res.StatusCode >= 300 {
+	if res.StatusCode < http.StatusOK || res.StatusCode >= http.StatusMultipleChoices {
 		return &collaborationResponseError{StatusCode: res.StatusCode}
 	}
 	if output != nil {
@@ -103,7 +118,12 @@ func (s *Service) CollaborationReady(ctx context.Context) error {
 	if s.collab == nil {
 		return nil
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(s.collab.config.URL, "/")+"/health/ready", nil)
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		strings.TrimRight(s.collab.config.URL, "/")+"/health/ready",
+		nil,
+	)
 	if err != nil {
 		return err
 	}
@@ -112,12 +132,18 @@ func (s *Service) CollaborationReady(ctx context.Context) error {
 		return err
 	}
 	defer res.Body.Close()
-	if res.StatusCode != 200 {
-		return fmt.Errorf("collaboration service unavailable")
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("collaboration readiness status %d", res.StatusCode)
 	}
 	return nil
 }
-func (s *Service) resolveCollaboration(db *gorm.DB, ctx context.Context, key, access, share string, content bool) (shared.Row, shared.Row) {
+
+func (s *Service) resolveCollaboration(
+	db *gorm.DB,
+	ctx context.Context,
+	key, access, share string,
+	content bool,
+) (shared.Row, shared.Row) {
 	switch access {
 	case "workspace":
 		doc := s.FindDocument(db, ctx, key, "read", content)
@@ -128,14 +154,14 @@ func (s *Service) resolveCollaboration(db *gorm.DB, ctx context.Context, key, ac
 	case "share":
 		doc, permissions := s.sharedDocumentContent(db, ctx, share, content)
 		if shared.String(doc["file_key"]) != key {
-			shared.Fail(403, "分享与协同文档不匹配")
+			shared.Fail(http.StatusForbidden, shared.MsgCollaborationShareMismatch)
 		}
 		if identity.OptionalUser(ctx) == nil {
 			permissions["write"] = false
 		}
 		return doc, permissions
 	default:
-		shared.Fail(400, "文件访问方式无效")
+		shared.Fail(http.StatusBadRequest, shared.MsgFileAccessInvalid)
 	}
 	return nil, nil
 }
@@ -149,7 +175,12 @@ func collaborationUser(ctx context.Context, anonymous string) shared.Row {
 	}
 	digest := sha256.Sum256([]byte(id))
 	colors := []string{"#2563eb", "#9333ea", "#0891b2", "#dc2626", "#059669", "#d97706"}
-	return shared.Row{"id": id, "name": name, "avator": avator, "color": colors[int(digest[0])%len(colors)]}
+	return shared.Row{
+		"id":     id,
+		"name":   name,
+		"avator": avator,
+		"color":  colors[int(digest[0])%len(colors)],
+	}
 }
 func (s *Service) addCollaborationMetadata(db *gorm.DB, key string, result shared.Row) shared.Row {
 	result["content_mode"] = "legacy"
@@ -169,11 +200,25 @@ func (s *Service) addCollaborationMetadata(db *gorm.DB, key string, result share
 	}
 	return result
 }
-func (s *Service) CollaborationTicket(ctx context.Context, key, access, share, accessToken string) shared.Row {
+
+func (s *Service) CollaborationTicket(
+	ctx context.Context,
+	key, access, share, accessToken string,
+) shared.Row {
 	key = shared.Key(key, "文件标识")
 	return s.tx(ctx, false, func(db *gorm.DB) any {
 		doc, permissions := s.resolveCollaboration(db, ctx, key, access, share, false)
-		result := s.addCollaborationMetadata(db, key, shared.Row{"enabled": s.collab != nil, "file_key": key, "file_name": doc["file_name"], "document_name": key, "permissions": permissions})
+		result := s.addCollaborationMetadata(
+			db,
+			key,
+			shared.Row{
+				"enabled":       s.collab != nil,
+				"file_key":      key,
+				"file_name":     doc["file_name"],
+				"document_name": key,
+				"permissions":   permissions,
+			},
+		)
 		if s.collab == nil {
 			return result
 		}
@@ -183,7 +228,18 @@ func (s *Service) CollaborationTicket(ctx context.Context, key, access, share, a
 				expires = exp
 			}
 		}
-		g := collaborationGrant{Epoch: shared.Int64(result["epoch"]), FileKey: key, Access: access, ShareToken: share, UserID: shared.String(identity.OptionalUser(ctx)["id"]), SessionID: identity.SessionID(ctx), AnonymousID: "guest-" + shared.RandomToken(9), Expires: expires, TicketExpires: time.Now().Add(time.Minute)}
+		g := collaborationGrant{
+			Epoch:      shared.Int64(result["epoch"]),
+			FileKey:    key,
+			Access:     access,
+			ShareToken: share,
+			UserID:     shared.String(identity.OptionalUser(ctx)["id"]),
+			SessionID:  identity.SessionID(ctx),
+			AnonymousID: "guest-" +
+				shared.RandomToken(9),
+			Expires:       expires,
+			TicketExpires: time.Now().Add(time.Minute),
+		}
 		ticket := shared.RandomToken(32)
 		s.collab.mu.Lock()
 		s.collab.grants["ticket:"+shared.Digest(ticket)] = g
@@ -198,41 +254,52 @@ func (s *Service) CollaborationTicket(ctx context.Context, key, access, share, a
 }
 func (s *Service) collaborationGrant(id string) collaborationGrant {
 	if s.collab == nil {
-		shared.Fail(503, "协同服务未启用")
+		shared.Fail(http.StatusServiceUnavailable, shared.MsgCollaborationDisabled)
 	}
 	s.collab.mu.Lock()
 	g, ok := s.collab.grants["auth:"+id]
 	s.collab.mu.Unlock()
 	if !ok || !time.Now().Before(g.Expires) {
-		shared.Fail(401, "协同授权已过期，请重新连接")
+		shared.Fail(http.StatusUnauthorized, shared.MsgCollaborationGrantExpired)
 	}
 	return g
 }
-func (s *Service) grantContext(db *gorm.DB, ctx context.Context, g collaborationGrant) context.Context {
+
+func (s *Service) grantContext(
+	db *gorm.DB,
+	ctx context.Context,
+	g collaborationGrant,
+) context.Context {
 	if g.UserID != "" {
 		user := repository.AuthUserForSession(db, g.UserID, g.SessionID)
 		if user == nil {
-			shared.Fail(401, "登录已失效，请重新连接")
+			shared.Fail(http.StatusUnauthorized, shared.MsgCollaborationSessionExpired)
 		}
 		return identity.WithUser(ctx, userDTO(user), g.SessionID)
 	}
 	return ctx
 }
-func (s *Service) authorizeGrant(db *gorm.DB, ctx context.Context, id, key string, write, content bool) (shared.Row, shared.Row, context.Context) {
+
+func (s *Service) authorizeGrant(
+	db *gorm.DB,
+	ctx context.Context,
+	id, key string,
+	write, content bool,
+) (shared.Row, shared.Row, context.Context) {
 	g := s.collaborationGrant(id)
 	if g.FileKey != key {
-		shared.Fail(403, "协同文档不匹配")
+		shared.Fail(http.StatusForbidden, shared.MsgCollaborationDocumentMismatch)
 	}
 	ctx = s.grantContext(db, ctx, g)
 	doc, p := s.resolveCollaboration(db, ctx, key, g.Access, g.ShareToken, content)
 	if write && !shared.Bool(p["write"]) {
-		shared.Fail(403, "文档编辑权限已失效")
+		shared.Fail(http.StatusForbidden, shared.MsgDocumentPermissionExpired)
 	}
 	return doc, p, ctx
 }
 func (s *Service) AuthorizeCollaboration(ctx context.Context, ticket, id, key string) shared.Row {
 	if s.collab == nil {
-		shared.Fail(503, "协同服务未启用")
+		shared.Fail(http.StatusServiceUnavailable, shared.MsgCollaborationDisabled)
 	}
 	if ticket != "" {
 		s.collab.mu.Lock()
@@ -240,7 +307,7 @@ func (s *Service) AuthorizeCollaboration(ctx context.Context, ticket, id, key st
 		delete(s.collab.grants, "ticket:"+shared.Digest(ticket))
 		s.collab.mu.Unlock()
 		if !ok || !time.Now().Before(g.TicketExpires) || g.FileKey != key {
-			shared.Fail(401, "协同票据已失效")
+			shared.Fail(http.StatusUnauthorized, shared.MsgCollaborationTicketExpired)
 		}
 		id = shared.RandomToken(32)
 		s.collab.mu.Lock()
@@ -255,9 +322,21 @@ func (s *Service) AuthorizeCollaboration(ctx context.Context, ticket, id, key st
 			epoch = state.Epoch
 		}
 		if g.Epoch != epoch {
-			shared.Fail(409, "文档已被替换，请使用新票据重新加载")
+			shared.Fail(http.StatusConflict, shared.MsgCollaborationDocumentReplaced)
 		}
-		result := s.addCollaborationMetadata(db, key, shared.Row{"authorization_id": id, "file_key": key, "document_name": key, "file_name": doc["file_name"], "permissions": p, "user": collaborationUser(principal, g.AnonymousID), "expires_at": g.Expires.UTC().Format(time.RFC3339)})
+		result := s.addCollaborationMetadata(
+			db,
+			key,
+			shared.Row{
+				"authorization_id": id,
+				"file_key":         key,
+				"document_name":    key,
+				"file_name":        doc["file_name"],
+				"permissions":      p,
+				"user":             collaborationUser(principal, g.AnonymousID),
+				"expires_at":       g.Expires.UTC().Format(time.RFC3339),
+			},
+		)
 		return result
 	}).(shared.Row)
 }

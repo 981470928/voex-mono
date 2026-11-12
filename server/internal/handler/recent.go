@@ -19,7 +19,11 @@ func (h *Handler) RegisterRecentRoutes(protected *gin.RouterGroup) {
 	// DELETE：仅删除本人的查看记录，不修改文档、附件或分享。
 	group.DELETE("/:fileKey", h.recentRemove)
 	// GET/HEAD：独立校验当前文件权限后下载其附件。
-	group.Match([]string{http.MethodGet, http.MethodHead}, "/:fileKey/attachments/:hash", h.recentAttachment)
+	group.Match(
+		[]string{http.MethodGet, http.MethodHead},
+		"/:fileKey/attachments/:hash",
+		h.recentAttachment,
+	)
 }
 
 func (h *Handler) recentList(c *gin.Context) {
@@ -27,7 +31,7 @@ func (h *Handler) recentList(c *gin.Context) {
 	text, valid := value.(string)
 	limit, err := strconv.Atoi(text)
 	if !present || !valid || err != nil || limit <= 0 {
-		shared.Fail(http.StatusBadRequest, "limit 必须是正整数")
+		shared.Fail(http.StatusBadRequest, shared.MustBeMessage("limit", shared.MsgPositiveInteger))
 	}
 	ctx := c.Request.Context()
 	userID := shared.String(identity.User(ctx)["id"])
@@ -41,7 +45,10 @@ func (h *Handler) recentList(c *gin.Context) {
 
 func (h *Handler) recentGet(c *gin.Context) {
 	key := shared.Key(c.Param("fileKey"), "文件标识")
-	c.JSON(http.StatusOK, h.Service.GetRecentFile(c.Request.Context(), key, c.Request.Method == http.MethodGet))
+	c.JSON(
+		http.StatusOK,
+		h.Service.GetRecentFile(c.Request.Context(), key, c.Request.Method == http.MethodGet),
+	)
 }
 
 func (h *Handler) recentDetails(c *gin.Context) {

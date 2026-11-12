@@ -1,0 +1,37 @@
+{
+  "id": "noto-sans-kr",
+  "label": "Noto Sans 한국어",
+  "group": "한국어",
+  "languages": "韩 / EN",
+  "family": "Noto Sans KR",
+  "version": "full-9862abc066c9",
+  "license": "OFL-1.1",
+  "sourceCommit": "9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0",
+  "variants": [
+    {
+      "file": "Variable.woff2",
+      "weights": [
+        "Regular",
+        "Medium",
+        "Bold"
+      ],
+      "cssWeight": "100 900",
+      "bytes": 3908036,
+      "characters": 23174,
+      "glyphs": 24964,
+      "axes": {
+        "wght": [
+          100.0,
+          100.0,
+          900.0
+        ]
+      },
+      "sha256": "61a4f2a7bb82305cbd9c6fa9dd09c9edb833e4072677783bb982bbe6259d1698",
+      "source": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf",
+      "sourceGitSha": "b386890ba945e1f39448a6b59f20c5d194f58808",
+      "sourceSha256": "194018e6b2b293a7964f037b25c0249ce1418bc9ab3c971060a03aa57861e252"
+    }
+  ],
+  "woff2Files": 1,
+  "bytes": 3908036
+}

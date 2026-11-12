@@ -53,6 +53,7 @@ let observer: MutationObserver | undefined;
 let dialogs: HTMLDialogElement[] = [];
 
 // Native modal dialogs make body siblings inert. Follow opening order, including drawers.
+// 原生模态对话框会使 body 下的同级元素进入 inert 状态；应遵循打开顺序，抽屉也包括在内。
 function syncTarget(records: MutationRecord[] = []) {
   dialogs = dialogs.filter((dialog) => dialog.isConnected && dialog.open);
   for (const record of records) {
@@ -147,9 +148,6 @@ onBeforeUnmount(() => observer?.disconnect());
     cursor pointer
     &:hover:not(:disabled)
       background var(--color-bg-translucent)
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset 2px
     &:active:not(:disabled)
       background var(--color-bg-tertiary)
     &:disabled

@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"voex-server/internal/config"
+	"voex-server/internal/shared"
 )
 
 func openWebRoot(name string) (*os.Root, error) {
@@ -25,7 +26,9 @@ func openWebRoot(name string) (*os.Root, error) {
 	file, err := root.Open("index.html")
 	if err != nil {
 		root.Close()
-		return nil, fmt.Errorf("frontend index.html is missing; initialize and build the project first")
+		return nil, fmt.Errorf(
+			"frontend index.html is missing; initialize and build the project first",
+		)
 	}
 	info, statErr := file.Stat()
 	file.Close()
@@ -38,6 +41,7 @@ func openWebRoot(name string) (*os.Root, error) {
 
 func checkWebRoot(name string) (func(), error) {
 	// Initialization checks the database before producing the frontend bundle.
+	// 初始化会先检查数据库，再生成前端构建产物。
 	if !filepath.IsAbs(name) {
 		return nil, fmt.Errorf("VOEX_WEB_ROOT must be an absolute path")
 	}
@@ -50,7 +54,9 @@ func checkWebRoot(name string) (func(), error) {
 
 func collaborationTarget(raw string) (*url.URL, error) {
 	target, err := url.Parse(raw)
-	if err != nil || target.Scheme != "http" || target.User != nil || target.RawQuery != "" || target.Fragment != "" || (target.Path != "" && target.Path != "/") {
+	if err != nil || target.Scheme != "http" || target.User != nil || target.RawQuery != "" ||
+		target.Fragment != "" ||
+		(target.Path != "" && target.Path != "/") {
 		return nil, fmt.Errorf("VOEX_COLLAB_URL must be a loopback HTTP origin")
 	}
 	host := target.Hostname()
@@ -66,7 +72,9 @@ func collaborationTarget(raw string) (*url.URL, error) {
 	return target, nil
 }
 
-// deploymentHandler enables the optional single-port frontend gateway. API-only deployments are unchanged.
+// deploymentHandler enables the optional single-port frontend gateway.
+// API-only deployments are unchanged.
+// deploymentHandler 启用可选的单端口前端网关；仅部署 API 时行为不变。
 func deploymentHandler(api http.Handler, cfg config.Config) (http.Handler, func(), error) {
 	name := config.Env("VOEX_WEB_ROOT", "")
 	if name == "" {
@@ -87,7 +95,8 @@ func deploymentHandler(api http.Handler, cfg config.Config) (http.Handler, func(
 		proxy = httputil.NewSingleHostReverseProxy(target)
 		proxy.FlushInterval = -1
 		proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
-			http.Error(w, "collaboration service unavailable", http.StatusBadGateway)
+			shared.LogFailure("collaboration websocket proxy", err)
+			http.Error(w, shared.MsgNetworkError, http.StatusBadGateway)
 		}
 	}
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -101,7 +110,7 @@ func deploymentHandler(api http.Handler, cfg config.Config) (http.Handler, func(
 			return
 		}
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			http.Error(w, shared.MsgMethodNotAllowed, http.StatusMethodNotAllowed)
 			return
 		}
 		if r.URL.Path == "/" || r.URL.Path == "/app" {
@@ -129,7 +138,9 @@ func deploymentHandler(api http.Handler, cfg config.Config) (http.Handler, func(
 		file, err := root.Open(name)
 		if err != nil {
 			// Only navigation requests fall back to the SPA. Missing assets remain 404.
-			if !os.IsNotExist(err) || path.Ext(name) != "" || strings.HasPrefix(name, "assets/") || strings.HasPrefix(name, "vendor/") {
+			// 只有页面导航请求才回退到 SPA；缺失的静态资源仍返回 404。
+			if !os.IsNotExist(err) || path.Ext(name) != "" || strings.HasPrefix(name, "assets/") ||
+				strings.HasPrefix(name, "vendor/") {
 				http.NotFound(w, r)
 				return
 			}

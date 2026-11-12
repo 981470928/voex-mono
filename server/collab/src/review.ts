@@ -1,3 +1,4 @@
+import { Messages, httpStatus } from "./errors.js";
 /** AI 审阅的 prepare / commit / abort 协议及租约。数据库事务归 Go 管理。 */
 import { randomUUID } from 'node:crypto';
 import type { Hocuspocus } from '@hocuspocus/server';
@@ -34,7 +35,7 @@ export function createReviewService(
       !Array.isArray(body.changes) ||
       body.changes.length > 20
     )
-      throw new ServiceError('Invalid preparation request', 400);
+      throw new ServiceError(Messages.InvalidRequest, httpStatus.HTTP_STATUS_BAD_REQUEST);
     if (stages.has(operation)) return stages.get(operation)!.result;
     const prepared: any[] = [];
     const entries: Stage['rooms'] = [];
@@ -50,7 +51,7 @@ export function createReviewService(
             file_key: fileKey,
           });
           checkSchema(grant);
-          if (!grant.permissions.write) throw new ServiceError('没有编辑权限', 403);
+          if (!grant.permissions.write) throw new ServiceError(Messages.NoEditPermission, httpStatus.HTTP_STATUS_FORBIDDEN);
           await getHocuspocus().createDocument(
             fileKey,
             {},
@@ -59,7 +60,7 @@ export function createReviewService(
             { grant, clientId: null }
           );
           room = rooms.get(fileKey);
-          if (!room) throw new ServiceError('Cannot load collaboration room');
+          if (!room) throw new ServiceError(Messages.ServiceUnavailable);
         }
         await lockRoom(room, operation);
         entries.push({
@@ -76,11 +77,12 @@ export function createReviewService(
         room.state.file_name = latest.file_name;
         const current = snapshot(room.doc);
         if (
-          room.state.revision !== change.revision ||
-          current.markdown !== change.before_content ||
-          room.state.file_name !== change.before_name
+          change.force !== true &&
+          (room.state.revision !== change.revision ||
+            current.markdown !== change.before_content ||
+            room.state.file_name !== change.before_name)
         )
-          throw new ServiceError('文件已发生变化，请基于最新文档重新生成建议', 409);
+          throw new ServiceError(Messages.RequestPreconditionFailed, httpStatus.HTTP_STATUS_PRECONDITION_FAILED);
         const copy = new Y.Doc();
         try {
           // 经审阅的整篇替换会开启新的 epoch 和 CRDT 身份。

@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/base64"
 	"gorm.io/gorm"
+	"net/http"
+	"voex-server/internal/dbschema"
 	"voex-server/internal/identity"
 	"voex-server/internal/repository"
 	"voex-server/internal/shared"
@@ -26,19 +28,30 @@ type CollaborationRequest struct {
 
 func collaborationBytes(input CollaborationRequest) []byte {
 	if input.SchemaVersion != collaborationSchema {
-		shared.Fail(409, "协同文档格式版本不兼容")
+		shared.Fail(http.StatusConflict, shared.MsgCollaborationSchemaInvalid)
 	}
 	if len(input.Markdown) > 2<<20 || len(input.StateBase64) > 24<<20 {
-		shared.Fail(413, "协同文档超过大小限制")
+		shared.Fail(http.StatusRequestEntityTooLarge, shared.SizeLimitMessage("协同文档"))
 	}
 	state, err := base64.StdEncoding.DecodeString(input.StateBase64)
 	if err != nil || len(state) == 0 || len(state) > 16<<20 {
-		shared.Fail(400, "协同状态格式无效")
+		shared.Fail(http.StatusBadRequest, shared.InvalidFormatMessage("协同状态"))
 	}
 	return state
 }
 func collaborationSnapshot(db *gorm.DB, doc shared.Row) shared.Row {
-	result := shared.Row{"file_key": doc["file_key"], "document_name": doc["file_key"], "file_name": doc["file_name"], "markdown": shared.String(doc["file_content"]), "revision": shared.Int64(doc["revision"]), "content_mode": "legacy", "collab_seq": int64(0), "epoch": int64(1), "schema_version": collaborationSchema, "state_base64": ""}
+	result := shared.Row{
+		"file_key":       doc["file_key"],
+		"document_name":  doc["file_key"],
+		"file_name":      doc["file_name"],
+		"markdown":       shared.String(doc["file_content"]),
+		"revision":       shared.Int64(doc["revision"]),
+		"content_mode":   "legacy",
+		"collab_seq":     int64(0),
+		"epoch":          int64(1),
+		"schema_version": collaborationSchema,
+		"state_base64":   "",
+	}
 	if state := repository.LoadCollaboration(db, doc["id"]); state != nil {
 		result["content_mode"] = "collab"
 		result["state_base64"] = base64.StdEncoding.EncodeToString(state.State)
@@ -54,23 +67,54 @@ func (s *Service) LoadCollaboration(ctx context.Context, input CollaborationRequ
 		return collaborationSnapshot(db, doc)
 	}).(shared.Row)
 }
-func (s *Service) InitializeCollaboration(ctx context.Context, input CollaborationRequest) shared.Row {
+
+func (s *Service) InitializeCollaboration(
+	ctx context.Context,
+	input CollaborationRequest,
+) shared.Row {
 	state := collaborationBytes(input)
 	if input.ExpectedRevision < 1 || len(input.SourceMarkdown) > 2<<20 {
-		shared.Fail(400, "协同初始化版本无效")
+		shared.Fail(http.StatusBadRequest, shared.MsgCollaborationInitializationInvalid)
 	}
 	return repository.CollaborationTransaction(ctx, s.db, input.FileKey, func(db *gorm.DB) any {
 		doc, _, _ := s.authorizeGrant(db, ctx, input.AuthorizationID, input.FileKey, false, true)
 		if current := repository.CollaborationMetadata(db, doc["id"]); current != nil {
 			return collaborationSnapshot(db, doc)
 		}
-		if shared.Int64(doc["revision"]) != input.ExpectedRevision || shared.String(doc["file_content"]) != input.SourceMarkdown {
-			shared.Fail(409, "文件已更新，请重新加载后初始化协同")
+		if shared.Int64(doc["revision"]) != input.ExpectedRevision ||
+			shared.String(doc["file_content"]) != input.SourceMarkdown {
+			shared.Fail(http.StatusConflict, shared.MsgCollaborationInitializationChanged)
 		}
 		repository.InsertCollaboration(db, doc["id"], state, input.SchemaVersion)
 		// Normalization is server-side representation initialization, not an anonymous edit.
+		// 规范化是服务器端表示的初始化，不是匿名编辑。
 		if input.Markdown != input.SourceMarkdown {
-			repository.Must(db.Table("documents").Where("id=?", doc["id"]).Updates(map[string]any{"file_content": input.Markdown, "revision": gorm.Expr("revision+1")}))
+			s.historySnapshot(
+				db,
+				doc["id"],
+				shared.String(doc["file_content"]),
+				shared.Int64(doc["revision"]),
+				doc["updated_by"],
+				shared.Bool(doc["updated_by_anonymous"]),
+				"auto",
+				"",
+			)
+			repository.Must(
+				db.Table(dbschema.Documents.Name).Where(
+					dbschema.Documents.Columns.ID+
+						"=?",
+					doc[dbschema.Documents.Columns.ID],
+				).Updates(
+					map[string]any{
+						dbschema.Documents.Columns.FILE_CONTENT: input.Markdown,
+						dbschema.Documents.Columns.REVISION: gorm.Expr(
+							dbschema.Documents.Columns.REVISION +
+
+								"+1",
+						),
+					},
+				),
+			)
 			doc["revision"] = input.ExpectedRevision + 1
 			doc["file_content"] = input.Markdown
 		}
@@ -79,42 +123,108 @@ func (s *Service) InitializeCollaboration(ctx context.Context, input Collaborati
 }
 func (s *Service) CommitCollaboration(ctx context.Context, input CollaborationRequest) shared.Row {
 	state := collaborationBytes(input)
-	if input.ExpectedCollabSeq < 1 || input.Epoch < 1 || input.IdempotencyKey == "" || len(input.IdempotencyKey) > 128 || len(input.Actors) > 1000 {
-		shared.Fail(400, "协同提交标识无效")
+	if input.ExpectedCollabSeq < 1 || input.Epoch < 1 || input.IdempotencyKey == "" ||
+		len(input.IdempotencyKey) > 128 ||
+		len(input.Actors) > 1000 {
+		shared.Fail(http.StatusBadRequest, shared.MsgCollaborationCommitInvalid)
 	}
-	hash := collaborationHash(shared.Row{"state": input.StateBase64, "markdown": input.Markdown, "seq": input.ExpectedCollabSeq, "epoch": input.Epoch, "schema": input.SchemaVersion})
+	hash := collaborationHash(
+		shared.Row{
+			"state":    input.StateBase64,
+			"markdown": input.Markdown,
+			"seq":      input.ExpectedCollabSeq,
+			"epoch":    input.Epoch,
+			"schema":   input.SchemaVersion,
+		},
+	)
 	return repository.CollaborationTransaction(ctx, s.db, input.FileKey, func(db *gorm.DB) any {
 		// A committed receipt is an acknowledgment, not a new write. The internal
 		// service credential and matching payload digest make retries safe even
 		// when the original user's authorization expired after a successful commit.
+		// 已提交的回执表示确认，不代表新的写入。
+		// 内部服务凭据与匹配的请求内容摘要，使重试保持安全，
+		// 即使原用户的授权在成功提交后已经过期也不例外。
 		doc := repository.DocumentByKey(db, input.FileKey, false)
 		if doc == nil {
-			shared.Fail(404, "文档不存在")
+			shared.Fail(http.StatusNotFound, shared.NotFoundMessage("文档"))
 		}
-		if previous := repository.CollaborationReceipt(db, doc["id"], input.IdempotencyKey); previous != nil {
+		if previous := repository.CollaborationReceipt(
+			db,
+			doc["id"],
+			input.IdempotencyKey,
+		); previous != nil {
 			if shared.String(previous["payload_hash"]) != hash {
-				shared.Fail(409, "协同提交标识已用于另一份修改")
+				shared.Fail(http.StatusConflict, shared.MsgCollaborationCommitConflict)
 			}
-			return shared.Row{"file_key": input.FileKey, "collab_seq": shared.Int64(previous["collab_seq"]), "revision": shared.Int64(previous["revision"]), "epoch": input.Epoch, "replayed": true}
+			return shared.Row{
+				"file_key":   input.FileKey,
+				"collab_seq": shared.Int64(previous["collab_seq"]),
+				"revision":   shared.Int64(previous["revision"]),
+				"epoch":      input.Epoch,
+				"replayed":   true,
+			}
 		}
-		doc, _, principal := s.authorizeGrant(db, ctx, input.AuthorizationID, input.FileKey, true, false)
+		doc, _, principal := s.authorizeGrant(
+			db,
+			ctx,
+			input.AuthorizationID,
+			input.FileKey,
+			true,
+			true,
+		)
 		if s.collaborationGrant(input.AuthorizationID).Epoch != input.Epoch {
-			shared.Fail(409, "协同授权属于旧文档版本")
+			shared.Fail(http.StatusConflict, shared.MsgCollaborationGrantStale)
 		}
 		for _, actor := range input.Actors {
 			s.authorizeGrant(db, ctx, actor, input.FileKey, true, false)
 			if s.collaborationGrant(actor).Epoch != input.Epoch {
-				shared.Fail(409, "协同更新属于旧文档版本")
+				shared.Fail(http.StatusConflict, shared.MsgCollaborationUpdateStale)
 			}
 		}
 		current := repository.CollaborationMetadata(db, doc["id"])
-		if current == nil || current.Epoch != input.Epoch || current.CollabSeq != input.ExpectedCollabSeq || current.SchemaVersion != input.SchemaVersion {
-			shared.Fail(409, "协同状态已更新，请重新加载")
+		if current == nil ||
+			current.Epoch != input.Epoch ||
+			current.CollabSeq != input.ExpectedCollabSeq ||
+			current.SchemaVersion != input.SchemaVersion {
+			shared.Fail(http.StatusConflict, shared.MsgCollaborationStateChanged)
 		}
+		// 采样快照被替换的旧正文；阈值内与重复正文不写入。
+		s.historySnapshot(
+			db,
+			doc["id"],
+			shared.String(doc["file_content"]),
+			shared.Int64(doc["revision"]),
+			doc["updated_by"],
+			shared.Bool(doc["updated_by_anonymous"]),
+			"auto",
+			"",
+		)
 		repository.CommitCollaboration(db, doc["id"], state, current.CollabSeq, current.Epoch)
-		repository.WorkspaceUpdateDocument(db, input.FileKey, shared.Row{"file_content": input.Markdown}, true, shared.String(identity.User(principal)["id"]))
+		repository.WorkspaceUpdateDocument(
+			db,
+			input.FileKey,
+			shared.Row{
+				"file_content": input.Markdown,
+			},
+			true,
+			shared.String(identity.User(principal)["id"]),
+		)
 		revision := shared.Int64(doc["revision"]) + 1
-		repository.RecordCollaborationCommit(db, doc["id"], input.IdempotencyKey, hash, current.CollabSeq+1, revision)
-		return shared.Row{"file_key": input.FileKey, "collab_seq": current.CollabSeq + 1, "revision": revision, "epoch": current.Epoch}
+		repository.RecordCollaborationCommit(
+			db,
+			doc["id"],
+			input.IdempotencyKey,
+			hash,
+			current.CollabSeq+
+				1,
+			revision,
+		)
+		return shared.Row{
+			"file_key": input.FileKey,
+			"collab_seq": current.CollabSeq +
+				1,
+			"revision": revision,
+			"epoch":    current.Epoch,
+		}
 	}).(shared.Row)
 }

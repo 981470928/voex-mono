@@ -12,7 +12,7 @@ interface KeyboardShortcutOptions {
   shortcuts: readonly KeyboardShortcut[];
 }
 
-/** Page-scoped single-key shortcuts; text entry and modal layers always take priority. */
+/** Page-scoped single-key shortcuts; text entry and modal layers always take priority. / 单键快捷键仅在当前页面生效；文本输入和模态层始终优先。 */
 export function useKeyboardShortcuts(options: KeyboardShortcutOptions) {
   let composing = false;
 

@@ -24,7 +24,10 @@ async function ask(label, fallback = '', secret = false) {
   }
 }
 
-/** Load voex.config.json; when it is missing, create it interactively. */
+/**
+ * Load voex.config.json; when it is missing, create it interactively.
+ * 加载 voex.config.json；文件不存在时通过交互方式创建。
+ */
 export async function ensureConfig() {
   if (await exists(CONFIG)) {
     const config = await loadConfig();

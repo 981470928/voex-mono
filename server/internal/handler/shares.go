@@ -35,21 +35,32 @@ func (h *Handler) shareAccess(c *gin.Context) {
 	c.Next()
 }
 func (h *Handler) shareSettings(c *gin.Context) {
-	c.JSON(200, h.Service.DocumentSharing(c.Request.Context(), c.Param("fileKey")))
+	c.JSON(http.StatusOK, h.Service.DocumentSharing(c.Request.Context(), c.Param("fileKey")))
 }
 func (h *Handler) shareSettingsUpdate(c *gin.Context) {
 	h.Service.SetDocumentSharing(c.Request.Context(), c.Param("fileKey"), transport.Body(c))
-	c.JSON(200, shared.Row{"success": true})
+	c.JSON(http.StatusOK, shared.Row{"success": true})
 }
 func (h *Handler) shareAccessRevoke(c *gin.Context) {
 	h.Service.RevokeDocumentAccess(c.Request.Context(), c.Param("fileKey"), c.Param("userId"))
-	c.JSON(200, shared.Row{"success": true})
+	c.JSON(http.StatusOK, shared.Row{"success": true})
 }
 func (h *Handler) shareGetDocument(c *gin.Context) {
-	c.JSON(200, h.Service.GetSharedDocument(c.Request.Context(), c.GetHeader("X-Share-Token"), c.Request.Method == http.MethodGet))
+	c.JSON(
+		http.StatusOK,
+		h.Service.GetSharedDocument(
+			c.Request.Context(),
+			c.GetHeader("X-Share-Token"),
+			c.Request.Method == http.MethodGet,
+		),
+	)
 }
 func (h *Handler) shareGetAttachment(c *gin.Context) {
-	file := h.Service.SharedAttachment(c.Request.Context(), c.GetHeader("X-Share-Token"), c.Param("hash"))
+	file := h.Service.SharedAttachment(
+		c.Request.Context(),
+		c.GetHeader("X-Share-Token"),
+		c.Param("hash"),
+	)
 	h.Service.Files.Serve(c.Writer, c.Request, file)
 }
 func (h *Handler) shareGetAvatar(c *gin.Context) {

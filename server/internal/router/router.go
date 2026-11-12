@@ -1,4 +1,5 @@
 // Package router assembles route groups and global Gin middleware.
+// router 包组装路由组和全局 Gin 中间件。
 package router
 
 import (
@@ -38,6 +39,9 @@ func New(s *service.Service, logger *log.Logger) *Router {
 	h.RegisterAIRoutes(protected)
 	h.RegisterTeamRoutes(public, protected)
 	h.RegisterWorkspaceRoutes(protected)
+	h.RegisterDocumentTransferRoutes(protected)
+	h.RegisterSearchRoutes(protected)
+	h.RegisterDocumentHistoryRoutes(protected)
 	h.RegisterTrashRoutes(protected)
 	h.RegisterRecentRoutes(protected)
 	h.RegisterStorageRoutes(protected)
@@ -47,14 +51,15 @@ func New(s *service.Service, logger *log.Logger) *Router {
 	engine.NoRoute(func(c *gin.Context) {
 		if c.Request.URL.Path == "/api" || strings.HasPrefix(c.Request.URL.Path, "/api/") {
 			s.Authenticate(c.Request.Context(), transport.AccessToken(c.Request), false)
-			shared.Fail(404, "接口不存在")
+			shared.Fail(http.StatusNotFound, shared.NotFoundMessage("接口"))
 		}
-		c.String(404, "404 page not found")
+		c.String(http.StatusNotFound, shared.NotFoundMessage("接口"))
 	})
 	return &Router{engine: engine}
 }
 func (r *Router) ServeHTTP(w http.ResponseWriter, request *http.Request) {
 	// Preserve the existing API's acceptance of a trailing slash without redirecting writes.
+	// 保留现有 API 接受末尾斜杠的行为，不重定向写请求。
 	if len(request.URL.Path) > 1 && strings.HasSuffix(request.URL.Path, "/") {
 		clone := request.Clone(request.Context())
 		clone.URL.Path = strings.TrimRight(clone.URL.Path, "/")

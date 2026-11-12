@@ -117,6 +117,7 @@ export function createEditorContent(options: EditorContentOptions): EditorConten
 
   // Keep derived heading anchors out of document transactions. A nested
   // addToHistory:false transaction can make Yjs skip the user's heading edit.
+  // 派生的标题锚点不应进入文档事务；嵌套的 addToHistory:false 事务可能使 Yjs 跳过用户的标题编辑。
   const headingAnchors = $prose((ctx) => {
     let previousDocument: ProseMirrorNode | null = null;
     let decorations = DecorationSet.empty;
@@ -196,7 +197,9 @@ export function createEditorContent(options: EditorContentOptions): EditorConten
           currentView = view;
           return {
             // ProseMirror recreates plugin views when collaboration is connected.
+            // 连接协同时，ProseMirror 会重建插件视图。
             // The component owns final disposal; reconfiguration only releases this view.
+            // 最终销毁由组件负责；重新配置时仅释放当前视图。
             destroy() {
               if (currentView === view) currentView = null;
             },
@@ -273,7 +276,9 @@ export function createEditorContent(options: EditorContentOptions): EditorConten
     if (disposed || !currentView || currentView.isDestroyed) throw new Error('编辑器已关闭');
     const view = ctx.get(editorViewCtx);
     // Only this synchronous host save acknowledgement can cross the temporary readonly lock.
+    // 只有此同步的宿主保存确认可以越过临时只读锁。
     // Asynchronous uploads, paste handlers and ordinary user transactions remain blocked.
+    // 异步上传、粘贴处理程序和普通用户事务仍被阻止。
     replacingSavedDocument = true;
     try {
       view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, document.content));

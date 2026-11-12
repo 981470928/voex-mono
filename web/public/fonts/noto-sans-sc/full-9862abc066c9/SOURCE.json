@@ -1,0 +1,37 @@
+{
+  "id": "noto-sans-sc",
+  "label": "思源黑体",
+  "group": "中文",
+  "languages": "中 / EN",
+  "family": "Noto Sans SC",
+  "version": "full-9862abc066c9",
+  "license": "OFL-1.1",
+  "sourceCommit": "9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0",
+  "variants": [
+    {
+      "file": "Variable.woff2",
+      "weights": [
+        "Regular",
+        "Medium",
+        "Bold"
+      ],
+      "cssWeight": "100 900",
+      "bytes": 7785224,
+      "characters": 30890,
+      "glyphs": 31036,
+      "axes": {
+        "wght": [
+          100.0,
+          100.0,
+          900.0
+        ]
+      },
+      "sha256": "e81cf268f2d73db64aa2891da944e09ef20e91262afc86624ed0ea54a0060fb4",
+      "source": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf",
+      "sourceGitSha": "fb0637bafbcd804fe32152370a1225990745b4bc",
+      "sourceSha256": "a3041811a78c361b1de50f953c805e0244951c21c5bd412f7232ef0d899af0da"
+    }
+  ],
+  "woff2Files": 1,
+  "bytes": 7785224
+}

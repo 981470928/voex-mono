@@ -2,6 +2,7 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
+	"net/http"
 	"time"
 	"voex-server/internal/identity"
 	"voex-server/internal/security"
@@ -32,19 +33,38 @@ func (h *Handler) RegisterAuthRoutes(public, protected *gin.RouterGroup) {
 }
 func (h *Handler) writeSession(c *gin.Context, status int, s service.Session) {
 	if s.RefreshToken != "" {
-		transport.SessionCookie(c.Writer, c.Request, "voex_refresh", "/api/auth", s.RefreshToken, 14*24*60*60)
+		transport.SessionCookie(
+			c.Writer,
+			c.Request,
+			"voex_refresh",
+			"/api/auth",
+			s.RefreshToken,
+			14*24*60*60,
+		)
 	}
 	transport.SessionCookie(c.Writer, c.Request, "voex_access", "/api", s.AccessToken, s.ExpiresIn)
 	c.JSON(status, s)
 }
 func (h *Handler) accountAvailability(c *gin.Context) {
 	h.Limiter.Limit(c.Request, "auth-availability", 60, time.Minute)
-	c.JSON(200, shared.Row{"available": h.Service.AccountAvailable(c.Request.Context(), transport.Body(c)["account"])})
+	c.JSON(
+		http.StatusOK,
+		shared.Row{
+			"available": h.Service.AccountAvailable(
+				c.Request.Context(),
+				transport.Body(c)["account"],
+			),
+		},
+	)
 }
 func (h *Handler) register(c *gin.Context) {
 	h.Limiter.Limit(c.Request, "auth-registration", 15, time.Hour)
 
-	h.writeSession(c, 201, h.Service.Register(c.Request.Context(), transport.Body(c)))
+	h.writeSession(
+		c,
+		http.StatusCreated,
+		h.Service.Register(c.Request.Context(), transport.Body(c)),
+	)
 }
 func (h *Handler) login(c *gin.Context) {
 	refundIP := h.Limiter.LimitKey("auth-login-ip:"+security.RateIP(c.Request), 30, 15*time.Minute)
@@ -57,32 +77,40 @@ func (h *Handler) login(c *gin.Context) {
 	session := h.Service.Login(c.Request.Context(), b, transport.Cookie(c.Request, "voex_refresh"))
 	refundIP()
 	refundAccount()
-	h.writeSession(c, 200, session)
+	h.writeSession(c, http.StatusOK, session)
 }
 func (h *Handler) refresh(c *gin.Context) {
 	h.Limiter.Limit(c.Request, "auth-availability", 60, time.Minute)
 	defer func() {
 		if v := recover(); v != nil {
-			if e, ok := v.(shared.HTTPError); ok && e.Message == "登录已过期，请重新登录" {
+			if e, ok := v.(shared.HTTPError); ok && e.Status == http.StatusUnauthorized {
 				transport.ClearSession(c.Writer, c.Request)
 			}
 			panic(v)
 		}
 	}()
-	h.writeSession(c, 200, h.Service.Refresh(c.Request.Context(), transport.Cookie(c.Request, "voex_refresh")))
+	h.writeSession(
+		c,
+		http.StatusOK,
+		h.Service.Refresh(c.Request.Context(), transport.Cookie(c.Request, "voex_refresh")),
+	)
 }
 func (h *Handler) logout(c *gin.Context) {
-	h.Service.Logout(c.Request.Context(), transport.AccessToken(c.Request), transport.Cookie(c.Request, "voex_refresh"))
+	h.Service.Logout(
+		c.Request.Context(),
+		transport.AccessToken(c.Request),
+		transport.Cookie(c.Request, "voex_refresh"),
+	)
 	transport.ClearSession(c.Writer, c.Request)
-	c.JSON(200, shared.Row{"success": true})
+	c.JSON(http.StatusOK, shared.Row{"success": true})
 }
-func (h *Handler) me(c *gin.Context) { c.JSON(200, identity.User(c.Request.Context())) }
+func (h *Handler) me(c *gin.Context) { c.JSON(http.StatusOK, identity.User(c.Request.Context())) }
 func (h *Handler) updateProfile(c *gin.Context) {
-	c.JSON(200, h.Service.UpdateProfile(c.Request.Context(), transport.Body(c)))
+	c.JSON(http.StatusOK, h.Service.UpdateProfile(c.Request.Context(), transport.Body(c)))
 }
 func (h *Handler) userConfig(c *gin.Context) {
-	c.JSON(200, h.Service.UserConfig(c.Request.Context()))
+	c.JSON(http.StatusOK, h.Service.UserConfig(c.Request.Context()))
 }
 func (h *Handler) updateUserConfig(c *gin.Context) {
-	c.JSON(200, h.Service.UpdateUserConfig(c.Request.Context(), transport.Body(c)))
+	c.JSON(http.StatusOK, h.Service.UpdateUserConfig(c.Request.Context(), transport.Body(c)))
 }

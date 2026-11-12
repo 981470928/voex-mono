@@ -1,7 +1,7 @@
 import type { DocumentChange, DocumentSnapshot, ReviewSnapshot } from './types';
 import { randomUUID } from '@/utils/id';
 
-/** Isolated working copies. Nothing here receives a live editor or a save function. */
+/** Isolated working copies. Nothing here receives a live editor or a save function. / 使用隔离的工作副本；此处不接收实时编辑器或保存函数。 */
 export class AgentDraft {
   private changes = new Map<string, DocumentChange>();
 
@@ -89,6 +89,7 @@ export class AgentDraft {
     );
     if (!changes.length) return;
     // Copy rather than reference the working draft: every chat button owns its snapshot.
+    // 复制工作草稿而非保留引用：每个聊天按钮都持有自己的快照。
     return {
       id: randomUUID(),
       createdAt: Date.now(),

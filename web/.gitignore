@@ -1,4 +1,5 @@
 # Logs
+# 日志
 logs
 *.log
 npm-debug.log*
@@ -14,6 +15,7 @@ coverage
 *.local
 
 # Editor directories and files
+# 编辑器目录和文件
 .vscode/*
 *.tsbuildinfo
 

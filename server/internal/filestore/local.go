@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"log"
 	"net/http"
 	"os"
 	"path"
@@ -19,6 +18,8 @@ import (
 
 // Store keeps immutable objects and private upload staging in one local volume.
 // All object access is rooted: symlinks can never escape the configured directory.
+// Store 将不可变对象和私有上传暂存区保存在同一个本地存储卷。
+// 所有对象访问都受根目录约束，符号链接无法越出配置的目录。
 type Store struct {
 	root    *os.Root
 	tempDir string
@@ -50,7 +51,8 @@ func New(settings config.Storage) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("inspect upload staging: %w", err)
 	}
-	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || (runtime.GOOS != "windows" && info.Mode().Perm()&0077 != 0) {
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 ||
+		(runtime.GOOS != "windows" && info.Mode().Perm()&0077 != 0) {
 		return nil, fmt.Errorf("upload staging must be a private real directory")
 	}
 	tempKey := ".uploads/" + shared.UUID()
@@ -58,17 +60,25 @@ func New(settings config.Storage) (*Store, error) {
 		return nil, fmt.Errorf("create private upload directory: %w", err)
 	}
 	ready = true
-	return &Store{root: root, tempKey: tempKey, tempDir: filepath.Join(name, filepath.FromSlash(tempKey))}, nil
+	return &Store{
+		root:    root,
+		tempKey: tempKey,
+		tempDir: filepath.Join(name, filepath.FromSlash(tempKey)),
+	}, nil
 }
 
 // Walk from a pinned filesystem root so a pre-existing symlink is rejected
 // before creating anything beneath it. Each next directory stays within its parent.
+// 从固定的文件系统根目录逐级遍历，在向下创建任何内容前拒绝已有符号链接。
+// 每一级目录都必须保持在其父目录内。
 func openStorageRoot(name string) (*os.Root, error) {
 	if !filepath.IsAbs(name) {
 		return nil, fmt.Errorf("VOEX_STORAGE_ROOT must be an absolute path")
 	}
 	// Pin the correct filesystem/volume root before inspecting each component.
 	// On Windows this includes the drive (C:\) or the full UNC share root.
+	// 检查各路径组件前，先固定正确的文件系统或存储卷根目录。
+	// 在 Windows 上，该根目录包括盘符根目录（C:\）或完整的 UNC 共享根目录。
 	volumeRoot := filepath.VolumeName(name) + string(filepath.Separator)
 	relative, err := filepath.Rel(volumeRoot, name)
 	if err != nil || relative == "." || !filepath.IsLocal(relative) {
@@ -103,6 +113,7 @@ func openStorageRoot(name string) (*os.Root, error) {
 }
 
 // Close removes only the empty process directory; unfinished uploads are not swept.
+// Close 仅删除空的进程目录，不清扫未完成的上传。
 func (s *Store) Close() {
 	_ = s.root.Remove(s.tempKey)
 	_ = s.root.Close()
@@ -123,10 +134,12 @@ func validObjectKey(key string) bool {
 		return false
 	}
 	directory, storageName := path.Dir(value), path.Base(value)
-	return len(directory) <= 255 && directoryPattern.MatchString(directory) && assetStoragePattern.MatchString(storageName)
+	return len(directory) <= 255 && directoryPattern.MatchString(directory) &&
+		assetStoragePattern.MatchString(storageName)
 }
 
 // Validate every existing component, in addition to os.Root's race-safe boundary.
+// 除 os.Root 提供的防竞态边界外，还验证每个已存在的路径组件。
 func (s *Store) checkObjectPath(key string) error {
 	if !validObjectKey(key) {
 		return fs.ErrInvalid
@@ -202,6 +215,7 @@ func (s *Store) putObject(ctx context.Context, key, filename, _ string) error {
 		return err
 	}
 	// Check parents without requiring the destination to exist yet.
+	// 检查父目录，不要求目标路径已经存在。
 	if err := s.checkObjectPath(key); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
@@ -209,6 +223,7 @@ func (s *Store) putObject(ctx context.Context, key, filename, _ string) error {
 		return err
 	}
 	// link(2) publishes the fully written inode atomically and never replaces a key.
+	// link(2) 以原子方式发布已完整写入的 inode，且绝不替换已有 key。
 	if err := s.root.Link(source, key); err != nil {
 		if !errors.Is(err, fs.ErrExist) {
 			return err
@@ -230,6 +245,7 @@ func (s *Store) putObject(ctx context.Context, key, filename, _ string) error {
 	}
 	if err != nil {
 		// Publication failed durability checks, so callers must not commit its metadata.
+		// 发布未通过持久性检查，因此调用方不得提交其元数据。
 		_ = s.root.Remove(key)
 	}
 	return err
@@ -262,11 +278,11 @@ func storageStatus(err error) int {
 }
 
 // Never expose physical paths through storage error logs or API responses.
+// 存储错误日志和 API 响应中都不得暴露物理路径。
 func logStorageError(operation string, err error) {
-	log.Printf("[storage] %s failed (status=%d type=%T)", operation, storageStatus(err), err)
+	shared.LogFailure("storage "+operation, err)
 }
 
 func storageFailure(operation string, err error) {
-	logStorageError(operation, err)
-	shared.Fail(http.StatusBadGateway, "文件存储服务暂不可用，请稍后重试")
+	shared.NetworkFailure("storage "+operation, err)
 }

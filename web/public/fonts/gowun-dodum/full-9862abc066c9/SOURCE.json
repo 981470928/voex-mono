@@ -1,0 +1,29 @@
+{
+  "id": "gowun-dodum",
+  "label": "Gowun Dodum",
+  "group": "한국어",
+  "languages": "韩 / EN",
+  "family": "Gowun Dodum",
+  "version": "full-9862abc066c9",
+  "license": "OFL-1.1",
+  "sourceCommit": "9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0",
+  "variants": [
+    {
+      "file": "Regular.woff2",
+      "weights": [
+        "Regular"
+      ],
+      "cssWeight": "400",
+      "bytes": 445304,
+      "characters": 12494,
+      "glyphs": 12550,
+      "axes": {},
+      "sha256": "c7b9e9f507c283809ade4fde1b7d8d629df71e4bc593dcab4f5bffb28d617a8a",
+      "source": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/gowundodum/GowunDodum-Regular.ttf",
+      "sourceGitSha": "2d87cc83583a37bd7828c638eb9bab6df3cf596c",
+      "sourceSha256": "a6e457933227483a11758fd0947bc74422a106d46f0bf057fdaa5af94a30067d"
+    }
+  ],
+  "woff2Files": 1,
+  "bytes": 445304
+}

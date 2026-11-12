@@ -44,6 +44,7 @@ async function terminate(child) {
 /**
  * Launch the Go API (and optional collaboration/extra processes), wait for
  * readiness, then block until Ctrl+C or an unexpected exit.
+ * 启动 Go API（以及可选的协同和附加进程），等待就绪后持续运行，直到按下 Ctrl+C 或进程意外退出。
  */
 export async function runServices({ config, env, api, collab, extras = [], ready, banner }) {
   await available(config.host, config.port);

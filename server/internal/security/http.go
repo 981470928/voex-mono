@@ -50,7 +50,11 @@ func SecureRequest(r *http.Request) bool {
 	}
 	host, _, _ := net.SplitHostPort(r.RemoteAddr)
 	ip, _ := netip.ParseAddr(host)
-	return ip.IsLoopback() && strings.EqualFold(strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-Proto"), ",")[0]), "https")
+	return ip.IsLoopback() &&
+		strings.EqualFold(
+			strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-Proto"), ",")[0]),
+			"https",
+		)
 }
 
 func RateIP(r *http.Request) string {
@@ -85,7 +89,7 @@ func (s *Limiter) LimitKey(key string, max int, window time.Duration) func() {
 	e.Count++
 	s.entries[key] = e
 	if e.Count > max {
-		shared.Fail(429, "尝试次数过多，请稍后重试")
+		shared.Fail(http.StatusTooManyRequests, shared.MsgTooManyRequests)
 	}
 	return func() {
 		s.Lock()
@@ -99,21 +103,5 @@ func (s *Limiter) LimitKey(key string, max int, window time.Duration) func() {
 }
 
 func (s *Limiter) Limit(r *http.Request, bucket string, max int, window time.Duration) {
-	defer func() {
-		if v := recover(); v != nil {
-			if e, ok := v.(shared.HTTPError); ok && e.Status == 429 {
-				switch bucket {
-				case "shared-file":
-					e.Message = "分享访问过于频繁，请稍后重试"
-				case "auth-registration":
-					e.Message = "注册次数过多，请 1 小时后重试"
-				case "auth-availability":
-					e.Message = "检测过于频繁，请稍后重试"
-				}
-				panic(e)
-			}
-			panic(v)
-		}
-	}()
 	s.LimitKey(bucket+":"+RateIP(r), max, window)
 }

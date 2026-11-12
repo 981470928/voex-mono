@@ -1,3 +1,4 @@
+import { Messages, httpStatus, publicFailure, sizeLimitMessage } from "./errors.js";
 /** 持久化与重试，不持有数据库连接，也不负责 WebSocket 消息解析。 */
 import { randomUUID } from 'node:crypto';
 import { SCHEMA_VERSION } from '@voex/editor-schema';
@@ -26,24 +27,24 @@ export function createPersistence({
   /** 401 触发重新握手，403 停止写入，409 要求重载；临时故障保留脏状态并安排重试。 */
   function storeFailed(room: Room, error: unknown, request_id?: string) {
     if (rooms.get(room.state.file_key) !== room) return;
-    const status = error instanceof ServiceError ? error.status : 503;
-    if (status === 401 || room.authExpired) {
+    const { status, message } = publicFailure(error, "persist document");
+    if (status === httpStatus.HTTP_STATUS_UNAUTHORIZED || room.authExpired) {
       expireRoomAuthorization(room);
       return;
     }
     announce(room, {
       type: 'persistence-error',
       request_id,
-      message: error instanceof Error ? error.message : '保存失败，请保留当前页面',
-      retryable: status >= 500,
+      message,
+      retryable: status >= httpStatus.HTTP_STATUS_INTERNAL_SERVER_ERROR,
     });
-    if (status === 403) {
+    if (status === httpStatus.HTTP_STATUS_FORBIDDEN) {
       room.blocked = true;
       setImmediate(() => {
         if (rooms.get(room.state.file_key) === room) discardRoom(room, 'permission-changed');
       });
     }
-    if (status === 409) {
+    if (status === httpStatus.HTTP_STATUS_CONFLICT) {
       room.invalid = true;
       closeRoom(room, 'document-replaced');
     }
@@ -58,8 +59,8 @@ export function createPersistence({
   /** 每个房间只运行一个保存请求；网络失败时复用 pendingCommit，不重新生成幂等键。 */
   async function persist(room: Room): Promise<Receipt> {
     if (room.authExpired || rooms.get(room.state.file_key) !== room)
-      throw new ServiceError('Authorization needs renewal', 401);
-    if (room.invalid) throw new ServiceError('文档状态已变化，请重新连接', 409);
+      throw new ServiceError(Messages.SessionExpired, httpStatus.HTTP_STATUS_UNAUTHORIZED);
+    if (room.invalid) throw new ServiceError(Messages.ReconnectDocumentChanged, httpStatus.HTTP_STATUS_CONFLICT);
     if (room.persist) return room.persist;
     room.persist = (async () => {
       if (room.savedVersion >= room.version && !room.pendingCommit) return room.state;
@@ -67,9 +68,9 @@ export function createPersistence({
         const version = room.version;
         const data = snapshot(room.doc);
         if (Buffer.byteLength(data.state, 'base64') > MAX_STATE)
-          throw new ServiceError('协同文档超过大小限制', 413);
+          throw new ServiceError(sizeLimitMessage("协同文档"), httpStatus.HTTP_STATUS_PAYLOAD_TOO_LARGE);
         const actors = [...room.actors].filter(([, n]) => n <= version).map(([id]) => id);
-        if (!actors.length) throw new ServiceError('Missing editing authorization', 403);
+        if (!actors.length) throw new ServiceError(Messages.PermissionDenied, httpStatus.HTTP_STATUS_FORBIDDEN);
         room.pendingCommit = {
           version,
           actors,
@@ -103,7 +104,7 @@ export function createPersistence({
         // 使用已验证的新授权重试一次，但必须保留原幂等键。
         if (
           error instanceof ServiceError &&
-          error.status === 401 &&
+          error.status === httpStatus.HTTP_STATUS_UNAUTHORIZED &&
           requestedAuthorization !== authorizationSnapshot()
         )
           result = await go<Receipt>('commit', pending.request);

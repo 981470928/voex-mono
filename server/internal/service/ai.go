@@ -10,6 +10,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -29,6 +30,7 @@ import (
 )
 
 // The API key is encrypted with a domain-separated key, never returned to clients.
+// API key 使用经过域分离的密钥加密，绝不返回给客户端。
 func (s *Service) aiCipher() cipher.AEAD {
 	mac := hmac.New(sha256.New, s.secret)
 	mac.Write([]byte("voex/ai-model-keys/v1"))
@@ -41,10 +43,20 @@ func (s *Service) aiCipher() cipher.AEAD {
 
 func aiModelDTO(row shared.Row) shared.Row {
 	result := shared.Row{}
-	for _, key := range []string{"id", "name", "protocol", "base_url", "model", "temperature", "max_tokens", "token_parameter"} {
+	for _, key := range []string{
+		"id",
+		"name",
+		"protocol",
+		"base_url",
+		"model",
+		"temperature",
+		"max_tokens",
+		"token_parameter",
+	} {
 		result[key] = row[key]
 	}
 	result["has_key"] = shared.String(row["key_cipher"]) != ""
+	result["multimodal_enabled"] = shared.Bool(row["multimodal_enabled"])
 	return result
 }
 
@@ -61,8 +73,11 @@ func (s *Service) ListAIModels(ctx context.Context) []shared.Row {
 
 func aiEndpoint(raw, protocol string) string {
 	u, err := url.Parse(strings.TrimRight(strings.TrimSpace(raw), "/"))
-	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || len(raw) > 2048 {
-		shared.Fail(400, "API 地址需要是无账号、查询参数和片段的 HTTPS 地址")
+	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil ||
+		u.RawQuery != "" ||
+		u.Fragment != "" ||
+		len(raw) > 2048 {
+		shared.Fail(http.StatusBadRequest, shared.MsgAIEndpointInvalid)
 	}
 	suffix := "/chat/completions"
 	if protocol == "anthropic" {
@@ -83,13 +98,24 @@ func (s *Service) SaveAIModel(ctx context.Context, id string, body shared.Row) s
 		old := repository.AIModel(db, user, id)
 		protocol := shared.String(body["protocol"])
 		if protocol != "openai" && protocol != "anthropic" {
-			shared.Fail(400, "请选择 OpenAI Chat 或 Claude Messages 协议")
+			shared.Fail(http.StatusBadRequest, shared.MsgAIProtocolInvalid)
+		}
+		multimodal := false
+		if value, exists := body["multimodal_enabled"]; exists {
+			var valid bool
+			multimodal, valid = value.(bool)
+			if !valid {
+				shared.Fail(
+					http.StatusBadRequest,
+					shared.MustBeMessage("多模态开关", shared.MsgBooleanType),
+				)
+			}
 		}
 		base := shared.String(body["base_url"])
 		endpoint := aiEndpoint(base, protocol)
 		name := shared.Name(body["name"], "模型配置名称")
 		if len([]rune(name)) > 128 {
-			shared.Fail(400, "配置名称最多 128 个字符")
+			shared.Fail(http.StatusBadRequest, shared.MaxCharactersMessage("配置名称", 128))
 		}
 		model := shared.Name(body["model"], "模型 ID")
 		tokenParameter := shared.String(body["token_parameter"])
@@ -97,11 +123,17 @@ func (s *Service) SaveAIModel(ctx context.Context, id string, body shared.Row) s
 			tokenParameter = "max_completion_tokens"
 		}
 		if tokenParameter != "max_completion_tokens" && tokenParameter != "max_tokens" {
-			shared.Fail(400, "输出参数名只能是 max_completion_tokens 或 max_tokens")
+			shared.Fail(
+				http.StatusBadRequest,
+				shared.MustBeMessage(
+					"输出参数名",
+					shared.MsgTokenParameterOptions,
+				),
+			)
 		}
 		tokens, valid := workspaceRevision(body["max_tokens"])
 		if !valid || tokens < 1 || tokens > 131072 {
-			shared.Fail(400, "输出上限需为 1–131072 的整数")
+			shared.Fail(http.StatusBadRequest, shared.IntegerRangeMessage("输出上限", 1, 131072))
 		}
 		var temperature any
 		if body["temperature"] != nil {
@@ -111,7 +143,7 @@ func (s *Service) SaveAIModel(ctx context.Context, id string, body shared.Row) s
 				max = 1
 			}
 			if err != nil || math.IsNaN(n) || math.IsInf(n, 0) || n < 0 || n > max {
-				shared.Fail(400, "Temperature 超出该协议允许的范围")
+				shared.Fail(http.StatusBadRequest, shared.MsgAITemperatureInvalid)
 			}
 			temperature = n
 		}
@@ -119,20 +151,39 @@ func (s *Service) SaveAIModel(ctx context.Context, id string, body shared.Row) s
 		keyCipher := shared.String(old["key_cipher"])
 		if strings.TrimSpace(key) != "" {
 			if len(key) > 4096 || strings.ContainsAny(key, "\r\n") {
-				shared.Fail(400, "API Key 格式不正确")
+				shared.Fail(http.StatusBadRequest, shared.InvalidFormatMessage("API Key"))
 			}
 			aead := s.aiCipher()
 			nonce := make([]byte, aead.NonceSize())
 			_, err := rand.Read(nonce)
 			shared.Must(err)
-			keyCipher = base64.StdEncoding.EncodeToString(aead.Seal(nonce, nonce, []byte(strings.TrimSpace(key)), []byte(user+":"+id)))
+			keyCipher = base64.StdEncoding.EncodeToString(
+				aead.Seal(
+					nonce,
+					nonce,
+					[]byte(strings.TrimSpace(key)),
+					[]byte(user+
+						":"+
+						id),
+				),
+			)
 		} else if old == nil || old["base_url"] != endpoint || old["protocol"] != protocol {
-			shared.Fail(400, "新增配置或更换 API 地址、协议时需要重新填写 API Key")
+			shared.Fail(http.StatusBadRequest, shared.MsgAIKeyRequired)
 		}
 		if old == nil && len(repository.AIModels(db, user)) >= 30 {
-			shared.Fail(400, "最多保存 30 个模型配置")
+			shared.Fail(http.StatusBadRequest, shared.MsgAIModelLimit)
 		}
-		values := shared.Row{"name": name, "protocol": protocol, "base_url": endpoint, "model": model, "key_cipher": keyCipher, "temperature": temperature, "max_tokens": int(tokens), "token_parameter": tokenParameter}
+		values := shared.Row{
+			"name":               name,
+			"protocol":           protocol,
+			"base_url":           endpoint,
+			"model":              model,
+			"key_cipher":         keyCipher,
+			"temperature":        temperature,
+			"max_tokens":         int(tokens),
+			"token_parameter":    tokenParameter,
+			"multimodal_enabled": multimodal,
+		}
 		repository.SaveAIModel(db, user, id, values, old != nil)
 		return aiModelDTO(repository.AIModel(db, user, id))
 	}).(shared.Row)
@@ -157,6 +208,8 @@ var aiNonPublicRanges = []netip.Prefix{
 
 // Resolve and pin a public address at dial time; redirects and environment proxies are disabled.
 // This prevents custom endpoints from reaching loopback, LAN and cloud metadata services.
+// 建立连接时解析并固定公网地址；禁用重定向和环境变量代理。
+// 这样可防止自定义端点访问回环地址、局域网和云元数据服务。
 func aiDial(ctx context.Context, network, address string) (net.Conn, error) {
 	host, port, err := net.SplitHostPort(address)
 	if err != nil {
@@ -179,7 +232,11 @@ func aiDial(ctx context.Context, network, address string) (net.Conn, error) {
 	}
 	var last error
 	for _, ip := range ips {
-		conn, err := (&net.Dialer{Timeout: 15 * time.Second}).DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
+		conn, err := (&net.Dialer{Timeout: 15 * time.Second}).DialContext(
+			ctx,
+			network,
+			net.JoinHostPort(ip.String(), port),
+		)
 		if err == nil {
 			return conn, nil
 		}
@@ -193,39 +250,91 @@ func aiDial(ctx context.Context, network, address string) (net.Conn, error) {
 
 var aiHTTP = &http.Client{
 	CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
-	Transport:     &http.Transport{DialContext: aiDial, TLSHandshakeTimeout: 15 * time.Second, IdleConnTimeout: 60 * time.Second, MaxIdleConnsPerHost: 2},
+	Transport: &http.Transport{
+		DialContext:         aiDial,
+		TLSHandshakeTimeout: 15 * time.Second,
+		IdleConnTimeout:     60 * time.Second,
+		MaxIdleConnsPerHost: 2,
+	},
 }
 var aiActive sync.Map
 
 func (s *Service) AIChat(ctx context.Context, id string, body shared.Row) json.RawMessage {
 	user := shared.String(identity.User(ctx)["id"])
 	if _, loaded := aiActive.LoadOrStore(user, true); loaded {
-		shared.Fail(429, "已有 AI 请求正在进行，请等待完成")
+		shared.Fail(http.StatusTooManyRequests, shared.MsgAIRequestActive)
 	}
 	defer aiActive.Delete(user)
 	row := s.tx(ctx, false, func(db *gorm.DB) any {
 		row := repository.AIModel(db, user, id)
 		if row == nil {
-			shared.Fail(404, "模型配置不存在")
+			shared.Fail(http.StatusNotFound, shared.NotFoundMessage("模型配置"))
 		}
 		return row
 	}).(shared.Row)
 	aead := s.aiCipher()
 	sealed, err := base64.StdEncoding.DecodeString(shared.String(row["key_cipher"]))
 	if err != nil || len(sealed) < aead.NonceSize() {
-		shared.Fail(500, "模型密钥不可用，请重新保存 API Key")
+		shared.Fail(http.StatusInternalServerError, shared.MsgAIKeyUnavailable)
 	}
-	key, err := aead.Open(nil, sealed[:aead.NonceSize()], sealed[aead.NonceSize():], []byte(user+":"+id))
+	key, err := aead.Open(
+		nil,
+		sealed[:aead.NonceSize()],
+		sealed[aead.NonceSize():],
+		[]byte(user+":"+id),
+	)
 	if err != nil {
-		shared.Fail(500, "模型密钥不可用，请重新保存 API Key")
+		shared.Fail(http.StatusInternalServerError, shared.MsgAIKeyUnavailable)
 	}
 	messages, ok := body["messages"].([]any)
 	if !ok || len(messages) == 0 || len(messages) > 160 {
-		shared.Fail(400, "对话消息数量需为 1–160 条")
+		shared.Fail(http.StatusBadRequest, shared.MsgAIMessageCountInvalid)
 	}
+	messages = s.expandAIAttachmentMessages(ctx, row, messages)
 	payload := shared.Row{"model": row["model"], "messages": messages, "stream": false}
+	webEngine := ""
+	if value, exists := body["web_search_engine"]; exists {
+		var valid bool
+		webEngine, valid = value.(string)
+		if !valid {
+			shared.Fail(http.StatusBadRequest, shared.MustBeMessage("联网搜索引擎", shared.MsgStringType))
+		}
+		if webEngine != "" {
+			s.requireWebEngine(webEngine)
+		}
+	}
 	if body["tools"] != nil {
-		payload["tools"] = body["tools"]
+		tools, ok := body["tools"].([]any)
+		if !ok {
+			shared.Fail(http.StatusBadRequest, shared.MustBeMessage("模型工具", shared.MsgArrayType))
+		}
+		enabledTools := make([]any, 0, len(tools))
+		for _, tool := range tools {
+			block, ok := aiMessageObject(tool)
+			if !ok {
+				shared.Fail(
+					http.StatusBadRequest,
+					shared.MustBeMessage("模型工具", shared.MsgObjectType),
+				)
+			}
+			kind, _ := block["type"].(string)
+			// Native provider search is no longer used, including legacy clients.
+			// 不再使用服务提供方的原生搜索功能，旧版客户端也不例外。
+			if kind == "web_search" || strings.HasPrefix(kind, "web_search_") {
+				continue
+			}
+			name, _ := block["name"].(string)
+			if function, ok := aiMessageObject(block["function"]); ok {
+				name, _ = function["name"].(string)
+			}
+			if (name == "web_search" || name == "web_fetch") && webEngine == "" {
+				continue
+			}
+			enabledTools = append(enabledTools, tool)
+		}
+		if len(enabledTools) > 0 {
+			payload["tools"] = enabledTools
+		}
 	}
 	if row["temperature"] != nil {
 		payload["temperature"] = row["temperature"]
@@ -245,7 +354,15 @@ func (s *Service) AIChat(ctx context.Context, id string, body shared.Row) json.R
 	}
 	data, err := json.Marshal(payload)
 	shared.Must(err)
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, shared.String(row["base_url"]), bytes.NewReader(data))
+	if len(data) > aiProviderRequestSize {
+		shared.Fail(http.StatusRequestEntityTooLarge, shared.MsgAIRequestTooLarge)
+	}
+	request, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		shared.String(row["base_url"]),
+		bytes.NewReader(data),
+	)
 	shared.Must(err)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept", "application/json")
@@ -257,19 +374,29 @@ func (s *Service) AIChat(ctx context.Context, id string, body shared.Row) json.R
 	}
 	response, err := aiHTTP.Do(request)
 	if err != nil {
-		shared.Fail(502, "无法连接模型服务，请检查公网 HTTPS 地址或稍后重试")
+		shared.NetworkFailure("AI model request", err)
 	}
 	defer response.Body.Close()
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		shared.Fail(502, fmt.Sprintf("模型服务返回 HTTP %d，请检查模型 ID、API Key、余额和参数", response.StatusCode))
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		shared.UpstreamFailure("AI model request", response.StatusCode)
 	}
 	result, err := io.ReadAll(io.LimitReader(response.Body, 2*1024*1024+1))
-	if err != nil || len(result) > 2*1024*1024 || !json.Valid(result) {
-		shared.Fail(502, "模型返回了无效或过大的响应")
+	if err != nil {
+		shared.NetworkFailure("read AI model response", err)
+	}
+	if len(result) > 2*1024*1024 || !json.Valid(result) {
+		shared.NetworkFailure(
+			"read AI model response",
+			errors.New("invalid or oversized JSON response"),
+		)
 	}
 	// Never echo an upstream response that contains the stored credential.
+	// 绝不回传包含已存储凭据的上游响应。
 	if len(key) > 0 && bytes.Contains(result, key) {
-		shared.Fail(502, "模型服务返回了不安全的响应")
+		shared.NetworkFailure(
+			"read AI model response",
+			errors.New("credential detected in response"),
+		)
 	}
 	return json.RawMessage(result)
 }

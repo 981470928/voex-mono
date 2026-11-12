@@ -136,6 +136,7 @@ function handleConfirm() {
   const current = state.value;
   if (!visible.value || !current) return;
   // Clear before hide: onLeave must not also dispatch cancellation.
+  // 隐藏前先清理状态，避免 onLeave 再次触发取消。
   state.value = undefined;
   hide();
   current.onOK();
@@ -204,9 +205,6 @@ function handleConfirm() {
   cursor pointer
   transition all 0.2s
 
-  &:focus-visible
-    outline 2px solid var(--color-accent)
-    outline-offset 2px
 
   &:active
     filter brightness(0.95)

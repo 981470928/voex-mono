@@ -7,13 +7,14 @@ import { $remark } from '@milkdown/kit/utils';
 import { parseFragment, type DefaultTreeAdapterMap } from 'parse5';
 import { normalizeHexColor } from './text-color';
 import { normalizeFontSize } from './font-size';
+import { fontFamilyStyle, normalizeFontFamily } from './font-catalog';
 import { imageLayoutAttrs, parseAlignment, parseWidth, safeImageSource } from './images';
 
 type HtmlNode = DefaultTreeAdapterMap['childNode'];
 type HtmlElement = DefaultTreeAdapterMap['element'];
 type MarkData = { type: string; [key: string]: unknown };
 const RICH_OPEN = '<span data-voex-rich="1">';
-const STYLE_MARKS = new Set(['textColor', 'highlight', 'fontSize']);
+const STYLE_MARKS = new Set(['textColor', 'highlight', 'fontSize', 'fontFamily']);
 
 function escape(value: unknown, text = false): string {
   const string = String(value ?? '');
@@ -44,6 +45,11 @@ function wrapMark(mark: Mark, content: string): string {
       if (!color) throw new Error('富文本颜色无效');
       const foreground = mark.type.name === 'textColor';
       return `<span ${foreground ? 'data-voex-text-color' : 'data-voex-highlight'}="${color}" style="${foreground ? 'color' : 'background-color'}: ${color}">${content}</span>`;
+    }
+    case 'fontFamily': {
+      const family = normalizeFontFamily(mark.attrs.family);
+      if (!family) throw new Error('富文本字体无效');
+      return `<span data-voex-font-family="${family}" style="font-family: ${escape(fontFamilyStyle(family))}">${content}</span>`;
     }
     case 'fontSize': {
       const size = normalizeFontSize(mark.attrs.size);
@@ -89,7 +95,7 @@ function serializeRichContent(content: Fragment): string {
   return `${RICH_OPEN}${html.join('')}</span>`;
 }
 
-/** Inline HTML is emitted as one unit. Markdown delimiters never cross a style tag. */
+/** Inline HTML is emitted as one unit. Markdown delimiters never cross a style tag. / 内联 HTML 作为一个整体输出，Markdown 定界符不会跨越样式标签。 */
 export function withRichInlineSerialization(base: NodeSchema): NodeSchema {
   return {
     ...base,
@@ -192,6 +198,7 @@ function convert(node: HtmlNode, inherited: Map<string, MarkData>): MarkdownNode
         'data-voex-text-color',
         'data-voex-highlight',
         'data-voex-font-size',
+        'data-voex-font-family',
         'data-voex-emoji',
         'data-voex-html',
         'data-voex-footnote',
@@ -218,11 +225,17 @@ function convert(node: HtmlNode, inherited: Map<string, MarkData>): MarkdownNode
         'data-voex-text-color',
         'data-voex-highlight',
         'data-voex-font-size',
+        'data-voex-font-family',
       ].filter((key) => attrs[key] !== undefined);
       if (styleKeys.length !== 1 || Object.keys(attrs).length !== 2)
         throw new Error('无效的富文本样式');
       const key = styleKeys[0]!;
-      if (key === 'data-voex-font-size') {
+      if (key === 'data-voex-font-family') {
+        const family = normalizeFontFamily(attrs[key]);
+        if (!family || attrs.style !== `font-family: ${fontFamilyStyle(family)}`)
+          throw new Error('无效的富文本字体');
+        marks.set('fontFamily', { type: 'fontFamily', family });
+      } else if (key === 'data-voex-font-size') {
         const size = normalizeFontSize(attrs[key]);
         if (size === null || attrs.style !== `font-size: ${size}px`)
           throw new Error('无效的富文本字号');
@@ -321,6 +334,7 @@ export function createRichTextSchema() {
   const serializer: MilkdownPlugin = (ctx) => async () => {
     await ctx.wait(SerializerReady);
     // Listener callbacks may retain this function; each invocation owns a clean stack.
+    // 监听器回调可能保留此函数；每次调用都使用独立的空栈。
     ctx.set(serializerCtx, (node) =>
       SerializerState.create(ctx.get(schemaCtx), ctx.get(remarkCtx))(node)
     );

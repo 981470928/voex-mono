@@ -34,6 +34,7 @@ export async function getPexelsPhotos(
     key = await getPexelsKey();
   } catch {
     // Older standalone deployments may only have the build-time value.
+    // 较早的独立部署可能只有构建时配置值。
   }
   key ||= import.meta.env.VITE_PEXELS_API_KEY?.trim() ?? '';
   if (!key) throw new Error('图库暂未配置，请联系管理员');

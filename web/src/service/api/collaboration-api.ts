@@ -33,7 +33,9 @@ export interface CollaborationTarget {
 }
 
 // Go caps collaboration grants at the current access token's expiry.
+// Go 服务将协同授权的有效期限制为不晚于当前 access token 的过期时间。
 // Refresh before the server's two-minute renewal window to avoid repeated short grants.
+// 在服务端两分钟续期窗口前刷新，避免反复获得短期授权。
 const MIN_ACCESS_VALIDITY = 150_000;
 
 const shareHttp = axios.create({

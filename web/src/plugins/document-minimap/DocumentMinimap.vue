@@ -112,6 +112,7 @@ async function syncMinimap(rebuild: boolean, resize: boolean) {
     currentContent = content;
   } catch (error) {
     // An optional navigation aid must not interrupt document editing.
+    // 可选的导航辅助功能不得中断文档编辑。
     destroyMinimap();
     console.error('[DocumentMinimap] 初始化失败', error);
   }
@@ -144,6 +145,7 @@ function updateLayout() {
   trackHeight.value = height;
   available.value = nextAvailable;
   // Keep the right column stable while the editor is loading or replacing its document.
+  // 编辑器加载或替换文档时保持右侧栏稳定。
   if (emittedAvailability !== nextAvailable) {
     emittedAvailability = nextAvailable;
     emit('availability', nextAvailable);
@@ -238,9 +240,6 @@ onBeforeUnmount(() => {
     background transparent !important
     cursor pointer !important
 
-    &:focus-visible
-      outline 2px solid var(--editor-accent)
-      outline-offset -2px
 
   :deep(.dom-minimap-content)
     opacity .7

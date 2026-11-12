@@ -9,7 +9,7 @@ export interface AttachmentMediaOptions {
   onStateChange?: () => void;
 }
 
-/** Playback reuses the authorized attachment reader; temporary URLs never enter the document. */
+/** Playback reuses the authorized attachment reader; temporary URLs never enter the document. 播放复用已授权的附件读取器；临时 URL 不写入文档。 */
 export function createAttachmentMedia(options: AttachmentMediaOptions) {
   const dom = document.createElement('div');
   dom.className = 'milkdown-attachment__media';

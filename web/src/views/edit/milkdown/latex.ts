@@ -148,7 +148,12 @@ export function createLatexExtension(options: LatexOptions) {
         return;
       }
       if (selected.$from.parent.type.spec.code) throw new Error('请将光标移到正文后插入公式');
-      const transaction = state.tr.replaceSelectionWith(latexNode.type(ctx).create(attrs), false);
+      const node = latexNode.type(ctx).create(attrs);
+      const insertAfter = selected instanceof NodeSelection && selected.node.isBlock;
+      const transaction = insertAfter
+        ? state.tr.insert(selected.to, node)
+        : state.tr.replaceSelectionWith(node, false);
+      if (insertAfter) transaction.setSelection(NodeSelection.create(transaction.doc, selected.to));
       const after = transaction.selection.to;
       if (after === transaction.doc.content.size) {
         const paragraph = state.schema.nodes.paragraph;

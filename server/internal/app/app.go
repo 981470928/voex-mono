@@ -69,7 +69,14 @@ func Run() (err error) {
 	// 从 cfg.SecretFile 加载 JWT 签名密钥，文件不存在时创建密钥。
 	// 将数据库、文件存储和密钥注入业务服务。
 	business := service.New(db, files, security.LoadSecret(cfg.SecretFile))
+	business.ConfigureWebSearch(cfg.WebSearchKeys)
 	if err := business.ConfigureCollaboration(cfg.Collaboration); err != nil {
+		return err
+	}
+	if err := business.ConfigureHistory(cfg.History); err != nil {
+		return err
+	}
+	if err := business.CheckSearchIndex(); err != nil {
 		return err
 	}
 
@@ -85,6 +92,15 @@ func Run() (err error) {
 	defer func() {
 		cancelCleanup()
 		<-cleanupDone
+	}()
+	historyDone := make(chan struct{})
+	go func() {
+		defer close(historyDone)
+		business.RunHistoryCleanup(cleanupCtx)
+	}()
+	defer func() {
+		cancelCleanup()
+		<-historyDone
 	}()
 	// 创建路由并传入业务服务。
 	// log.New 创建写入标准输出的访问日志记录器，空字符串表示不添加自定义前缀。

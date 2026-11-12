@@ -308,9 +308,6 @@ defineExpose({ focusFirst });
     background var(--color-bg-quaternary)
     color var(--color-text-primary)
 
-  &:focus-visible
-    outline 2px solid var(--color-accent)
-    outline-offset -2px
 
   &:active:not(:disabled)
     background var(--color-bg-translucent)

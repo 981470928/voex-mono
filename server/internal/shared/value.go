@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -14,14 +15,6 @@ import (
 )
 
 type Row map[string]any
-type HTTPError struct {
-	Status  int
-	Message string
-}
-
-func (e HTTPError) Error() string { return e.Message }
-
-func Fail(status int, message string) { panic(HTTPError{status, message}) }
 
 func Must(err error) {
 	if err != nil {
@@ -100,10 +93,10 @@ func Policy(v any) Row {
 func Key(v any, label string) string {
 	x, ok := v.(string)
 	if !ok || strings.TrimSpace(x) == "" {
-		Fail(400, label+"必须是非空字符串")
+		Fail(http.StatusBadRequest, MustBeMessage(label, MsgNonEmptyStringType))
 	}
 	if utf8.RuneCountInString(x) > 64 || x != strings.TrimSpace(x) {
-		Fail(400, label+"不能超过 64 个字符或包含首尾空白")
+		Fail(http.StatusBadRequest, fmt.Sprintf(MsgKeyInvalid, label))
 	}
 	return x
 }
@@ -111,11 +104,11 @@ func Key(v any, label string) string {
 func Name(v any, label string) string {
 	x, ok := v.(string)
 	if !ok || strings.TrimSpace(x) == "" {
-		Fail(400, label+"必须是非空字符串")
+		Fail(http.StatusBadRequest, MustBeMessage(label, MsgNonEmptyStringType))
 	}
 	x = strings.TrimSpace(x)
 	if utf8.RuneCountInString(x) > 255 {
-		Fail(400, label+"不能超过 255 个字符")
+		Fail(http.StatusBadRequest, MaxCharactersMessage(label, 255))
 	}
 	return x
 }
@@ -183,11 +176,11 @@ func ValidJSONUnicode(b []byte) bool {
 func Characters(v any, label string, min, max int) string {
 	value, ok := v.(string)
 	if !ok || !utf8.ValidString(value) {
-		Fail(400, label+"格式错误")
+		Fail(http.StatusBadRequest, InvalidFormatMessage(label))
 	}
 	length := utf8.RuneCountInString(value)
 	if length < min || length > max {
-		Fail(400, fmt.Sprintf("%s需要 %d–%d 个字符", label, min, max))
+		Fail(http.StatusBadRequest, CharacterRangeMessage(label, min, max))
 	}
 	return value
 }

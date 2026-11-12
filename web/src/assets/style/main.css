@@ -70,8 +70,7 @@ button:active:not(:disabled) {
   filter: brightness(0.94);
 }
 :focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 3px;
+  outline: none;
 }
 
 @media (forced-colors: active) {
@@ -85,7 +84,7 @@ button:active:not(:disabled) {
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important; /* Honor the system preference across shared controls. */
+    animation-duration: 0.01ms !important; /* Honor the system preference across shared controls. / 所有共享控件均遵循系统偏好。 */
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;

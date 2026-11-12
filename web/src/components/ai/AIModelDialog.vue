@@ -1,22 +1,13 @@
 <template>
   <VoexModal
     :model-value="modelValue"
-    title="模型配置"
+    :title="model ? '编辑模型' : '新增模型'"
     :width="620"
     :busy="saving"
     :mask-closable="false"
     @update:model-value="close"
   >
     <form ref="form" class="ai-model" novalidate @submit.prevent="save">
-      <div class="ai-field">
-        <label for="ai-saved-model">已保存的配置</label
-        ><select id="ai-saved-model" :value="draft.id" :disabled="saving" @change="selectModel">
-          <option value="">新增模型配置</option>
-          <option v-for="model in models" :key="model.id" :value="model.id">
-            {{ model.name }}
-          </option>
-        </select>
-      </div>
       <div class="ai-model__grid">
         <div class="ai-field">
           <label for="ai-name">配置名称</label
@@ -94,6 +85,28 @@
         />
         <span v-if="errors.model" id="ai-id-error" class="ai-error">{{ errors.model }}</span>
       </div>
+      <div class="ai-model__multimodal">
+        <label for="ai-multimodal">
+          <input
+            id="ai-multimodal"
+            v-model="draft.multimodal_enabled"
+            type="checkbox"
+            :disabled="saving"
+          />
+          开启多模态
+        </label>
+        <VoexTooltip
+          content="仅为支持图片输入的模型开启。可上传图片及 MD、TXT、Word、PowerPoint、Excel 文件；文档提取为文本，文件内容会发送到所配置的模型服务。"
+        >
+          <button
+            type="button"
+            class="ai-button ai-model__help"
+            aria-label="多模态支持范围和文件用途"
+          >
+            <SvgIcon name="question-mark" :size="16" />
+          </button>
+        </VoexTooltip>
+      </div>
       <div class="ai-model__grid">
         <div class="ai-field">
           <label for="ai-temperature">Temperature（可选）</label
@@ -163,6 +176,8 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue';
 import VoexModal from '@/plugins/voex-modal/VoexModal.vue';
+import SvgIcon from '@/components/SvgIcon.vue';
+import { VoexTooltip } from '@/plugins/tooltip';
 import type { AIModel, AIProtocol } from '@/agent/types';
 import { saveAIModel } from '@/service/api/ai-api';
 import { errorMessage } from '@/utils/error';
@@ -172,7 +187,7 @@ import { MessageType } from '@/constant/status';
 import { authUser } from '@/service/auth-session';
 import './ai.styl';
 
-const props = defineProps<{ modelValue: boolean; models: AIModel[]; selectedId: string }>();
+const props = defineProps<{ modelValue: boolean; model: AIModel | null }>();
 const emit = defineEmits<{ 'update:modelValue': [value: boolean]; saved: [model: AIModel] }>();
 const initial = () => ({
   id: '',
@@ -181,12 +196,13 @@ const initial = () => ({
   base_url: '',
   api_key: '',
   model: '',
+  multimodal_enabled: false,
   temperature: '' as string | number,
   max_tokens: 4096 as string | number,
   token_parameter: 'max_completion_tokens' as AIModel['token_parameter'],
 });
 const draft = reactive(initial());
-const original = computed(() => props.models.find((model) => model.id === draft.id));
+const original = computed(() => props.model);
 const errors = ref<Record<string, string>>({});
 const error = ref('');
 const saving = ref(false);
@@ -195,8 +211,8 @@ const form = ref<HTMLFormElement>();
 const { confirm } = useConfirm();
 let baseline = '';
 
-function load(id: string) {
-  const model = props.models.find((item) => item.id === id);
+function load() {
+  const model = props.model;
   Object.assign(
     draft,
     initial(),
@@ -210,7 +226,7 @@ function load(id: string) {
 watch(
   () => props.modelValue,
   (open) => {
-    if (open) load(props.selectedId);
+    if (open) load();
     else draft.api_key = '';
   },
   { immediate: true }
@@ -230,12 +246,6 @@ async function discardAllowed() {
 }
 async function close(value: boolean) {
   if (!value && !saving.value && (await discardAllowed())) emit('update:modelValue', false);
-}
-async function selectModel(event: Event) {
-  const select = event.target as HTMLSelectElement;
-  const id = select.value;
-  select.value = draft.id;
-  if (await discardAllowed()) load(id);
 }
 async function save() {
   if (saving.value) return;
@@ -284,6 +294,7 @@ async function save() {
       base_url: draft.base_url.trim(),
       api_key: draft.api_key.trim(),
       model: draft.model.trim(),
+      multimodal_enabled: draft.multimodal_enabled,
       temperature,
       max_tokens: maxTokens,
       token_parameter: draft.token_parameter,
@@ -314,6 +325,29 @@ async function save() {
     gap 8px
     input
       flex 1
+  &__multimodal
+    display flex
+    align-items center
+    gap 6px
+    font-size 13px
+    label
+      display inline-flex
+      align-items center
+      gap 8px
+      cursor pointer
+    input
+      accent-color var(--color-accent)
+      cursor pointer
+  &__help
+    display inline-flex
+    align-items center
+    justify-content center
+    min-height 28px
+    width 28px
+    padding 4px
+    border 0
+    background transparent
+    color var(--color-text-tertiary)
   &__hint
     color var(--color-text-tertiary)
     font-size 12px

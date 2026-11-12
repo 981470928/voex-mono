@@ -2,6 +2,7 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
+	"net/http"
 	"voex-server/internal/shared"
 )
 
@@ -14,6 +15,8 @@ func (h *Handler) RegisterStorageRoutes(protected *gin.RouterGroup) {
 	protected.HEAD("/assets/:id", h.storageGetAsset)
 	// POST /api/upload：有文档写权限的登录用户上传附件。
 	protected.POST("/upload", h.storageUploadAttachment)
+	// POST /api/images/fetch：有文档写权限的用户读取公网图片，交由原附件流程上传。
+	protected.POST("/images/fetch", h.storageFetchImage)
 	// GET /api/files/:fileKey：有文档读权限的登录用户列出附件。
 	protected.GET("/files/:fileKey", h.storageListAttachments)
 	// HEAD /api/files/:fileKey：校验文档读权限并返回附件列表响应头。
@@ -32,7 +35,7 @@ func (h *Handler) RegisterStorageRoutes(protected *gin.RouterGroup) {
 
 func (h *Handler) storageUploadAsset(c *gin.Context) {
 	upload := h.Service.Files.ReadUpload(c.Writer, c.Request, true)
-	c.JSON(201, h.Service.UploadAsset(c.Request.Context(), upload))
+	c.JSON(http.StatusCreated, h.Service.UploadAsset(c.Request.Context(), upload))
 }
 func (h *Handler) storageGetAsset(c *gin.Context) {
 	file := h.Service.AssetDownload(c.Request.Context(), c.Param("id"))
@@ -40,19 +43,22 @@ func (h *Handler) storageGetAsset(c *gin.Context) {
 }
 func (h *Handler) storageUploadAttachment(c *gin.Context) {
 	upload := h.Service.Files.ReadUpload(c.Writer, c.Request, false)
-	c.JSON(200, h.Service.UploadAttachment(c.Request.Context(), upload))
+	c.JSON(http.StatusOK, h.Service.UploadAttachment(c.Request.Context(), upload))
 }
 func (h *Handler) storageListAttachments(c *gin.Context) {
-	c.JSON(200, h.Service.ListAttachments(c.Request.Context(), c.Param("fileKey")))
+	c.JSON(http.StatusOK, h.Service.ListAttachments(c.Request.Context(), c.Param("fileKey")))
 }
 func (h *Handler) storageDownloadAttachment(c *gin.Context) {
 	file := h.Service.AttachmentDownload(c.Request.Context(), c.Param("fileKey"), c.Param("hash"))
 	h.Service.Files.Serve(c.Writer, c.Request, file)
 }
 func (h *Handler) storageAttachmentProgress(c *gin.Context) {
-	c.JSON(200, h.Service.AttachmentProgress(c.Request.Context(), c.Param("fileKey"), c.Param("hash")))
+	c.JSON(
+		http.StatusOK,
+		h.Service.AttachmentProgress(c.Request.Context(), c.Param("fileKey"), c.Param("hash")),
+	)
 }
 func (h *Handler) storageDeleteAttachment(c *gin.Context) {
 	h.Service.DeleteAttachment(c.Request.Context(), c.Param("fileKey"), c.Param("hash"))
-	c.JSON(200, shared.Row{"success": true})
+	c.JSON(http.StatusOK, shared.Row{"success": true})
 }

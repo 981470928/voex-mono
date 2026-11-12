@@ -68,7 +68,9 @@ export function fileShareUrl(token: string) {
 }
 
 // Public links remain usable when a login session is absent or expired.
+// 没有登录会话或会话已过期时，公开链接仍可使用。
 // Do not use the authenticated client's recovery interceptor here.
+// 此处不要使用已认证客户端的会话恢复拦截器。
 const sharedHttp = axios.create({
   baseURL: http.defaults.baseURL,
   timeout: 30000,
@@ -82,6 +84,7 @@ export async function restoreOptionalShareSession() {
     if (!authUser.value || authUser.value.id === data.user.id) acceptSession(data);
   } catch {
     // A failed optional login must not interrupt anonymous file access.
+    // 可选登录失败不得中断匿名文件访问。
   }
 }
 

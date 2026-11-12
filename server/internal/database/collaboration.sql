@@ -1,4 +1,5 @@
 -- Explicit migration for existing databases. Run once before enabling collaboration.
+-- 用于现有数据库的显式迁移；启用协同前执行一次。
 ALTER TABLE documents ADD COLUMN content_mode enum('legacy','collab') NOT NULL DEFAULT 'legacy';
 CREATE TABLE document_collaboration (
  document_id int NOT NULL,

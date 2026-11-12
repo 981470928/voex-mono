@@ -88,6 +88,7 @@ export function createFontSizeExtension() {
       });
     }
     // One size selection is one undo step, separate from adjacent typing.
+    // 每次字号选择对应一个独立的撤销步骤，与相邻的文字输入分开。
     const manager = yUndoPluginKey.getState(state)?.undoManager;
     manager?.stopCapturing();
     view.dispatch(tr.scrollIntoView());

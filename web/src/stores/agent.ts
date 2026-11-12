@@ -11,7 +11,13 @@ import {
 } from '@/service/api/ai-api';
 import { errorMessage } from '@/utils/error';
 import { randomUUID } from '@/utils/id';
-import type { AIConversationSession, ChatMessage, TurnResponseInput } from '@/agent/types';
+import type {
+  AIAttachment,
+  AIAttachmentDraft,
+  AIConversationSession,
+  ChatMessage,
+  TurnResponseInput,
+} from '@/agent/types';
 
 interface HistoryState {
   loaded: boolean;
@@ -25,6 +31,7 @@ interface ConversationListState extends HistoryState {
 }
 
 // Account-scoped caches; every message, draft and pending write belongs to one conversation.
+// 缓存按账号隔离；每条消息、每份草稿和每次待写入操作都归属一个会话。
 export const useAgentStore = defineStore('agent', () => {
   const sessions = reactive<Record<string, ChatMessage[]>>({});
   const states = reactive<Record<string, HistoryState>>({});
@@ -32,6 +39,7 @@ export const useAgentStore = defineStore('agent', () => {
   const selectedSessions = reactive<Record<string, string>>({});
   const lists = reactive<Record<string, ConversationListState>>({});
   const drafts = reactive<Record<string, string>>({});
+  const attachmentDrafts = reactive<Record<string, AIAttachmentDraft[]>>({});
   const reads = new Map<string, AbortController>();
   const writes = new Set<AbortController>();
   const versions = new Map<string, number>();
@@ -54,6 +62,13 @@ export const useAgentStore = defineStore('agent', () => {
   }
   function draft(fileKey: string, sessionId: string) {
     return drafts[cacheKey(fileKey, sessionId)] ?? '';
+  }
+  function attachments(fileKey: string, sessionId: string): AIAttachmentDraft[] {
+    const key = cacheKey(fileKey, sessionId);
+    return (attachmentDrafts[key] ??= []);
+  }
+  function setAttachments(fileKey: string, sessionId: string, value: AIAttachmentDraft[]) {
+    attachmentDrafts[cacheKey(fileKey, sessionId)] = value;
   }
   function setDraft(fileKey: string, sessionId: string, value: string) {
     drafts[cacheKey(fileKey, sessionId)] = value;
@@ -83,6 +98,10 @@ export const useAgentStore = defineStore('agent', () => {
         drafts[target] = drafts[staging];
         delete drafts[staging];
       }
+      if (attachmentDrafts[staging]?.length && !attachmentDrafts[target]?.length) {
+        attachmentDrafts[target] = attachmentDrafts[staging];
+        delete attachmentDrafts[staging];
+      }
     }
     selectedSessions[fileKey] = id;
   }
@@ -101,6 +120,7 @@ export const useAgentStore = defineStore('agent', () => {
       else items.push(session);
     }
     // Creation time is stable while replies update updatedAt; retain loaded older pages.
+    // 回复会更新 updatedAt，但创建时间保持不变；保留已加载的历史分页。
     items.sort((a, b) => b.createdAt - a.createdAt);
   }
   async function loadConversations(fileKey: string, older = false) {
@@ -157,6 +177,7 @@ export const useAgentStore = defineStore('agent', () => {
         mergeConversations(fileKey, [session], true);
         activateConversation(fileKey, session.id);
         // An idempotent replay can already contain turns from another tab.
+        // 幂等重放结果中可能已经包含其他标签页产生的轮次。
         await load(fileKey, session.id);
         if (epoch !== current) throw new Error('账号已切换');
         return session;
@@ -196,6 +217,7 @@ export const useAgentStore = defineStore('agent', () => {
       delete sessions[key];
       delete states[key];
       delete drafts[key];
+      delete attachmentDrafts[key];
       conversations[fileKey] = (conversations[fileKey] ?? []).filter(
         (session) => session.id !== id
       );
@@ -255,6 +277,7 @@ export const useAgentStore = defineStore('agent', () => {
       if (epoch !== current || controller.signal.aborted || (versions.get(key) ?? 0) !== version)
         return;
       // Keep message objects until merging so a late read cannot downgrade applied status.
+      // 合并前保留消息对象，避免延迟的读取结果回退已应用状态。
       merge(key, page.messages);
       info.nextCursor = page.nextCursor;
       info.loaded = true;
@@ -273,7 +296,8 @@ export const useAgentStore = defineStore('agent', () => {
     sessionId: string,
     modelId: string,
     prompt: string,
-    signal: AbortSignal
+    signal: AbortSignal,
+    attachments: AIAttachment[] = []
   ) {
     const key = cacheKey(fileKey, sessionId);
     const current = epoch;
@@ -284,7 +308,15 @@ export const useAgentStore = defineStore('agent', () => {
     if (signal.aborted) stop();
     writes.add(controller);
     try {
-      const result = await beginAITurn(fileKey, sessionId, id, modelId, prompt, controller.signal);
+      const result = await beginAITurn(
+        fileKey,
+        sessionId,
+        id,
+        modelId,
+        prompt,
+        controller.signal,
+        attachments
+      );
       if (current !== epoch) throw new Error('账号已切换');
       changed(key);
       const firstTurn = !messages(fileKey, sessionId).some((message) => message.role === 'user');
@@ -305,6 +337,7 @@ export const useAgentStore = defineStore('agent', () => {
   }
   function save(fileKey: string, sessionId: string, id: string, input: TurnResponseInput) {
     // Retries retain the original conversation and immutable finalized payload.
+    // 重试保留原会话及已定稿、不可变的载荷。
     if (!pending.has(id))
       pending.set(id, {
         fileKey,
@@ -383,7 +416,15 @@ export const useAgentStore = defineStore('agent', () => {
       pending.clear();
       inFlight.clear();
       pendingCount.value = 0;
-      for (const record of [sessions, states, conversations, selectedSessions, lists, drafts])
+      for (const record of [
+        sessions,
+        states,
+        conversations,
+        selectedSessions,
+        lists,
+        drafts,
+        attachmentDrafts,
+      ])
         for (const key of Object.keys(record)) delete record[key];
     },
     { flush: 'sync' }
@@ -394,6 +435,8 @@ export const useAgentStore = defineStore('agent', () => {
     messages,
     draft,
     setDraft,
+    attachments,
+    setAttachments,
     state,
     listState,
     loadConversations,

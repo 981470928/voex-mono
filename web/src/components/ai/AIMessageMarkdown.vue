@@ -99,10 +99,6 @@ watch(
       color var(--color-accent-hover)
     &:active
       opacity .8
-  a, pre, .ai-markdown__table
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset 2px
   hr
     margin 10px 0
     border 0

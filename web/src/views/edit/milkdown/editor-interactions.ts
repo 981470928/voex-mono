@@ -843,6 +843,21 @@ export function createEditorInteractions(options: EditorInteractionOptions): {
             content: element,
             root: view.dom.parentElement ?? undefined,
             getPlacement: () => 'left-start',
+            getPosition: ({ active, editorDom }) => {
+              const rect = active.el.getBoundingClientRect();
+              let list: HTMLElement | null = null;
+              for (
+                let parent: HTMLElement | null = active.el;
+                parent && parent !== editorDom;
+                parent = parent.parentElement
+              ) {
+                if (parent.matches('ul, ol')) list = parent;
+              }
+              if (!list) return rect;
+              // 列表缩进只影响正文，块操作始终留在最外层列表左侧。
+              const { left, width } = list.getBoundingClientRect();
+              return new DOMRect(left, rect.top, width, rect.height);
+            },
             getOffset: () => 6,
             floatingUIOptions: { strategy: 'absolute' },
           });

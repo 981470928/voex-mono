@@ -151,6 +151,7 @@ function handleTooltipEscape(event: KeyboardEvent) {
   const tooltip = [shareLinkTooltip.value, accessTooltip.value].find((item) => item?.visible);
   if (!tooltip) return;
   // A hovered help icon may differ from the focused control inside the native dialog.
+  // 鼠标悬停的帮助图标可能不是原生对话框内当前获得焦点的控件。
   event.preventDefault();
   event.stopPropagation();
   tooltip.hide();
@@ -438,9 +439,6 @@ onBeforeUnmount(() => {
     div
       min-width 0
       overflow-wrap anywhere
-  button:focus-visible, input:focus-visible
-    outline 2px solid var(--color-accent)
-    outline-offset 2px
   @media (prefers-reduced-motion: reduce)
     &__track, &__track::after
       transition none

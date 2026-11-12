@@ -26,7 +26,11 @@ func (h *Handler) RegisterWorkspaceRoutes(protected *gin.RouterGroup) {
 	// DELETE /api/project/:projectKey：删除项目；有子项时需 cascade=true 确认级联删除，需要写入权限。
 	protected.DELETE("/project/:projectKey", h.workspaceDeleteProject)
 	// GET/HEAD /api/project/:projectKey/tree：读取项目、文件夹和文档目录；需要登录。
-	protected.Match([]string{http.MethodGet, http.MethodHead}, "/project/:projectKey/tree", h.workspaceProjectTree)
+	protected.Match(
+		[]string{http.MethodGet, http.MethodHead},
+		"/project/:projectKey/tree",
+		h.workspaceProjectTree,
+	)
 	// POST /api/folder：在项目内创建一层文件夹；需要登录。
 	protected.POST("/folder", h.workspaceCreateFolder)
 	// PUT /api/folder/:folderKey：重命名文件夹；需要登录。
@@ -34,21 +38,37 @@ func (h *Handler) RegisterWorkspaceRoutes(protected *gin.RouterGroup) {
 	// DELETE /api/folder/:folderKey：删除文件夹；有子项时需 cascade=true 确认级联删除，需要写入权限。
 	protected.DELETE("/folder/:folderKey", h.workspaceDeleteFolder)
 	// GET/HEAD /api/project/:projectKey/privileges：读取项目成员权限策略；需要登录且具有管理权限。
-	protected.Match([]string{http.MethodGet, http.MethodHead}, "/project/:projectKey/privileges", h.workspaceProjectPrivileges)
+	protected.Match(
+		[]string{http.MethodGet, http.MethodHead},
+		"/project/:projectKey/privileges",
+		h.workspaceProjectPrivileges,
+	)
 	// PUT /api/project/:projectKey/privileges：设置继承或指定成员权限；需要登录且具有管理权限。
 	protected.PUT("/project/:projectKey/privileges", h.workspaceSetProjectPrivileges)
 	// POST /api/document：创建文档并解析所属项目和文件夹；需要登录。
 	protected.POST("/document", h.workspaceCreateDocument)
 	// GET/HEAD /api/document/:fileKey：读取文档正文、元数据和权限；需要登录。
-	protected.Match([]string{http.MethodGet, http.MethodHead}, "/document/:fileKey", h.workspaceGetDocument)
+	protected.Match(
+		[]string{http.MethodGet, http.MethodHead},
+		"/document/:fileKey",
+		h.workspaceGetDocument,
+	)
 	// GET/HEAD /api/document/:fileKey/details：只读取文件详情及可访问路径，不记录最近访问。
-	protected.Match([]string{http.MethodGet, http.MethodHead}, "/document/:fileKey/details", h.workspaceGetDocumentDetails)
+	protected.Match(
+		[]string{http.MethodGet, http.MethodHead},
+		"/document/:fileKey/details",
+		h.workspaceGetDocumentDetails,
+	)
 	// PUT /api/document/:fileKey：修改文档名称或按版本保存正文；需要登录。
 	protected.PUT("/document/:fileKey", h.workspaceUpdateDocument)
 	// DELETE /api/document/:fileKey：删除文档及附件关联；需要登录。
 	protected.DELETE("/document/:fileKey", h.workspaceDeleteDocument)
 	// GET/HEAD /api/documents：按名称搜索当前用户可读文档的元数据；需要登录。
-	protected.Match([]string{http.MethodGet, http.MethodHead}, "/documents", h.workspaceListDocuments)
+	protected.Match(
+		[]string{http.MethodGet, http.MethodHead},
+		"/documents",
+		h.workspaceListDocuments,
+	)
 }
 
 func workspaceOptionalKey(body shared.Row, field, label string) string {
@@ -78,11 +98,14 @@ func workspaceQueryValue(c *gin.Context, field string) (any, bool) {
 func workspaceDeleteCascade(c *gin.Context) bool {
 	query, err := url.ParseQuery(c.Request.URL.RawQuery)
 	if err != nil {
-		shared.Fail(400, "删除参数格式错误")
+		shared.Fail(http.StatusBadRequest, shared.InvalidFormatMessage("删除参数"))
 	}
 	for key := range query {
 		if strings.HasPrefix(key, "cascade[") {
-			shared.Fail(400, "cascade 只能是单个 true 或 false")
+			shared.Fail(
+				http.StatusBadRequest,
+				shared.MustBeMessage("cascade", shared.MsgSingleBooleanType),
+			)
 		}
 	}
 	values, present := query["cascade"]
@@ -90,7 +113,10 @@ func workspaceDeleteCascade(c *gin.Context) bool {
 		return false
 	}
 	if len(values) != 1 || (values[0] != "true" && values[0] != "false") {
-		shared.Fail(400, "cascade 只能是单个 true 或 false")
+		shared.Fail(
+			http.StatusBadRequest,
+			shared.MustBeMessage("cascade", shared.MsgSingleBooleanType),
+		)
 	}
 	return values[0] == "true"
 }
@@ -107,23 +133,23 @@ func workspaceInitializeTeamKey(c *gin.Context) string {
 	data, err := io.ReadAll(io.LimitReader(r.Body, 2*1024*1024+1))
 	shared.Must(err)
 	if len(data) > 2*1024*1024 {
-		shared.Fail(413, "请求内容超过大小限制")
+		shared.Fail(http.StatusRequestEntityTooLarge, shared.SizeLimitMessage("请求内容"))
 	}
 	if len(data) == 0 {
 		return ""
 	}
 	if !utf8.Valid(data) {
-		shared.Fail(400, "请求格式错误，请检查 JSON 和路径参数")
+		shared.Fail(http.StatusBadRequest, shared.MsgRequestFormatInvalid)
 	}
 	var value any
 	decoder := json.NewDecoder(strings.NewReader(string(data)))
 	decoder.UseNumber()
 	if decoder.Decode(&value) != nil {
-		shared.Fail(400, "请求格式错误，请检查 JSON 和路径参数")
+		shared.Fail(http.StatusBadRequest, shared.MsgRequestFormatInvalid)
 	}
 	var extra any
 	if decoder.Decode(&extra) != io.EOF {
-		shared.Fail(400, "请求格式错误，请检查 JSON 和路径参数")
+		shared.Fail(http.StatusBadRequest, shared.MsgRequestFormatInvalid)
 	}
 	switch parsed := value.(type) {
 	case map[string]any:
@@ -131,7 +157,7 @@ func workspaceInitializeTeamKey(c *gin.Context) string {
 	case []any:
 		return ""
 	default:
-		shared.Fail(400, "请求格式错误，请检查 JSON 和路径参数")
+		shared.Fail(http.StatusBadRequest, shared.MsgRequestFormatInvalid)
 	}
 	return ""
 }
@@ -206,7 +232,10 @@ func (h *Handler) workspaceProjectPrivileges(c *gin.Context) {
 func (h *Handler) workspaceSetProjectPrivileges(c *gin.Context) {
 	body := transport.Body(c)
 	key := shared.Key(c.Param("projectKey"), "项目标识")
-	c.JSON(http.StatusOK, h.Service.SetProjectPrivileges(c.Request.Context(), key, body["mode"], body["user_ids"]))
+	c.JSON(
+		http.StatusOK,
+		h.Service.SetProjectPrivileges(c.Request.Context(), key, body["mode"], body["user_ids"]),
+	)
 }
 
 func (h *Handler) workspaceCreateDocument(c *gin.Context) {
@@ -218,13 +247,21 @@ func (h *Handler) workspaceCreateDocument(c *gin.Context) {
 	projectKey := workspaceOptionalKey(body, "project_key", "项目标识")
 	folderKey := workspaceOptionalKey(body, "folder_key", "文件夹标识")
 	teamKey := workspaceOptionalKey(body, "team_key", "团队标识")
-	input := service.CreateDocumentInput{FileName: fileName, ProjectKey: projectKey, FolderKey: folderKey, TeamKey: teamKey}
+	input := service.CreateDocumentInput{
+		FileName:   fileName,
+		ProjectKey: projectKey,
+		FolderKey:  folderKey,
+		TeamKey:    teamKey,
+	}
 	c.JSON(http.StatusOK, h.Service.CreateDocument(c.Request.Context(), input))
 }
 
 func (h *Handler) workspaceGetDocument(c *gin.Context) {
 	key := shared.Key(c.Param("fileKey"), "文档标识")
-	c.JSON(http.StatusOK, h.Service.GetDocument(c.Request.Context(), key, c.Request.Method == http.MethodGet))
+	c.JSON(
+		http.StatusOK,
+		h.Service.GetDocument(c.Request.Context(), key, c.Request.Method == http.MethodGet),
+	)
 }
 
 func (h *Handler) workspaceGetDocumentDetails(c *gin.Context) {
@@ -237,11 +274,11 @@ func (h *Handler) workspaceUpdateDocument(c *gin.Context) {
 	key := shared.Key(c.Param("fileKey"), "文档标识")
 	body := transport.Body(c)
 	if _, present := body["file_content"]; present {
-		shared.Fail(http.StatusBadRequest, "正文请通过协同连接保存")
+		shared.Fail(http.StatusBadRequest, shared.MsgCollaborationSaveRequired)
 	}
 	value, present := body["file_name"]
 	if !present {
-		shared.Fail(http.StatusBadRequest, "请提供文档名称")
+		shared.Fail(http.StatusBadRequest, shared.MsgDocumentNameRequired)
 	}
 	revision := h.Service.UpdateDocument(c.Request.Context(), key, shared.Name(value, "文档名称"))
 	c.JSON(http.StatusOK, shared.Row{"success": true, "revision": revision})
@@ -259,7 +296,7 @@ func (h *Handler) workspaceListDocuments(c *gin.Context) {
 		var valid bool
 		code, valid = value.(string)
 		if !valid {
-			shared.Fail(400, "搜索关键字必须是字符串")
+			shared.Fail(http.StatusBadRequest, shared.MustBeMessage("搜索关键字", shared.MsgStringType))
 		}
 	}
 	c.JSON(http.StatusOK, h.Service.ListDocuments(c.Request.Context(), code))

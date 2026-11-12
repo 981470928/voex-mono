@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"net/http"
 	"voex-server/internal/identity"
 	"voex-server/internal/repository"
 	"voex-server/internal/shared"
@@ -14,17 +15,17 @@ func (s *Service) RestoreFolder(ctx context.Context, key string) {
 	s.txEvent(ctx, "permissions", "", func(db *gorm.DB) any {
 		folder := repository.TrashFolderByKey(db, key)
 		if folder == nil {
-			shared.Fail(404, "文件夹不存在")
+			shared.Fail(http.StatusNotFound, shared.NotFoundMessage("文件夹"))
 		}
 
 		s.requireTrashAction(db, ctx, folder)
 
 		if folder["deleted_at"] == nil {
-			shared.Fail(409, "文件夹不在回收站中")
+			shared.Fail(http.StatusConflict, shared.MsgFolderNotInTrash)
 		}
 
 		if !repository.TrashRestoreFolder(db, folder["id"]) {
-			shared.Fail(409, "文件夹已过保留期限，无法恢复")
+			shared.Fail(http.StatusConflict, shared.MsgFolderRestoreExpired)
 		}
 
 		return nil
@@ -36,21 +37,21 @@ func (s *Service) RestoreDocument(ctx context.Context, key string) {
 	s.txEvent(ctx, "permissions", key, func(db *gorm.DB) any {
 		document := repository.TrashDocumentByKey(db, key)
 		if document == nil {
-			shared.Fail(404, "文档不存在")
+			shared.Fail(http.StatusNotFound, shared.NotFoundMessage("文档"))
 		}
 
 		s.requireTrashAction(db, ctx, document)
 
 		if document["deleted_at"] == nil {
-			shared.Fail(409, "文档不在回收站中")
+			shared.Fail(http.StatusConflict, shared.MsgDocumentNotInTrash)
 		}
 
 		if document["folder_deleted_at"] != nil {
-			shared.Fail(409, "请先恢复原文件夹")
+			shared.Fail(http.StatusConflict, shared.MsgFolderRestoreRequired)
 		}
 
 		if !repository.TrashRestoreDocument(db, document["id"]) {
-			shared.Fail(409, "文档已过保留期限，无法恢复")
+			shared.Fail(http.StatusConflict, shared.MsgDocumentRestoreExpired)
 		}
 
 		return nil
@@ -64,10 +65,13 @@ func (s *Service) ListTrash(
 	limit, offset int,
 ) shared.Row {
 	if limit < 1 || limit > 200 {
-		shared.Fail(400, "limit 必须在 1 到 200 之间")
+		shared.Fail(http.StatusBadRequest, shared.IntegerRangeMessage("limit", 1, 200))
 	}
 	if offset < 0 {
-		shared.Fail(400, "offset 必须是非负整数")
+		shared.Fail(
+			http.StatusBadRequest,
+			shared.MustBeMessage("offset", shared.MsgNonNegativeInteger),
+		)
 	}
 
 	return s.tx(ctx, false, func(db *gorm.DB) any {
@@ -91,7 +95,7 @@ func (s *Service) ListTrash(
 		}
 
 		if projectKey != "" && len(projectIDs) == 0 {
-			shared.Fail(404, "项目不存在或没有访问权限")
+			shared.Fail(http.StatusNotFound, shared.MsgProjectUnavailable)
 		}
 
 		deletedBy := ""
@@ -120,8 +124,9 @@ func (s *Service) ListTrash(
 				"deleted_by":  deletedBy,
 				"deleted_at":  shared.Timestamp(row["deleted_at"]),
 				"expires_at":  shared.Timestamp(row["expires_at"]),
-				"can_restore": shared.Bool(row["can_restore"]) && writes[shared.String(row["project_key"])],
-				"can_purge":   writes[shared.String(row["project_key"])],
+				"can_restore": shared.Bool(row["can_restore"]) &&
+					writes[shared.String(row["project_key"])],
+				"can_purge": writes[shared.String(row["project_key"])],
 			}
 
 			if shared.String(row["item_type"]) == "folder" {
@@ -147,11 +152,11 @@ func (s *Service) PurgeDocument(ctx context.Context, key string) {
 		document := repository.TrashDocumentByKey(db, key)
 
 		if document == nil {
-			shared.Fail(404, "文档不存在")
+			shared.Fail(http.StatusNotFound, shared.NotFoundMessage("文档"))
 		}
 		s.requireTrashAction(db, ctx, document)
 		if document["deleted_at"] == nil {
-			shared.Fail(409, "文档不在回收站中")
+			shared.Fail(http.StatusConflict, shared.MsgDocumentNotInTrash)
 		}
 		repository.WorkspaceDeleteDocument(db, document["id"], shared.String(document["file_key"]))
 		return nil
@@ -164,11 +169,11 @@ func (s *Service) PurgeFolder(ctx context.Context, key string) {
 	s.txEvent(ctx, "deleted", "", func(db *gorm.DB) any {
 		folder := repository.TrashFolderByKey(db, key)
 		if folder == nil {
-			shared.Fail(404, "文件夹不存在")
+			shared.Fail(http.StatusNotFound, shared.NotFoundMessage("文件夹"))
 		}
 		s.requireTrashAction(db, ctx, folder)
 		if folder["deleted_at"] == nil {
-			shared.Fail(409, "文件夹不在回收站中")
+			shared.Fail(http.StatusConflict, shared.MsgFolderNotInTrash)
 		}
 
 		repository.WorkspaceDeleteFolder(db, folder["project_id"], folder["id"])
@@ -178,11 +183,13 @@ func (s *Service) PurgeFolder(ctx context.Context, key string) {
 
 func (s *Service) requireTrashAction(db *gorm.DB, ctx context.Context, row shared.Row) {
 	project := s.ProjectPermissions(db, ctx, shared.String(row["project_key"]))
-	if !shared.Bool(project["read"]) || (!shared.Bool(project["manage"]) && shared.String(row["deleted_by"]) != shared.String(identity.User(ctx)["id"])) {
-		shared.Fail(404, "回收站记录不存在或没有访问权限")
+	if !shared.Bool(project["read"]) ||
+		(!shared.Bool(project["manage"]) &&
+			shared.String(row["deleted_by"]) != shared.String(identity.User(ctx)["id"])) {
+		shared.Fail(http.StatusNotFound, shared.MsgTrashRecordUnavailable)
 	}
 	if !shared.Bool(project["write"]) {
-		shared.Fail(403, "需要当前项目编辑权限")
+		shared.Fail(http.StatusForbidden, shared.MsgProjectEditRequired)
 	}
 }
 func (s *Service) BulkTrash(ctx context.Context, teamKey, projectKey string, restore bool) {
@@ -196,7 +203,7 @@ func (s *Service) BulkTrash(ctx context.Context, teamKey, projectKey string, res
 			}
 		}
 		if projectKey != "" && len(ids) == 0 {
-			shared.Fail(404, "项目不属于当前团队")
+			shared.Fail(http.StatusNotFound, shared.MsgProjectTeamMismatch)
 		}
 		folders := repository.AllTrashFolders(db, ids)
 		if restore {

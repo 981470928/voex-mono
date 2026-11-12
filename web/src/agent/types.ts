@@ -10,6 +10,12 @@ export interface AIModel {
   max_tokens: number;
   token_parameter: 'max_completion_tokens' | 'max_tokens';
   has_key: boolean;
+  multimodal_enabled: boolean;
+}
+
+export interface AIWebEngine {
+  id: string;
+  name: string;
 }
 
 export interface DocumentSnapshot {
@@ -45,6 +51,30 @@ export interface ReviewSnapshot extends ReviewSummary {
   changes: DocumentChange[];
 }
 
+export interface AIAttachmentInfo {
+  id: string;
+  name: string;
+  mime: string;
+  size: number;
+  kind: 'image' | 'text';
+}
+
+export interface AIAttachment extends AIAttachmentInfo {
+  text?: string;
+  data?: string;
+}
+
+export interface AIAttachmentDraft {
+  id: string;
+  name: string;
+  size: number;
+  file?: File;
+  status: 'uploading' | 'ready' | 'error';
+  progress: number;
+  error: string;
+  attachment?: AIAttachment;
+}
+
 export interface ChatMessage {
   id: string;
   turnId: string;
@@ -52,6 +82,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   text: string;
   reasoning?: string;
+  attachments?: AIAttachmentInfo[];
   activity?: string[];
   review?: ReviewSummary;
   error?: string;
@@ -92,8 +123,15 @@ export interface ToolCall {
 }
 
 export type ModelMessage =
-  | { role: 'user'; text: string }
-  | { role: 'assistant'; text: string; reasoning?: string; calls: ToolCall[]; blocks?: unknown[] }
+  | { role: 'user'; text: string; turnId?: string; attachments?: AIAttachmentInfo[] }
+  | {
+      role: 'assistant';
+      text: string;
+      reasoning?: string;
+      calls: ToolCall[];
+      blocks?: unknown[];
+      continueTurn?: boolean;
+    }
   | { role: 'tool'; callId: string; text: string; isError: boolean };
 
 export interface ToolProperty {
@@ -125,11 +163,11 @@ export interface ToolDefinition {
 export interface AgentContext {
   document: DocumentSnapshot;
   userRequest: string;
-  allowExport: boolean;
+  webSearchEngine: string;
   signal: AbortSignal;
 }
 
 export interface AgentTool extends ToolDefinition {
-  /** Runtime checks are enforced even when a provider ignores the schema. */
+  /** Runtime checks are enforced even when a provider ignores the schema. / 即使 provider 忽略 schema，仍强制执行运行时检查。 */
   execute: (input: Record<string, unknown>, context: AgentContext) => unknown | Promise<unknown>;
 }

@@ -14,7 +14,7 @@ export interface MessageHandle {
   error: (text: string, options?: ErrorOptions) => void;
 }
 
-/** Each caller owns its messages; stale handles never reopen or close a replacement. */
+/** Each caller owns its messages; stale handles never reopen or close a replacement. / 每个调用方管理自己的消息；过期句柄不得重新打开或关闭替代消息。 */
 export function useMessageBox() {
   const store = useNotificationStore();
   const owned = new Set<number>();

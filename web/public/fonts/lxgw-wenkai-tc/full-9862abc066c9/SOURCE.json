@@ -1,0 +1,44 @@
+{
+  "id": "lxgw-wenkai-tc",
+  "label": "霞鶩文楷 TC",
+  "group": "中文",
+  "languages": "中 / EN",
+  "family": "LXGW WenKai TC",
+  "version": "full-9862abc066c9",
+  "license": "OFL-1.1",
+  "sourceCommit": "9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0",
+  "variants": [
+    {
+      "file": "Regular.woff2",
+      "weights": [
+        "Regular"
+      ],
+      "cssWeight": "400",
+      "bytes": 4921536,
+      "characters": 22401,
+      "glyphs": 22467,
+      "axes": {},
+      "sha256": "00c25eb83dd0b626c4be34dea1a5fd976bf5f39e8fb33c9eed97d8653bf26b4f",
+      "source": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/lxgwwenkaitc/LXGWWenKaiTC-Regular.ttf",
+      "sourceGitSha": "58d7e60237900ffed823f929e13d2b2686483aba",
+      "sourceSha256": "4fcc5aec11cbbf737b0cfab7b63796f7f280087a7a656b2f13342cd5e5318d95"
+    },
+    {
+      "file": "Bold.woff2",
+      "weights": [
+        "Bold"
+      ],
+      "cssWeight": "700",
+      "bytes": 5389240,
+      "characters": 22401,
+      "glyphs": 22467,
+      "axes": {},
+      "sha256": "645fae10c41701b5d489822901ea6ff3d3c01f535772d79db8cd5e92c967c3a9",
+      "source": "https://raw.githubusercontent.com/google/fonts/9862abc066c9b83bf84c3e8ed1fc2d8d48f9bbf0/ofl/lxgwwenkaitc/LXGWWenKaiTC-Bold.ttf",
+      "sourceGitSha": "4c48b0882af4edb7b161327ca1726ffe6da3b282",
+      "sourceSha256": "5c9feadfd928f3ae3860e7d001ad3d0d0c55b0157fff08cd4d51b51aca677f23"
+    }
+  ],
+  "woff2Files": 2,
+  "bytes": 10310776
+}

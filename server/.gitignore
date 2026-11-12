@@ -9,6 +9,7 @@ logs/
 .gin-backup-path
 
 # Historical generated artifacts and private keys
+# 历史生成产物和私钥
 /deploy/artifacts/
 /dist/
 /.release-keys/

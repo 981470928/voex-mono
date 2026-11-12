@@ -1,4 +1,4 @@
-/** ---------- Document APIs ---------- */
+/** ---------- Document APIs ---------- / 文档 API */
 import http from './https';
 import type { ApiError } from './index';
 import type { Creator } from '@/service/auth-session';

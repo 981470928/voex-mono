@@ -17,12 +17,21 @@ func (h *Handler) RegisterCollaborationRoutes(optional *gin.RouterGroup, engine 
 		h.Limiter.Limit(c.Request, "collaboration-ticket", 120, time.Minute)
 		body := transport.Body(c)
 		c.Header("Cache-Control", "no-store")
-		c.JSON(200, h.Service.CollaborationTicket(c.Request.Context(), shared.String(body["file_key"]), shared.String(body["access"]), c.GetHeader("X-Share-Token"), transport.AccessToken(c.Request)))
+		c.JSON(
+			http.StatusOK,
+			h.Service.CollaborationTicket(
+				c.Request.Context(),
+				shared.String(body["file_key"]),
+				shared.String(body["access"]),
+				c.GetHeader("X-Share-Token"),
+				transport.AccessToken(c.Request),
+			),
+		)
 	})
 	internal := engine.Group("/internal/collab", func(c *gin.Context) {
 		c.Header("Cache-Control", "no-store")
 		if !h.Service.CollaborationInternal(c.GetHeader("X-Collab-Secret")) {
-			c.AbortWithStatus(403)
+			c.AbortWithStatus(http.StatusForbidden)
 			return
 		}
 		c.Next()
@@ -36,16 +45,16 @@ func (h *Handler) RegisterCollaborationRoutes(optional *gin.RouterGroup, engine 
 			if err != nil {
 				var large *http.MaxBytesError
 				if errors.As(err, &large) {
-					shared.Fail(413, "协同请求超过大小限制")
+					shared.Fail(http.StatusRequestEntityTooLarge, shared.SizeLimitMessage("协同请求"))
 				}
-				shared.Fail(400, "协同请求格式无效")
+				shared.Fail(http.StatusBadRequest, shared.InvalidFormatMessage("协同请求"))
 			}
 		}
 		check(decoder.Decode(&input))
 		var trailing any
 		if err := decoder.Decode(&trailing); err != io.EOF {
 			if err == nil {
-				shared.Fail(400, "协同请求仅允许一个JSON对象")
+				shared.Fail(http.StatusBadRequest, shared.MsgCollaborationRequestSingleObject)
 			}
 			check(err)
 		}
@@ -54,9 +63,23 @@ func (h *Handler) RegisterCollaborationRoutes(optional *gin.RouterGroup, engine 
 	}
 	internal.POST("/authorize", func(c *gin.Context) {
 		in := decode(c)
-		c.JSON(200, h.Service.AuthorizeCollaboration(c.Request.Context(), in.Ticket, in.AuthorizationID, in.FileKey))
+		c.JSON(
+			http.StatusOK,
+			h.Service.AuthorizeCollaboration(
+				c.Request.Context(),
+				in.Ticket,
+				in.AuthorizationID,
+				in.FileKey,
+			),
+		)
 	})
-	internal.POST("/load", func(c *gin.Context) { c.JSON(200, h.Service.LoadCollaboration(c.Request.Context(), decode(c))) })
-	internal.POST("/initialize", func(c *gin.Context) { c.JSON(200, h.Service.InitializeCollaboration(c.Request.Context(), decode(c))) })
-	internal.POST("/commit", func(c *gin.Context) { c.JSON(200, h.Service.CommitCollaboration(c.Request.Context(), decode(c))) })
+	internal.POST("/load", func(c *gin.Context) {
+		c.JSON(http.StatusOK, h.Service.LoadCollaboration(c.Request.Context(), decode(c)))
+	})
+	internal.POST("/initialize", func(c *gin.Context) {
+		c.JSON(http.StatusOK, h.Service.InitializeCollaboration(c.Request.Context(), decode(c)))
+	})
+	internal.POST("/commit", func(c *gin.Context) {
+		c.JSON(http.StatusOK, h.Service.CommitCollaboration(c.Request.Context(), decode(c)))
+	})
 }

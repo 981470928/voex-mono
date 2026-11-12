@@ -60,9 +60,9 @@
         <button
           type="button"
           class="edit-page__icon-button"
-          title="导出"
+          :title="canExport ? '导出' : '导出（需要登录并拥有文档写权限）'"
           aria-label="导出"
-          :disabled="!documentReady || busy"
+          :disabled="!documentReady || busy || !canExport"
           @click="handleExportDocument"
         >
           <SvgIcon name="download" :size="18" />
@@ -76,6 +76,30 @@
           @click="showShare = true"
         >
           <SvgIcon name="share" :size="18" />
+        </button>
+        <button
+          type="button"
+          class="edit-page__icon-button"
+          title="查找与替换（Ctrl + F）"
+          aria-label="查找与替换"
+          aria-keyshortcuts="Control+F"
+          :disabled="!documentReady"
+          @click="editorRef?.openSearch()"
+        >
+          <SvgIcon name="search" :size="18" />
+        </button>
+        <button
+          ref="historyListButton"
+          type="button"
+          class="edit-page__icon-button"
+          title="历史版本"
+          aria-label="历史版本"
+          :aria-expanded="activePanel === 'history'"
+          aria-controls="editor-side-panel"
+          :disabled="!documentReady"
+          @click="togglePanel('history', $event)"
+        >
+          <SvgIcon name="clock-outline" :size="18" />
         </button>
         <button
           ref="attachmentListButton"
@@ -93,6 +117,17 @@
         </button>
         <DownloadQueue variant="popover" />
         <EditorSettings />
+        <button
+          type="button"
+          class="edit-page__icon-button"
+          role="switch"
+          aria-label="明亮主题"
+          :aria-checked="theme.resolved === 'light'"
+          :title="theme.resolved === 'dark' ? '切换到明亮主题' : '切换到暗色主题'"
+          @click="theme.toggle()"
+        >
+          <SvgIcon :name="theme.resolved === 'dark' ? 'sun' : 'moon'" :size="20" />
+        </button>
         <button
           v-if="isDev"
           ref="debugToolButton"
@@ -133,7 +168,7 @@
       </button>
     </nav>
 
-    <!-- Center: Editor -->
+    <!-- Center: Editor 中间：编辑器 -->
     <main class="edit-page__center" :inert="zenTransitioning">
       <div class="edit-page__header">
         <div class="edit-page__heading">
@@ -270,7 +305,7 @@
       :model-value="panelReady && !!activePanel"
       :title="panelTitle"
       side="right"
-      :width="activePanel === 'ai' ? 380 : 320"
+      :width="activePanel === 'history' ? 560 : activePanel === 'ai' ? 380 : 320"
       @update:model-value="!$event && closePanel()"
     >
       <Transition
@@ -340,6 +375,20 @@
               @preview="handlePreviewAttachment"
               @drop="handleDrop"
             />
+            <HistoryPanel
+              v-show="activePanel === 'history'"
+              :document-key="activeDocKey"
+              :can-write="canWrite"
+              :mobile="isMobile"
+              :current-content="currentContent"
+              :active="activePanel === 'history'"
+              :ensure-saved="ensureSaved"
+              :attachments="attachments"
+              :load-image="loadImage"
+              :on-preview-attachment="handlePreviewAttachment"
+              @close="closePanel"
+              @restored="handleHistoryRestored"
+            />
           </div>
         </section>
       </Transition>
@@ -367,7 +416,9 @@ import VoexDrawer from '@/components/VoexDrawer.vue';
 import DownloadQueue from '@/components/DownloadQueue.vue';
 import EditorSettings from '@/views/edit/EditorSettings.vue';
 import CollaborationUsers from '@/views/edit/CollaborationUsers.vue';
+import HistoryPanel from '@/views/edit/HistoryPanel.vue';
 import { useUserConfigStore } from '@/stores/user-config';
+import { useThemeStore } from '@/stores/theme';
 import { useDownloadStore } from '@/stores/download';
 import { desktopLocation } from '@/utils/workspace';
 import { isMobile } from '@/utils/platform';
@@ -378,15 +429,12 @@ import { useDocumentPage } from '@/composables/useDocumentPage';
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts';
 import { MilkdownProvider } from '@milkdown/vue';
 import { getDocument, type DocumentInfo, type FileInfo } from '@/service/api/document-api';
-import http from '@/service/api/https';
-import { useConfirm } from '@/composables/useConfirm';
+import { authUser } from '@/service/auth-session';
 import { useDialog } from '@/composables/useDialog';
 import { ModalType } from '@/stores/modal';
-import { MessageType } from '@/constant/status';
 import { useNotificationStore } from '@/stores/notification';
 import { useMessageBox } from '@/composables/useMessageBox';
 import { errorMessage } from '@/utils/error';
-import type { ApiError } from '@/service/api/index';
 import {
   VoexContextMenu,
   type ContextMenuItem,
@@ -409,17 +457,19 @@ onBeforeUnmount(() => {
   if (zenFullscreenOwned && document.fullscreenElement === document.documentElement)
     void document.exitFullscreen().catch(() => undefined);
 });
+const theme = useThemeStore();
 const isDev = import.meta.env.DEV;
 const debugToolButton = ref<HTMLButtonElement | null>(null);
 const debugMenuOpen = ref(false);
 const debugMenuPosition = ref({ x: 0, y: 0 });
 const exportingSchema = ref(false);
 let schemaExportController: AbortController | undefined;
-type EditorPanel = 'ai' | 'projects' | 'attachments';
+type EditorPanel = 'ai' | 'projects' | 'attachments' | 'history';
 const shortcutScope = ref<HTMLElement | null>(null);
 const aiPanelButton = ref<HTMLButtonElement | null>(null);
 const fileListButton = ref<HTMLButtonElement | null>(null);
 const attachmentListButton = ref<HTMLButtonElement | null>(null);
+const historyListButton = ref<HTMLButtonElement | null>(null);
 const activePanel = ref<EditorPanel | null>(null);
 const sidePanel = ref<HTMLElement | null>(null);
 const panelOpening = ref(false);
@@ -437,7 +487,9 @@ const panelTitle = computed(() =>
     ? 'AI 文档助手'
     : activePanel.value === 'projects'
       ? '项目列表'
-      : '附件'
+      : activePanel.value === 'history'
+        ? '历史版本'
+        : '附件'
 );
 const showShare = ref(false);
 const showDraft = ref(false);
@@ -520,6 +572,7 @@ async function syncZenFullscreen(entering: boolean) {
         return;
       }
       // Keep body portals (drawers, dialogs, notifications) inside the fullscreen element.
+      // 将挂载到 body 的内容（抽屉、对话框、通知）保持在全屏元素内。
       await document.documentElement.requestFullscreen();
       zenFullscreenOwned = true;
       if (zenDisposed && document.fullscreenElement === document.documentElement) {
@@ -544,6 +597,7 @@ async function toggleZenMode() {
   const entering = !zenMode.value;
   zenTransitioning.value = true;
   // Request fullscreen before the first await so the click's user activation is retained.
+  // 在第一次 await 前请求全屏，以保留点击带来的用户激活状态。
   const fullscreenTask = syncZenFullscreen(entering);
   try {
     await Promise.all([
@@ -552,6 +606,7 @@ async function toggleZenMode() {
     ]);
     if (zenDisposed) return;
     // Close once on entry; the normal panel shortcuts remain available in Zen mode.
+    // 进入时关闭一次面板；禅模式下仍可使用常规面板快捷键。
     if (entering) {
       activePanel.value = null;
       downloadStore.expanded = false;
@@ -581,7 +636,6 @@ function handlePanelEscape(event: KeyboardEvent) {
   closePanel();
 }
 const notification = useNotificationStore();
-const { confirm } = useConfirm();
 
 const {
   projectTree,
@@ -628,6 +682,28 @@ const {
   loadImage,
   handleDrop,
 } = useDocumentPage();
+
+const canExport = computed(() => !!authUser.value && canWrite.value);
+const showExport = ref(false);
+useDialog(ModalType.DOCUMENT_EXPORT_DIALOG, {
+  visible: () => showExport.value && !!activeDoc.value,
+  key: () => activeDocKey.value,
+  props: () => ({
+    fileKey: activeDocKey.value,
+    fileName: activeDoc.value?.file_name ?? '',
+    canExport: canExport.value,
+    ensureSaved,
+  }),
+  onClose: () => {
+    showExport.value = false;
+  },
+});
+
+// 恢复版本后：legacy 文档直接重载；协同文档由 document-replaced 流程统一处理，
+// 避免覆盖尚未提交的本地修改。
+function handleHistoryRestored() {
+  if (activeDoc.value?.content_mode !== 'collab') void loadDocument();
+}
 
 const workspaceReady = ref(false);
 const displayedDocument = shallowRef<{
@@ -727,22 +803,6 @@ function normalizeAIContent(content: string) {
 const aiCapabilities: FileCapabilities = {
   canCreate: () => !!projectTree.value?.project.permissions.write,
   canRename: () => canWrite.value,
-  exportDocument: async (signal) => {
-    const key = activeDocKey.value;
-    if (!key || busy.value) throw new Error('请等待当前操作完成');
-    await ensureSaved();
-    const saved = await getDocument(key, signal);
-    signal.throwIfAborted();
-    if (key !== activeDocKey.value) throw new Error('文档已切换，导出已取消');
-    const url = URL.createObjectURL(
-      new Blob([saved.file_content ?? ''], { type: 'text/markdown;charset=utf-8' })
-    );
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${sanitizeExportName(saved.file_name)}.md`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  },
 };
 
 const debugMenuItems = computed<ContextMenuItem[]>(() => [
@@ -750,16 +810,23 @@ const debugMenuItems = computed<ContextMenuItem[]>(() => [
     value: 'export-schema',
     label: '导出 Schema',
     icon: 'download',
-    disabled: !activeDocKey.value || loading.value || busy.value || exportingSchema.value,
-    description: !activeDocKey.value
-      ? '请先打开文档'
-      : loading.value
-        ? '正在加载文档'
-        : busy.value
-          ? '请等待当前操作完成'
-          : exportingSchema.value
-            ? '正在读取已保存的文档数据'
-            : '导出数据库中已保存的完整文档数据',
+    disabled:
+      !canExport.value ||
+      !activeDocKey.value ||
+      loading.value ||
+      busy.value ||
+      exportingSchema.value,
+    description: !canExport.value
+      ? '需要登录并拥有文档写权限'
+      : !activeDocKey.value
+        ? '请先打开文档'
+        : loading.value
+          ? '正在加载文档'
+          : busy.value
+            ? '请等待当前操作完成'
+            : exportingSchema.value
+              ? '正在读取已保存的文档数据'
+              : '导出数据库中已保存的完整文档数据',
   },
 ]);
 
@@ -789,6 +856,7 @@ watch(activeDocKey, () => {
   showDraft.value = false;
   debugMenuOpen.value = false;
   cancelSchemaExport();
+  showExport.value = false;
 });
 
 onBeforeUnmount(cancelSchemaExport);
@@ -832,6 +900,7 @@ async function handleDebugAction(item: ContextMenuOption) {
   if (
     !isDev ||
     item.value !== 'export-schema' ||
+    !canExport.value ||
     item.disabled ||
     !activeDocKey.value ||
     loading.value ||
@@ -850,6 +919,7 @@ async function handleDebugAction(item: ContextMenuOption) {
     if (
       controller.signal.aborted ||
       schemaExportController !== controller ||
+      !canExport.value ||
       activeDocKey.value !== fileKey
     )
       return;
@@ -878,46 +948,16 @@ async function handleDebugAction(item: ContextMenuOption) {
   }
 }
 
-function buildExportFilename(includeAttachments: boolean) {
-  const sourceName = activeDoc.value?.file_name || 'document';
-  const baseName = sanitizeExportName(sourceName);
-  return `${baseName}.${includeAttachments ? 'zip' : 'voex'}`;
-}
-
-async function exportDocument(includeAttachments: boolean) {
-  return http.get<ApiError, Blob>(`/document/${encodeURIComponent(activeDocKey.value)}/export`, {
-    params: { include_attachments: includeAttachments },
-    responseType: 'blob',
-  });
-}
-
-async function handleExportDocument() {
-  if (!activeDocKey.value || !activeDoc.value || busy.value) return;
-  const includeAttachments = await confirm({
-    type: MessageType.WARNING,
-    title: '导出文档',
-    content: '是否导出附件？默认不导出附件。关闭则仅导出 .voex。',
-    confirmText: '是，导出附件（zip）',
-    cancelText: '否，仅导出 .voex',
-  });
-  try {
-    await ensureSaved();
-    const blob = await exportDocument(includeAttachments);
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = buildExportFilename(includeAttachments);
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  } catch (cause) {
-    notification.show(errorMessage(cause, '导出失败'), 'error', 0);
-  }
+function handleExportDocument() {
+  if (!activeDocKey.value || !activeDoc.value || busy.value || !canExport.value) return;
+  showExport.value = true;
 }
 </script>
 
 <style lang="stylus">
 /* ============================================================
    EDIT PAGE - BEM NAMING
+   编辑页面 - BEM 命名
    ============================================================ */
 .edit-page__collaboration-status
   max-width 240px
@@ -994,9 +1034,6 @@ async function handleExportDocument() {
     &--loading
       visibility hidden
 
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset -2px
 
     &--mobile
       --edit-panel-width: 100%
@@ -1035,7 +1072,7 @@ async function handleExportDocument() {
     padding-top 45px
     overflow hidden
 
-  /* ---------- Center: editor ---------- */
+  /* ---------- Center: editor ---------- 中间：编辑器 */
   &__center
     --edit-content-width: 860px
     --edit-content-gutter: 52px
@@ -1095,9 +1132,6 @@ async function handleExportDocument() {
     &:active:not(:disabled)
       background var(--color-bg-quaternary)
 
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset 2px
 
     &:disabled
       opacity .5
@@ -1264,7 +1298,7 @@ async function handleExportDocument() {
     p
       font-size 15px
 
-  /* ---------- Buttons ---------- */
+  /* ---------- Buttons ---------- 按钮 */
   &__button
     display inline-flex
     align-items center
@@ -1279,9 +1313,6 @@ async function handleExportDocument() {
     &:disabled
       opacity .5
       cursor not-allowed
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset 2px
     &:active:not(:disabled)
       filter brightness(.94)
     svg

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"voex-server/internal/dbschema"
 	"voex-server/internal/model"
 	"voex-server/internal/shared"
 
@@ -9,7 +10,12 @@ import (
 )
 
 func AuthUserConfig(db *gorm.DB, userID string) shared.Row {
-	return One(db.Model(&model.User{}).Select("user_config").Where("id = ?", userID))
+	ut := dbschema.Users
+	return One(
+		db.Model(&model.User{}).
+			Select(ut.Columns.USER_CONFIG).
+			Where(&model.User{ID: userID}, ut.Columns.ID),
+	)
 }
 
 func AuthUserConfigForUpdate(db *gorm.DB, userID string) shared.Row {
@@ -17,5 +23,10 @@ func AuthUserConfigForUpdate(db *gorm.DB, userID string) shared.Row {
 }
 
 func AuthUpdateUserConfig(db *gorm.DB, userID, config string) {
-	Must(db.Model(&model.User{}).Where("id = ?", userID).Update("user_config", config))
+	ut := dbschema.Users
+	Must(
+		db.Model(&model.User{}).
+			Where(&model.User{ID: userID}, ut.Columns.ID).
+			Update(ut.Columns.USER_CONFIG, config),
+	)
 }

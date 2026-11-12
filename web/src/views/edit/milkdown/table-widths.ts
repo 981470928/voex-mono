@@ -120,6 +120,7 @@ function writeStore(documentKey: string, store: TableWidthsStore): void {
     localStorage.setItem(storageKey(documentKey), JSON.stringify(store));
   } catch {
     // Storage can be disabled by the browser; editing must continue without persistence.
+    // 浏览器可能禁用存储；即使无法持久化，也必须允许继续编辑。
   }
 }
 
@@ -200,6 +201,7 @@ function annotateTableWidths(table: MarkdownNode, widths: readonly TableColumnWi
 }
 
 // Remove legacy metadata comments so they never become document content again.
+// 移除旧版元数据注释，避免它们再次成为文档内容。
 export function restoreTableWidths(tree: MarkdownNode): void {
   const children = tree.children;
   if (!children) return;

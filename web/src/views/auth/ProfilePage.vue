@@ -292,9 +292,6 @@ onBeforeUnmount(() => {
     background var(--auth-input)
     color var(--color-text-primary)
 
-  &:focus-visible
-    outline 2px solid var(--auth-focus)
-    outline-offset 2px
 
 .profile-page__account-tips
     display: block;

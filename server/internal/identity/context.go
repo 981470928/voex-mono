@@ -1,8 +1,10 @@
 // Package identity carries the authenticated principal without depending on Gin.
+// identity 包承载已认证主体的信息，不依赖 Gin。
 package identity
 
 import (
 	"context"
+	"net/http"
 	"voex-server/internal/shared"
 )
 
@@ -25,9 +27,14 @@ func OptionalUser(ctx context.Context) shared.Row {
 func User(ctx context.Context) shared.Row {
 	u := OptionalUser(ctx)
 	if u == nil {
-		shared.Fail(401, "请先登录")
+		shared.Fail(http.StatusUnauthorized, shared.MsgLoginRequired)
 	}
 	return u
 }
 
-func SessionID(ctx context.Context) string { v, _ := ctx.Value(contextKey{}).(Session); return v.ID }
+func SessionID(
+	ctx context.Context,
+) string {
+	v, _ := ctx.Value(contextKey{}).(Session)
+	return v.ID
+}

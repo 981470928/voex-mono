@@ -1,4 +1,5 @@
 -- Apply explicitly before deploying account-bound file access.
+-- 部署绑定账号的文件访问功能前，需显式执行此脚本。
 CREATE TABLE IF NOT EXISTS `document_access` (
   `document_id` int NOT NULL,
   `user_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
@@ -11,6 +12,7 @@ CREATE TABLE IF NOT EXISTS `document_access` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Keep prior verified visits, without downgrading an existing grant on rerun.
+-- 保留此前已验证的访问记录；重复执行时不降低已有授权。
 INSERT INTO document_access (document_id,user_id,permission,granted_at)
 SELECT r.document_id,r.user_id,s.permission,r.viewed_at FROM recent_files r
 JOIN file_shares s ON s.id=r.share_id AND s.document_id=r.document_id

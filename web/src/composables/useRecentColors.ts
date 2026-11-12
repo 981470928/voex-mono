@@ -29,6 +29,7 @@ function loadColors() {
     recentColors.value = parseColors(window.localStorage.getItem(STORAGE_KEY));
   } catch {
     // Storage may be unavailable; keep the in-memory history usable.
+    // 存储可能不可用；仍需保证内存中的历史记录可用。
   }
 }
 
@@ -38,6 +39,7 @@ function syncColors(event: StorageEvent) {
     if (event.storageArea === window.localStorage) loadColors();
   } catch {
     // Access to storage can be disabled while the component is mounted.
+    // 组件挂载期间，存储访问权限可能被禁用。
   }
 }
 
@@ -52,6 +54,7 @@ function addRecentColor(value: string) {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(recentColors.value));
   } catch {
     // A storage failure must not prevent choosing a color.
+    // 存储失败不得阻止选择颜色。
   }
 }
 

@@ -96,12 +96,14 @@ export function createEditorCodeBlock(options: {
     !options.readonly() && block.view.editable && !block.view.isDestroyed;
 
   // Reuse the official factory and lifecycle; adapt its toolbar to the app's native select.
+  // 复用官方工厂函数和生命周期，将其工具栏适配为应用的原生 select 控件。
   const enhancedView = $view(codeBlockSchema.node, () => {
     const createView = codeBlockView.view;
     return (...args) => {
       if (!options.enabled()) {
         const [node, view] = args;
         // Let ProseMirror own ordinary code editing through the existing schema's contentDOM.
+        // 通过现有 schema 的 contentDOM，将普通代码编辑交由 ProseMirror 处理。
         return DOMSerializer.renderSpec(view.dom.ownerDocument, node.type.spec.toDOM!(node));
       }
       const block = createView(...args) as CodeMirrorBlock;
@@ -251,12 +253,14 @@ export function createEditorCodeBlock(options: {
   });
   return {
     // Plain code blocks keep syntax colors without mounting a CodeMirror instance.
+    // 普通代码块保留语法着色，无需挂载 CodeMirror 实例。
     plugins: [...prism, ...codeBlockComponent, enhancedView],
     enabledChanged(ctx: Ctx) {
       const view = ctx.get(editorViewCtx);
       if (view.isDestroyed) return;
       const render = enhancedView.view;
       // A new constructor makes ProseMirror dispose old node views without changing EditorState.
+      // 使用新的构造函数，使 ProseMirror 在不改变 EditorState 的情况下销毁旧节点视图。
       view.setProps({
         nodeViews: {
           ...view.props.nodeViews,
@@ -266,6 +270,7 @@ export function createEditorCodeBlock(options: {
     },
     readonlyChanged() {
       // The parent first updates ProseMirror.editable; refresh even when the document is unchanged.
+      // 父组件先更新 ProseMirror.editable；即使文档未变化，也需要刷新。
       queueMicrotask(() => {
         for (const block of blocks) {
           if (block.view.isDestroyed) continue;
@@ -300,6 +305,7 @@ export function createEditorCodeBlock(options: {
           syntaxHighlighting(codeHighlight),
           search({ top: true }),
           // Milkdown forwards only while the code content owns focus; search replaces need the same path.
+          // Milkdown 仅在代码内容获得焦点时转发；搜索替换也需要走同一路径。
           CodeMirror.updateListener.of((update) => {
             if (
               !update.docChanged ||
@@ -338,6 +344,7 @@ export function createEditorCodeBlock(options: {
             'Folded lines': '已折叠的行',
           }),
           // Official bindings own ProseMirror history and Mod-Enter; disallow these edits in readonly.
+          // 官方快捷键绑定负责 ProseMirror 历史操作和 Mod-Enter；只读时禁止这些编辑。
           Prec.highest(
             keymap.of(
               ['Mod-z', 'Shift-Mod-z', 'Mod-y', 'Mod-Enter', 'Backspace'].map((key) => ({

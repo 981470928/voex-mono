@@ -117,6 +117,7 @@ let generation = 0;
 let token = '';
 
 // Keep the share credential in the fragment and out of referrer headers.
+// 将分享凭据保留在 URL 片段中，避免进入 referrer 请求头。
 const referrerMeta = document.createElement('meta');
 referrerMeta.name = 'referrer';
 referrerMeta.content = 'no-referrer';
@@ -196,6 +197,7 @@ async function refreshMetadata() {
     document.title = `${latest.file_name} · ${key ? '最近文件' : '分享'} · Voex`;
   } catch {
     // Preserve the readable shared document; authorization is independently refreshed by the provider.
+    // 保留可读的分享文档；授权由 provider 独立刷新。
   }
 }
 
@@ -205,6 +207,7 @@ function onEditorError(message: string) {
 }
 
 // Embedded document images still need the existing authorized resource loader.
+// 文档内嵌图片仍需使用现有的授权资源加载器。
 function loadImage(hash: string, signal: AbortSignal): Promise<Blob> {
   return recentKey.value
     ? downloadRecentAttachment(recentKey.value, hash, { signal })
@@ -301,9 +304,6 @@ onBeforeUnmount(() => {
       background var(--color-accent-tint)
     &:active:not(:disabled)
       filter brightness(.94)
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset 2px
     &:disabled
       opacity .5
       cursor not-allowed

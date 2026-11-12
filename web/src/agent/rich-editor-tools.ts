@@ -3,6 +3,7 @@ import { Transform } from '@milkdown/kit/prose/transform';
 import type { MarkdownCodec } from '@voex/editor-schema';
 import { normalizeHexColor } from '@voex/editor-schema/text-color';
 import { normalizeFontSize } from '@voex/editor-schema/font-size';
+import { FONT_FAMILIES, normalizeFontFamily } from '@voex/editor-schema/font-catalog';
 import { MAX_WIDTH, MIN_WIDTH, parseWidth } from '@voex/editor-schema/images';
 import {
   CARD_ITEM,
@@ -106,7 +107,9 @@ function numbered<T>(items: T[], index: number, label: string): T {
 }
 
 // ProseMirror text positions use UTF-16; Emoji atoms consume one position regardless of char length.
+// ProseMirror 文本位置使用 UTF-16；Emoji 原子节点无论字符长度多少都只占一个位置。
 // Separate runs at non-text components, so a match cannot jump across an image or attachment.
+// 在非文本组件处分隔文本片段，避免匹配跨越图片或附件。
 function textRanges(doc: ProseNode, search: string): TextRange[] {
   if (!search) throw new Error('目标文字不能为空');
   const matches: TextRange[] = [];
@@ -118,6 +121,7 @@ function textRanges(doc: ProseNode, search: string): TextRange[] {
     let boundaries: (number | null)[] = [];
     const flush = () => {
       // A grapheme may span multiple text nodes/marks; do not split a visible character.
+      // 一个字素可能跨越多个文本节点或 mark；不要拆分可见字符。
       for (const { index, segment } of graphemes.segment(text))
         for (let offset = index + 1; offset < index + segment.length; offset++)
           boundaries[offset] = null;
@@ -249,6 +253,7 @@ export function registerRichEditorTools(registry: AgentToolRegistry, draft: Agen
     if (next.eq(current.doc)) return { status: 'unchanged', file_key: current.fileKey };
     const markdown = current.codec.serialize(next);
     // Validate the persisted representation before touching the draft. No live editor or API writes.
+    // 修改草稿前先校验持久化表示，不写入实时编辑器，也不调用 API 写入。
     const restored = current.codec.parse(markdown);
     if (!restored.eq(next)) throw new Error('富文本保存后无法完整恢复，已取消本次草稿修改');
     return draft.write(markdown, current.fileKey);
@@ -322,7 +327,7 @@ export function registerRichEditorTools(registry: AgentToolRegistry, draft: Agen
                 title: string('可选的纯文字标题，自动加粗。'),
                 text: string('纯文字正文，可换行；空字符串表示空文字区，不解析为其他组件。'),
                 image_index: integer(
-                  '可选；read_editor_components 返回的当前草稿正文图片编号。省略保留空图片位。',
+                  '可选；read_editor_components 返回的当前草稿正文图片编号，仅 reusable_in_card 为 true 的图片可引用（安全 HTTP/HTTPS 外链或附件）。省略保留空图片位。',
                   1
                 ),
                 image_alt: string('可选的图片说明；省略时保留原图片说明。'),
@@ -405,7 +410,7 @@ export function registerRichEditorTools(registry: AgentToolRegistry, draft: Agen
     {
       name: 'set_text_style',
       description:
-        '对草稿中的可见文字设置/清除字号、文字颜色和背景色，支持普通正文、标题、列表、表格与卡片文字，保留粗体/链接等其他格式。text 为同一段内的可见文字，不含 Markdown 标记。代码块和行内代码不应用这些样式；字号只修改文字节点。默认要求唯一匹配；occurrence 指定第几处，0 表示全部，仅在用户要求全部时使用。字号 font_size 支持 8–96px、0.5px 步长，0 清除局部字号。颜色支持 #RGB/#RRGGBB，none 清除对应颜色。',
+        '对草稿中的可见文字设置/清除字体、字号、文字颜色和背景色，支持普通正文、标题、列表、表格与卡片文字，保留粗体/链接等其他格式。text 为同一段内的可见文字，不含 Markdown 标记。代码块和行内代码不应用这些样式；字体和字号只修改文字节点。默认要求唯一匹配；occurrence 指定第几处，0 表示全部，仅在用户要求全部时使用。字体 font_family 只接受注册字体 ID，none 仅清除字体并恢复默认；字号 font_size 支持 8–96px、0.5px 步长，0 清除局部字号。颜色支持 #RGB/#RRGGBB，none 清除对应颜色。',
       parameters: schema(
         {
           ...fileKeyProperty,
@@ -413,6 +418,11 @@ export function registerRichEditorTools(registry: AgentToolRegistry, draft: Agen
             '要设置样式的可见文字，不能为空；可跨同一段内的加粗/链接片段，不能跨图片等组件。'
           ),
           occurrence: integer('可选；从 1 开始指定匹配项，0 表示全部；省略时必须唯一。', 0),
+          font_family: {
+            type: 'string',
+            enum: [...FONT_FAMILIES.map((font) => font.id), 'none'],
+            description: `可选；使用已注册字体 ID：${FONT_FAMILIES.map((font) => `${font.id}（${font.label}，${font.group}）`).join('、')}。none 仅清除字体并恢复默认，保留字号、颜色、粗体和链接等格式。不接受任意字体名称、CSS 或字体 URL。`,
+          },
           font_size: {
             type: 'number',
             minimum: 0,
@@ -426,7 +436,10 @@ export function registerRichEditorTools(registry: AgentToolRegistry, draft: Agen
         ['text']
       ),
       execute: async (input, context) => {
-        const styles: { kind: string; attrs: { color: string } | { size: number } | null }[] = [];
+        const styles: {
+          kind: string;
+          attrs: { color: string } | { size: number } | { family: string } | null;
+        }[] = [];
         for (const [parameter, kind] of [
           ['text_color', 'textColor'],
           ['background_color', 'highlight'],
@@ -435,13 +448,21 @@ export function registerRichEditorTools(registry: AgentToolRegistry, draft: Agen
           const color = colorValue(input[parameter]);
           styles.push({ kind, attrs: color === null ? null : { color } });
         }
+        if (input.font_family !== undefined) {
+          const family =
+            input.font_family === 'none' ? null : normalizeFontFamily(input.font_family);
+          if (input.font_family !== 'none' && family === null)
+            throw new Error('字体仅支持 font_family 枚举中的注册字体 ID，或用 none 恢复默认字体');
+          styles.push({ kind: 'fontFamily', attrs: family === null ? null : { family } });
+        }
         if (input.font_size !== undefined) {
           const size = input.font_size === 0 ? null : normalizeFontSize(input.font_size);
           if (input.font_size !== 0 && size === null)
             throw new Error('字号须为 8–96px，步长为 0.5px；0 表示恢复默认字号');
           styles.push({ kind: 'fontSize', attrs: size === null ? null : { size } });
         }
-        if (!styles.length) throw new Error('请至少提供 font_size、text_color 或 background_color');
+        if (!styles.length)
+          throw new Error('请至少提供 font_family、font_size、text_color 或 background_color');
         const current = await load(input, context);
         const ranges = selectedTextRanges(
           current.doc,
@@ -456,7 +477,7 @@ export function registerRichEditorTools(registry: AgentToolRegistry, draft: Agen
             current.doc.nodesBetween(range.from, range.to, (node, pos, parent) => {
               if (
                 !node.isInline ||
-                (kind === 'fontSize' && !node.isText) ||
+                ((kind === 'fontSize' || kind === 'fontFamily') && !node.isText) ||
                 !parent?.type.allowsMarkType(type) ||
                 parent.type.spec.code ||
                 node.marks.some((mark) => mark.type.spec.code)

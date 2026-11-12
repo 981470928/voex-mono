@@ -271,6 +271,7 @@ function handlePopupLeave(event: PointerEvent) {
 function handleFocusIn() {
   if (restoringFocus || props.disabled || !supportsFocus.value) return;
   // Hover-only triggers also work with keyboard focus, without toggling on touch focus.
+  // 仅悬停触发的控件也支持键盘焦点，但触摸引起的焦点不会切换其状态。
   if (onlyHover.value && !referenceRef.value?.matches(':focus-visible')) return;
   changeVisible(true, props.focusDelay);
 }
@@ -291,6 +292,7 @@ function handleContextmenu(event: MouseEvent) {
   event.preventDefault();
   updatePoint(event);
   // A second contextmenu relocates an open menu rather than closing it.
+  // 再次触发 contextmenu 时重新定位已打开的菜单，而不是关闭它。
   show();
 }
 
@@ -313,6 +315,7 @@ function handleKeydown(event: KeyboardEvent) {
   }
   if (event.key !== 'Escape' || !visible.value || !props.escapeToClose) return;
   // Document listeners run parent-first; let the deepest open popup consume Escape.
+  // document 监听器按父级优先的顺序执行；让最深层已打开的弹层处理 Escape。
   if ([...descendants].some(({ value }) => value && !value.inert && value.getClientRects().length))
     return;
   event.preventDefault();
@@ -367,6 +370,7 @@ function resolveElement(node: VNode): HTMLElement | undefined {
 }
 
 // Clone the first real child, preserving its ref/listeners and adding no layout wrapper.
+// 克隆第一个实际子节点，保留其 ref 和监听器，不添加布局包装层。
 const TriggerReference = defineComponent({
   name: 'VoexTriggerReference',
   setup() {
@@ -424,6 +428,7 @@ const teleportTarget = computed(() => {
     return doc.querySelector<HTMLElement>(props.popupContainer) ?? doc.body;
   }
   // A body portal is inert/behind the native top layer when opened inside a dialog.
+  // 在 dialog 内打开时，挂载到 body 的 portal 会处于不可交互状态，或位于原生顶层之后。
   return props.popupContainer ?? referenceRef.value?.closest('dialog[open]') ?? doc.body;
 });
 
@@ -530,6 +535,7 @@ watch(
       return;
     }
     // Teleport/v-show and any new content must be committed before measuring.
+    // 测量前必须完成 Teleport、v-show 及所有新内容的渲染提交。
     await nextTick();
     if (!visible.value || !referenceRef.value || !popupRef.value) return;
     floating.virtualElement.contextElement = referenceRef.value;
@@ -583,12 +589,14 @@ watchEffect((onCleanup) => {
 
 function handleBeforeEnter(element: Element) {
   // A cancelled leave may reuse a VNode whose old props still say it is visible.
+  // 离场被取消时，可能复用旧 props 仍标记为可见的 VNode。
   element.removeAttribute('inert');
   element.setAttribute('aria-hidden', 'false');
 }
 
 function handleBeforeLeave(element: Element) {
   // v-if removal keeps the last VNode props throughout the leave transition.
+  // v-if 移除节点时，会在整个离场过渡期间保留最后的 VNode props。
   element.setAttribute('inert', '');
   element.setAttribute('aria-hidden', 'true');
 }

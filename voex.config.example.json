@@ -10,5 +10,9 @@
   },
   "pexelsKey": "",
   "collaboration": false,
-  "collaborationPort": 8091
+  "collaborationPort": 8091,
+  "web_search_key": {
+    "tavily": "",
+    "querit": ""
+  }
 }

@@ -226,7 +226,7 @@ const viewModes = [
 try {
   if (localStorage.getItem('voex-desktop-view') === 'list') view.value = 'list';
 } catch {
-  /* Browsing remains available when storage is restricted. */
+  /* Browsing remains available when storage is restricted. 存储受限时仍可继续浏览。 */
 }
 const menuOpen = ref(false);
 const contextMenu = shallowRef<{
@@ -248,7 +248,7 @@ function setView(value: 'grid' | 'list') {
   try {
     localStorage.setItem('voex-desktop-view', value);
   } catch {
-    /* Keep the in-memory preference. */
+    /* Keep the in-memory preference. 保留内存中的偏好设置。 */
   }
 }
 
@@ -385,9 +385,6 @@ watch(
     border 1px solid var(--color-border-translucent-strong)
     border-radius 50%
     background var(--color-bg-translucent)
-  &__icon-button:focus-visible, &__link:focus-visible, &__button:focus-visible
-    outline 2px solid var(--color-accent)
-    outline-offset -2px
   &__content
     flex 1
     min-height 0

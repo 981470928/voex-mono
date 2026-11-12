@@ -311,9 +311,6 @@ function onEscape(event: KeyboardEvent) {
       background var(--color-bg-tertiary)
     &:active:not(:disabled)
       background var(--color-bg-quaternary)
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset 2px
     &:disabled
       opacity .45
       cursor not-allowed
@@ -408,9 +405,6 @@ function onEscape(event: KeyboardEvent) {
     font-size 13px
     line-height 1.5
 
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset 2px
 
     .download-queue__header
       border 0

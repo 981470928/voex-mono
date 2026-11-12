@@ -37,6 +37,7 @@ export function isDownloadActive(item: DownloadItem) {
 
 export const useDownloadStore = defineStore('download', () => {
   // Reactive state contains metadata only; blobs, credentials and requests are never cached here.
+  // 响应式状态仅包含元数据；此处不缓存 Blob、凭据或请求。
   const items = ref<DownloadItem[]>([]);
   const expanded = ref(false);
   const activeCount = computed(() => items.value.filter(isDownloadActive).length);
@@ -110,6 +111,7 @@ export const useDownloadStore = defineStore('download', () => {
             ? await downloadRecentAttachment(source.fileKey, item.hash, options)
             : await downloadFile(source.fileKey, item.hash, options);
       // An aborted/replaced request must never trigger a browser download.
+      // 已中止或被替换的请求不得触发浏览器下载。
       if (controller.signal.aborted || disposed) return;
       item.loaded = blob.size;
       item.total = blob.size;
@@ -128,6 +130,7 @@ export const useDownloadStore = defineStore('download', () => {
         link.remove();
       }
       // Let the browser consume the click before revoking the URL in the next task.
+      // 让浏览器先处理点击，再在下一个任务中撤销 URL。
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
       item.status = 'completed';
     } catch (cause) {
@@ -147,11 +150,13 @@ export const useDownloadStore = defineStore('download', () => {
         notification.show('文件下载失败，请在下载列表查看详情', 'error');
       }
     } finally {
+      // 在每条退出路径上释放文件字节数据。
       // eslint-disable-next-line no-useless-assignment -- Release file bytes on every exit path.
       blob = null;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
       task.source = undefined;
       // Canceling and immediately enqueueing the same hash creates a different task.
+      // 取消后立即将同一 hash 重新入队，会创建不同的任务。
       if (tasks.get(item.hash) === task) tasks.delete(item.hash);
       running--;
       trimRecords();

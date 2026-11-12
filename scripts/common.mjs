@@ -19,7 +19,10 @@ export const TARGET = `${process.platform === 'win32' ? 'windows' : process.plat
 export const digest = value => createHash('sha256').update(value).digest('hex');
 export const exists = async file => fs.access(file).then(() => true, () => false);
 
-/** Windows, Linux and macOS on x64/arm64 are supported by the bundled scripts. */
+/**
+ * Windows, Linux and macOS on x64/arm64 are supported by the bundled scripts.
+ * 随项目提供的脚本支持 x64/arm64 架构的 Windows、Linux 和 macOS。
+ */
 export function runtimeCheck() {
   if (!['win32', 'linux', 'darwin'].includes(process.platform)) throw new Error('仅支持 Windows、Linux 和 macOS。');
   const [major, minor] = process.versions.node.split('.').map(Number);
@@ -44,6 +47,20 @@ function portNumber(value, label) {
   return value;
 }
 
+function webSearchKeys(value = {}) {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    throw new Error('web_search_key 必须是搜索引擎到 API Key 的对象。');
+  const result = {};
+  for (const [engine, key] of Object.entries(value)) {
+    if (!['tavily', 'querit'].includes(engine))
+      throw new Error('web_search_key 当前支持 tavily、querit；Bing RSS 无需配置。');
+    const normalized = text(key, `web_search_key.${engine}`, true).trim();
+    if (normalized.length > 4096) throw new Error(`web_search_key.${engine} 过长。`);
+    result[engine] = normalized;
+  }
+  return result;
+}
+
 export function normalize(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('配置需要 JSON 对象。');
   const db = raw.database;
@@ -59,6 +76,7 @@ export function normalize(raw) {
       name: text(db.name, 'database.name'),
     },
     pexelsKey: text(raw.pexelsKey ?? '', 'pexelsKey', true).trim(),
+    web_search_key: webSearchKeys(raw.web_search_key),
     collaboration: raw.collaboration ?? false,
     collaborationPort: portNumber(raw.collaborationPort ?? 8091, 'collaborationPort'),
   };
@@ -89,12 +107,18 @@ function loopback(config) {
   return config.host;
 }
 
-/** Loopback http origin for the configured listen address. */
+/**
+ * Loopback http origin for the configured listen address.
+ * 获取配置监听地址对应的回环 HTTP 源地址。
+ */
 export function origin(config, port = config.port) {
   return `http://${net.isIP(loopback(config)) === 6 ? `[${loopback(config)}]` : loopback(config)}:${port}`;
 }
 
-/** Spawn wrapper that handles Windows command shims. */
+/**
+ * Spawn wrapper that handles Windows command shims.
+ * 封装进程启动，兼容 Windows 命令包装脚本。
+ */
 export function command(name, args, options = {}) {
   const windowsShim = process.platform === 'win32' && (name === 'pnpm' || name === 'corepack');
   if (windowsShim) {
@@ -182,6 +206,7 @@ export function runtimeEnv(config, extras = {}) {
     VOEX_COLLAB_URL: `http://127.0.0.1:${config.collaborationPort}`,
     VOEX_COLLAB_WS_URL: '/api/collab/ws',
     PEXELS_API_KEY: config.pexelsKey,
+    VOEX_WEB_SEARCH_KEYS: JSON.stringify(config.web_search_key ?? {}),
     VOEX_ENV_FILE: ENV_FILE,
   };
   for (const [key, value] of Object.entries(extras)) if (value !== undefined) env[key] = value;
@@ -204,7 +229,10 @@ export async function ensureSecrets() {
   }
 }
 
-/** Validate config, create secrets, persist the generated env file, and return it. */
+/**
+ * Validate config, create secrets, persist the generated env file, and return it.
+ * 校验配置、创建密钥、保存生成的环境文件并返回环境变量。
+ */
 export async function prepareRuntime(config, extras = {}) {
   await fs.mkdir(RUNTIME, { recursive: true, mode: 0o700 });
   await ensureSecrets();
@@ -236,7 +264,10 @@ const MATHJAX = [
   ['mathjax-LICENSE.txt', 'LICENSE', 'cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30'],
 ];
 
-/** Provide the fixed MathJax bundle through Vite's public directory. */
+/**
+ * Provide the fixed MathJax bundle through Vite's public directory.
+ * 通过 Vite 的 public 目录提供固定版本的 MathJax 资源包。
+ */
 export async function ensureVendor() {
   const cache = path.join(LOCAL, 'cache');
   const target = path.join(ROOT, 'web', 'public', 'vendor');

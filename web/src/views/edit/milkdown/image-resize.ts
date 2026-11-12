@@ -22,6 +22,7 @@ export function createResizableImages(options: {
   readonly: () => boolean;
   imageImport: ReturnType<typeof createImageImport>;
   onAttachment: (view: EditorView, pos: number, node: ProseMirrorNode) => void;
+  onError: (message: string) => void;
 }) {
   const refreshers = new Set<() => void>();
   const cancellers = new Set<() => void>();
@@ -41,6 +42,8 @@ export function createResizableImages(options: {
     let composing = false;
     let compositionEndedAt = -Infinity;
     let watching = false;
+    let converting = false;
+    let conversion = 0;
     let drag:
       | {
           pointerId: number;
@@ -139,7 +142,10 @@ export function createResizableImages(options: {
       const pos = getPos();
       if (canEdit() && pos !== undefined) options.onAttachment(view, pos, node);
     };
-    controls.append(label, separator(), alignmentGroup, separator(), reset, attachment);
+    // markdown 外链图片先导入文档附件，之后与上传图片行为一致。
+    const convert = iconButton('cloud-upload', '转换成附件');
+    convert.onclick = () => void convertToAttachment();
+    controls.append(label, separator(), alignmentGroup, separator(), reset, convert, attachment);
     dom.append(image, fallback, handle, controls, error);
 
     function positionControls() {
@@ -246,6 +252,10 @@ export function createResizableImages(options: {
       const src = safeImageSource(node.attrs.src) ? node.attrs.src : '';
       attachment.hidden = !imageAttachmentHash(src);
       attachment.disabled = !editable;
+      convert.hidden = !src || Boolean(imageAttachmentHash(src)) || !editable;
+      convert.disabled = !editable || converting;
+      convert.title = converting ? '正在转换成附件…' : '转换成附件';
+      convert.setAttribute('aria-label', convert.title);
       if (source !== src) {
         source = src;
         const version = ++sourceVersion;
@@ -312,6 +322,44 @@ export function createResizableImages(options: {
       }
       if (focus) view.focus();
       refresh();
+    }
+
+    // 下载图片并上传为文档附件，src 换成附件地址，其他属性保持不变。
+    async function convertToAttachment() {
+      const pos = getPos();
+      if (!canEdit() || converting || pos === undefined) return;
+      const current = view.state.doc.nodeAt(pos);
+      if (current?.type !== node.type || imageAttachmentHash(String(current.attrs.src ?? '')))
+        return;
+      const source = String(current.attrs.src ?? '');
+      const token = ++conversion;
+      converting = true;
+      refresh();
+      try {
+        const imported = await options.imageImport.importSource(view, current);
+        if (!canEdit() || token !== conversion) return;
+        const target = getPos();
+        if (target === undefined || view.isDestroyed) return;
+        const latest = view.state.doc.nodeAt(target);
+        if (latest?.type !== node.type || String(latest.attrs.src) !== source) return;
+        const tr = closeHistory(view.state.tr).setNodeMarkup(target, undefined, {
+          ...latest.attrs,
+          src: String(imported.attrs.src ?? ''),
+        });
+        tr.setSelection(NodeSelection.create(tr.doc, target));
+        view.dispatch(tr);
+        // 同时隔离后续正文输入，避免一次撤销连带回退转换。
+        view.dispatch(closeHistory(view.state.tr));
+        view.focus();
+      } catch (cause) {
+        if (canEdit() && token === conversion)
+          options.onError(cause instanceof Error ? cause.message : '转换成附件失败，请重试');
+      } finally {
+        if (token === conversion) {
+          converting = false;
+          if (!destroyed) refresh();
+        }
+      }
     }
 
     function applyWidth() {
@@ -484,6 +532,8 @@ export function createResizableImages(options: {
     };
     reset.onclick = () => commit({ width: null });
     const refreshReadonly = () => {
+      conversion++;
+      converting = false;
       if (!canEdit()) cancelResize();
       refresh();
     };
@@ -495,6 +545,10 @@ export function createResizableImages(options: {
       dom,
       update(nextNode) {
         if (nextNode.type !== node.type) return false;
+        if (nextNode.attrs.src !== node.attrs.src) {
+          conversion++;
+          converting = false;
+        }
         if (
           drag &&
           (nextNode.attrs.src !== node.attrs.src ||
@@ -535,6 +589,7 @@ export function createResizableImages(options: {
         input.removeEventListener('compositionend', endComposition);
         reset.onclick = null;
         attachment.onclick = attachment.onmousedown = null;
+        convert.onclick = convert.onmousedown = null;
         reset.onmousedown = null;
         alignmentButtons.forEach(({ button }) => {
           button.onclick = null;

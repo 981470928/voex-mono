@@ -31,6 +31,7 @@
 | GET      | `/api/assets/:id`                              | 创建者或同团队成员读取允许访问的头像资产。                                               | `internal/handler/storage.go`   |
 | HEAD     | `/api/assets/:id`                              | 通过相同权限校验后返回资产响应头。                                                       | `internal/handler/storage.go`   |
 | POST     | `/api/upload`                                  | 有文档写权限的登录用户上传附件。                                                         | `internal/handler/storage.go`   |
+| POST     | `/api/images/fetch`                            | 登录且有文档写权限；JSON `{fileKey,url}` 读取公网 PNG/JPEG/GIF/WebP/AVIF，返回图片 bytes，不创建附件；每账号并发 1、每分钟 30 次、25 秒超时、20 MiB 上限。 | `internal/handler/storage_image.go` |
 | GET      | `/api/files/:fileKey`                          | 有文档读权限的登录用户列出附件。                                                         | `internal/handler/storage.go`   |
 | HEAD     | `/api/files/:fileKey`                          | 校验文档读权限并返回附件列表响应头。                                                     | `internal/handler/storage.go`   |
 | GET      | `/api/download/:fileKey/:hash`                 | 有文档读权限的用户下载附件，支持 Range。                                                 | `internal/handler/storage.go`   |
@@ -69,9 +70,15 @@
 | POST     | `/api/document`                                | 创建文档并解析所属项目和文件夹；需要登录。                                               | `internal/handler/workspace.go` |
 | GET/HEAD | `/api/document/:fileKey`                       | 读取文档正文、元数据和权限；需要登录。                                                   | `internal/handler/workspace.go` |
 | GET/HEAD | `/api/document/:fileKey/details`               | 重新校验项目读取权限，返回文件详情与路径，不更新最近访问。                               | `internal/handler/workspace.go` |
-| PUT      | `/api/document/:fileKey`                       | 修改文档名称或按版本保存正文；需要登录。                                                 | `internal/handler/workspace.go` |
+| PUT      | `/api/document/:fileKey`                       | 修改文档名称；正文统一由协同连接保存；需要登录。                                         | `internal/handler/workspace.go` |
 | DELETE   | `/api/document/:fileKey`                       | 有项目写权限可将文档移入回收站，保留正文及附件关联。                                     | `internal/handler/workspace.go` |
+| GET/HEAD | `/api/document/:fileKey/versions`              | 有文档读权限的用户列出历史版本元数据；limit 必填，before 为游标。                        | `internal/handler/document_history.go` |
+| GET/HEAD | `/api/document/:fileKey/versions/:versionId`   | 有文档读权限的用户读取单个版本全文。                                                     | `internal/handler/document_history.go` |
+| POST     | `/api/document/:fileKey/versions`              | 有文档写权限的用户把当前正文保存为命名版本。                                             | `internal/handler/document_history.go` |
+| DELETE   | `/api/document/:fileKey/versions/:versionId`   | 有文档写权限的用户删除命名版本；其他类型不可删。                                         | `internal/handler/document_history.go` |
+| POST     | `/api/document/:fileKey/versions/:versionId/restore` | 有文档写权限的用户恢复到指定版本，恢复前自动保护当前内容。                         | `internal/handler/document_history.go` |
 | GET/HEAD | `/api/documents`                               | 按名称搜索当前用户可读文档的元数据；需要登录。                                           | `internal/handler/workspace.go` |
+| GET/HEAD | `/api/search`                                  | 全文搜索当前团队内可读文档的名称与正文；q 2–100 字符，返回命中摘录 snippet（目录元数据不携带正文规则的有意例外，权限等同文档读权限）；team_key 可选，缺省个人团队；limit 1–50 默认 20、offset ≥0 分页；需要登录。 | `internal/handler/search.go` |
 | GET/HEAD | `/api/recent-files?limit=N`                    | 按前端传入的条数读取最近记录；GET 响应写出后按同一条数异步清理。                         | `internal/handler/recent.go`    |
 | GET/HEAD | `/api/recent-files/:fileKey`                   | 凭本人记录及当前有效的项目/分享授权读取单个文件，GET 更新访问时间。                      | `internal/handler/recent.go`    |
 | GET/HEAD | `/api/recent-files/:fileKey/details`           | 重新校验文件读取权限，仅项目可访问时返回路径；不读取正文、附件或更新最近访问。           | `internal/handler/recent.go`    |
@@ -102,4 +109,8 @@
 
 本地存储切换不迁移历史 R2 数据、不回退读取 R2，也不删除远端对象。仅当数据库元数据与本地文件均存在且权限有效时提供文件内容；缺失文件继续返回不存在。原权限、分享撤销、HEAD / Range 与错误响应约定不因存储介质改变而放宽。
 
-`PUT /api/shared-file` 已移除；分享凭证只用于读取与登录后的文件授权。正文修改使用受登录保护的 `PUT /api/document/:fileKey`，并检查账号文件写权限及 revision。
+`PUT /api/shared-file` 已移除；分享凭证只用于读取与登录后的文件授权。正文统一由协同连接保存；`PUT /api/document/:fileKey` 仅负责重命名。历史版本接口合同见 [文档历史版本](DOCUMENT-HISTORY.md)。
+
+## 文档导入导出
+
+单文档 `.voex` / Markdown 导入导出接口、归档协议、权限与限制见 [文档导入导出](DOCUMENT-TRANSFER.md)。

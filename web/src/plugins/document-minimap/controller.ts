@@ -19,7 +19,7 @@ function scrollContainer(content: HTMLElement): HTMLElement {
   return (document.scrollingElement ?? document.documentElement) as HTMLElement;
 }
 
-/** DOM-only controller: no editor transactions, document serialization or persistence. */
+/** DOM-only controller: no editor transactions, document serialization or persistence. / 仅操作 DOM 的控制器：不执行编辑器事务、文档序列化或持久化。 */
 export function createDocumentMinimap(options: DocumentMinimapOptions) {
   const { content, host } = options;
   const viewport = scrollContainer(content);
@@ -92,6 +92,7 @@ export function createDocumentMinimap(options: DocumentMinimapOptions) {
     const style = window.getComputedStyle(content);
     // Keep the source CSS line-height rule: freezing a unitless value as pixels
     // changes inline-code line boxes and accumulates vertical drift in long documents.
+    // 保留源 CSS 的 line-height 规则；将无单位值固定为像素值会改变行内代码的行框，并在长文档中累积垂直偏移。
     for (const property of [
       'font-family',
       'font-size',
@@ -135,6 +136,7 @@ export function createDocumentMinimap(options: DocumentMinimapOptions) {
   element.tabIndex = 0;
   element.title = '点击或拖拽定位；方向键、Page Up / Down、Home / End 滚动';
   // aria-controls may point at an existing editor ID, but never changes document data.
+  // aria-controls 可以指向已有的编辑器 ID，但不得修改文档数据。
   const assignedId = !content.id;
   if (assignedId) {
     do {
@@ -207,6 +209,7 @@ export function createDocumentMinimap(options: DocumentMinimapOptions) {
       snapshot();
     } else {
       // Text reflows at the new width without cloning; only measured placeholders need patching.
+      // 文本会按新宽度重排，无需重新克隆；仅需更新经过测量的占位元素。
       if (nextWidth !== width) {
         minimap.resize();
         markComplexBlocks();
@@ -226,7 +229,7 @@ export function createDocumentMinimap(options: DocumentMinimapOptions) {
         if (end !== start || nextEnd !== start) {
           for (let index = start; index < nextEnd; index++) inserted.add(next[index]!);
           if (minimap.spliceChildren(start, end - start, nextEnd - start)) patches++;
-          else dirty.clear(); // The library already rebuilt after an invariant mismatch.
+          else dirty.clear(); // The library already rebuilt after an invariant mismatch. / 库已在不变量不匹配后完成重建。
         }
         snapshot();
       }
@@ -276,6 +279,7 @@ export function createDocumentMinimap(options: DocumentMinimapOptions) {
 
   function schedule() {
     // One trailing batch per burst, with a bounded idle timeout; scroll never enters this path.
+    // 每轮连续变化在结束时批量处理一次，并限制空闲等待时间；滚动不会进入此路径。
     if (disposed || timer || idle || frame) return;
     timer = window.setTimeout(queueIdle, initialized ? 180 : 0);
   }
@@ -293,6 +297,7 @@ export function createDocumentMinimap(options: DocumentMinimapOptions) {
       const complex = cloner.placeholderRoot(target);
       if (complex) {
         // Internal code/table UI changes never affect a placeholder. Alignment may change margins without resizing.
+        // 代码块或表格内部的 UI 变化不会影响占位元素；对齐方式可能改变外边距而不改变尺寸。
         if (
           record.type === 'attributes' &&
           target === complex &&
@@ -305,7 +310,7 @@ export function createDocumentMinimap(options: DocumentMinimapOptions) {
         continue;
       }
       if (record.type === 'attributes') {
-        if (target === content) continue; // Focus and selection attributes are editor UI only.
+        if (target === content) continue; // Focus and selection attributes are editor UI only. / 焦点和选区属性仅属于编辑器 UI。
         if (
           record.attributeName === 'class' &&
           stableClassName(record.oldValue) === stableClassName(target.getAttribute('class'))

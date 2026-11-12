@@ -128,6 +128,7 @@ function focusPanel() {
     margin-top 10px
 
     // Pending saves lock every switch without pulsing the global disabled opacity.
+    // 等待保存时锁定所有开关，避免全局禁用透明度反复变化。
     &[aria-busy='true'] .editor-settings__switch:disabled
       opacity 1
 
@@ -190,9 +191,6 @@ function focusPanel() {
     &:active:not(:disabled)
       background var(--color-bg-quaternary)
 
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset 2px
 
     &:disabled
       opacity .5

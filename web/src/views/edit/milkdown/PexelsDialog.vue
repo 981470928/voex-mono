@@ -349,9 +349,6 @@ onBeforeUnmount(() => {
     color var(--color-text-primary)
     font inherit
 
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset 1px
 
   input
     padding-right 36px
@@ -377,9 +374,6 @@ onBeforeUnmount(() => {
 
   button, a
     cursor pointer
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset 2px
     &:hover:not(:disabled)
       filter brightness(1.15)
     &:active:not(:disabled)
@@ -505,8 +499,6 @@ onBeforeUnmount(() => {
       color var(--color-link-primary)
       &:hover
         color var(--color-accent)
-      &:focus-visible
-        outline 2px solid var(--color-accent)
 
 @media (max-width: 600px)
   .pexels-dialog

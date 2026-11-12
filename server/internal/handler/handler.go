@@ -1,4 +1,5 @@
 // Package handler translates Gin requests and responses to service operations.
+// handler 包将 Gin 请求和响应转换为 service 层操作。
 package handler
 
 import (
@@ -11,4 +12,9 @@ type Handler struct {
 	Limiter *security.Limiter
 }
 
-func New(s *service.Service, l *security.Limiter) *Handler { return &Handler{Service: s, Limiter: l} }
+func New(
+	s *service.Service,
+	l *security.Limiter,
+) *Handler {
+	return &Handler{Service: s, Limiter: l}
+}

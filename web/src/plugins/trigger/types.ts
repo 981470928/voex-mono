@@ -38,7 +38,7 @@ export interface VoexTriggerProps {
   focusDelay?: number;
   autoFitPopupWidth?: boolean;
   autoFitPopupMinWidth?: boolean;
-  /** Observe trigger/content size and layout changes. Enabled by default. */
+  /** Observe trigger/content size and layout changes. Enabled by default. / 监听触发元素和内容的尺寸及布局变化，默认启用。 */
   autoFixPosition?: boolean;
   popupContainer?: string | HTMLElement;
   updateAtScroll?: boolean;

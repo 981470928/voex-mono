@@ -71,6 +71,7 @@ async function selectRecentColor(value: string, event: MouseEvent) {
   const button = event.currentTarget as HTMLButtonElement;
   commitColor(value);
   // Moving a recently used swatch to the front must preserve keyboard focus.
+  // 将最近使用的色块移到最前面时，必须保留键盘焦点。
   await nextTick();
   button.focus({ preventScroll: true });
 }
@@ -170,11 +171,6 @@ async function selectRecentColor(value: string, event: MouseEvent) {
     cursor not-allowed
     opacity .45
 
-.color-picker__input,
-.color-picker__swatch
-  &:focus-visible
-    outline 2px solid var(--color-accent)
-    outline-offset 2px
 
 .color-picker__check
   display flex

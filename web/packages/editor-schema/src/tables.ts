@@ -12,6 +12,7 @@ export const tableWidthsRemark = $remark('voex-remark-table-widths', () => () =>
 });
 
 // Legacy width comments must be consumed before commonmark turns HTML into paragraphs.
+// 必须在 commonmark 将 HTML 转为段落前处理旧格式的宽度注释。
 const ordinaryTableRemark = tableWidthsRemark.plugin;
 tableWidthsRemark.plugin = tableWidthsRemark[1] = (ctx) => {
   const run = ordinaryTableRemark(ctx);
@@ -19,6 +20,7 @@ tableWidthsRemark.plugin = tableWidthsRemark[1] = (ctx) => {
     const dispose = await run();
     ctx.update(remarkPluginsCtx, (plugins) => {
       // Find our registered transformer by the options slice's stable reference.
+      // 通过 options 切片的稳定引用查找已注册的转换器。
       const options = ctx.get(tableWidthsRemark.options.key);
       const own = plugins.find((plugin) => plugin.options === options);
       return own ? [own, ...plugins.filter((plugin) => plugin !== own)] : plugins;

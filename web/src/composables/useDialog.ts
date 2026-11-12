@@ -13,7 +13,7 @@ interface DialogOptions<T extends HostedModalType> {
   key?: () => unknown;
 }
 
-/** Bind caller state to the registered global dialog; dispose only this caller's session. */
+/** Bind caller state to the registered global dialog; dispose only this caller's session. / 将调用方状态绑定到已注册的全局对话框；仅清理当前调用方的会话。 */
 export function useDialog<T extends HostedModalType>(type: T, options: DialogOptions<T>) {
   const store = useModalStore();
   let request: ModalDataType[T] | undefined;

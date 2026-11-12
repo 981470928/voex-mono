@@ -160,9 +160,6 @@ watch(filteredEmojis, () => resultsElement.value?.scrollTo({ top: 0 }));
     font-size 14px
     &::-webkit-search-cancel-button
       display none
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset 2px
 
   &__clear, &__category, &__emoji
     border 0
@@ -175,9 +172,6 @@ watch(filteredEmojis, () => resultsElement.value?.scrollTo({ top: 0 }));
       background var(--color-bg-translucent)
     &:active
       background var(--color-accent-tint)
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset -2px
 
   &__clear
     position absolute
@@ -239,7 +233,4 @@ watch(filteredEmojis, () => resultsElement.value?.scrollTo({ top: 0 }));
     text-decoration underline
     &:hover
       text-decoration-thickness 2px
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset 2px
 </style>

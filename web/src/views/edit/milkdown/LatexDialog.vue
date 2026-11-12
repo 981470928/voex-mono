@@ -299,9 +299,6 @@ onBeforeUnmount(() => {
     background var(--color-bg-panel)
     color var(--color-text-primary)
     font inherit
-    &:focus-visible
-      outline 2px solid var(--color-accent)
-      outline-offset 1px
     &[aria-invalid='true']
       border-color var(--color-red)
 
@@ -378,9 +375,6 @@ onBeforeUnmount(() => {
     filter brightness(1.15)
   &:active:not(:disabled)
     filter brightness(.9)
-  &:focus-visible
-    outline 2px solid var(--color-accent)
-    outline-offset 2px
   &:disabled
     cursor not-allowed
     opacity .6

@@ -27,6 +27,7 @@ export function refreshSession(): Promise<AuthSession> {
       })
       .catch((error: unknown) => {
         // A temporary outage does not prove the current account has lost its session.
+        // 暂时的服务中断不代表当前账号的会话已经失效。
         if (axios.isAxiosError(error) && [401, 403].includes(error.response?.status ?? 0))
           expireSession();
         throw error;
@@ -63,6 +64,7 @@ http.interceptors.response.use(
       if (!config.authRetried) {
         config.authRetried = true;
         // A late 401 from the previous token reuses an already refreshed session.
+        // 旧 token 延迟返回 401 时，复用已刷新的会话。
         const sentToken = config.headers.get('Authorization');
         if (!accessToken.value || sentToken === `Bearer ${accessToken.value}`) {
           try {
@@ -71,6 +73,7 @@ http.interceptors.response.use(
             if (axios.isAxiosError(cause) && [401, 403].includes(cause.response?.status ?? 0))
               return Promise.reject(new Error('登录已过期，请重新登录。编辑内容已保留'));
             // Preserve transient HTTP/network classification for bounded collaboration retries.
+            // 保留临时 HTTP 或网络错误的分类，以便协同连接执行有次数限制的重试。
             return Promise.reject(cause);
           }
         }

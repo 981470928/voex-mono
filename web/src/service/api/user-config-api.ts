@@ -11,6 +11,7 @@ export function getUserConfig(signal?: AbortSignal) {
 }
 
 // Send only changed top-level keys: the server owns the shallow assign operation.
+// 仅发送发生变化的顶层键；浅合并操作由服务端负责。
 export function patchUserConfig(userConfig: UserConfig, signal?: AbortSignal) {
   return http.patch<unknown, UserConfigResponse>('/auth/me/config', { userConfig }, { signal });
 }

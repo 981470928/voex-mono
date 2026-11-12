@@ -42,7 +42,7 @@ function validateParameter(value: unknown, property: ToolProperty, path: string)
     throw new Error(`参数值不正确：${path}`);
 }
 
-/** Registration is the only way to grant an Agent a host capability. No eval or arbitrary HTTP. */
+/** Registration is the only way to grant an Agent a host capability. No eval or arbitrary HTTP. / 只能通过注册向 Agent 授予宿主能力，不允许 eval 或任意 HTTP 请求。 */
 export class AgentToolRegistry {
   private tools = new Map<string, AgentTool>();
 

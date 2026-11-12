@@ -199,6 +199,7 @@ export function createEditorPaste(options: {
           return {
             destroy: () => {
               // Reconfiguring ProseMirror plugins recreates views, not this extension.
+              // 重新配置 ProseMirror 插件会重建视图，但不会重建此扩展。
               if (currentView === view) currentView = null;
               epoch++;
               pending.clear();

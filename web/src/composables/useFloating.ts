@@ -10,7 +10,7 @@ import {
 import { computed, onScopeDispose, readonly, ref, shallowRef, type CSSProperties } from 'vue';
 
 export interface UseFloatingOptions extends Partial<ComputePositionConfig> {
-  /** Only observe while shown. false keeps manual update() available. */
+  /** Only observe while shown. false keeps manual update() available. / 仅在显示时监听；设置为 false 后仍可手动调用 update()。 */
   autoUpdate?: boolean | AutoUpdateOptions;
 }
 
@@ -21,7 +21,7 @@ export interface UseFloatingCallbacks {
   onError?: (error: unknown) => void;
 }
 
-/** Coordinates are viewport-relative, including when used for a virtual reference. */
+/** Coordinates are viewport-relative, including when used for a virtual reference. / 坐标相对于视口，使用虚拟参考元素时也如此。 */
 export function generateGetBoundingClientRect(x = 0, y = 0, width = 0, height = 0) {
   return (): DOMRect => ({
     x,
@@ -36,7 +36,7 @@ export function generateGetBoundingClientRect(x = 0, y = 0, width = 0, height = 
   });
 }
 
-/** init() after mounting; show() after removing display:none; hide() stops observers. */
+/** init() after mounting; show() after removing display:none; hide() stops observers. / 挂载后调用 init()；移除 display:none 后调用 show()；hide() 停止监听。 */
 export function useFloating(callbacks: UseFloatingCallbacks = {}) {
   const reference = shallowRef<ReferenceElement>();
   const floating = shallowRef<HTMLElement>();
@@ -59,6 +59,7 @@ export function useFloating(callbacks: UseFloatingCallbacks = {}) {
     cleanup?.();
     cleanup = undefined;
     // An already running computePosition must not write after hide/reinit/destroy.
+    // 已经运行的 computePosition 不得在隐藏、重新初始化或销毁后写入。
     requestId++;
   }
 

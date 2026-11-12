@@ -1,0 +1,145 @@
+.document-transfer
+  min-width 0
+  color var(--color-text-primary)
+  font-size 13px
+  line-height 1.6
+  &__name, &__destination
+    margin 0 0 16px
+    overflow-wrap anywhere
+  &__fieldset
+    display grid
+    gap 10px
+    min-width 0
+    margin 0 0 16px
+    padding 0
+    border 0
+    legend
+      margin-bottom 8px
+      color var(--color-text-secondary)
+  &__choice
+    display flex
+    align-items flex-start
+    gap 9px
+    padding 10px 12px
+    border 1px solid var(--color-border-primary)
+    border-radius 6px
+    cursor pointer
+    &:hover, &:focus-within
+      background var(--color-bg-translucent)
+    &:has(input:checked)
+      border-color var(--color-accent)
+    &:has(input:disabled)
+      cursor not-allowed
+      opacity .6
+    input
+      flex-shrink 0
+      margin-top 4px
+      accent-color var(--color-accent)
+    span
+      min-width 0
+    strong
+      display block
+      font-weight 500
+  &__hint
+    display block
+    color var(--color-text-tertiary)
+    font-size 12px
+    overflow-wrap anywhere
+  &__checkbox
+    display flex
+    gap 8px
+    align-items flex-start
+    cursor pointer
+    input
+      margin-top 4px
+      accent-color var(--color-accent)
+  &__field
+    display grid
+    gap 8px
+    margin-bottom 16px
+  &__input
+    max-width 100%
+    padding 8px
+    border 1px solid var(--color-border-primary)
+    border-radius 6px
+    background var(--color-bg-panel)
+    color var(--color-text-primary)
+    font inherit
+    cursor pointer
+    &:disabled
+      cursor not-allowed
+    &::file-selector-button
+      margin-right 10px
+      padding 4px 8px
+      border 1px solid var(--color-border-primary)
+      border-radius 4px
+      background var(--color-bg-secondary)
+      color var(--color-text-primary)
+      font inherit
+      cursor pointer
+  &__status
+    min-height 22px
+    margin 12px 0 0
+    color var(--color-text-secondary)
+  &__progress
+    width 100%
+    height 6px
+    accent-color var(--color-accent)
+  &__error
+    min-height 22px
+    margin 8px 0 0
+    color var(--color-red)
+    overflow-wrap anywhere
+  &__warnings
+    margin-top 16px
+    border-top 1px solid var(--color-border-primary)
+    padding-top 12px
+  &__warning-title
+    margin 0 0 8px
+    font-weight 500
+  &__warning-list
+    max-height min(30vh, 260px)
+    overflow auto
+    margin 0
+    padding-left 20px
+    li
+      margin 0 0 10px
+      overflow-wrap anywhere
+    strong, span
+      display block
+    strong
+      font-weight 500
+  &__actions
+    display flex
+    flex-wrap wrap
+    align-items center
+    justify-content flex-end
+    gap 8px
+    width 100%
+  &__button
+    display inline-flex
+    align-items center
+    justify-content center
+    min-height 34px
+    min-width 88px
+    padding 6px 12px
+    border 1px solid var(--color-border-primary)
+    border-radius 6px
+    background var(--color-bg-translucent)
+    color var(--color-text-primary)
+    font inherit
+    cursor pointer
+    &:hover:not(:disabled), &:focus-visible:not(:disabled)
+      background var(--color-bg-quaternary)
+    &:active:not(:disabled)
+      opacity .8
+    &:disabled
+      opacity .5
+      cursor not-allowed
+    &--primary
+      background var(--color-brand-bg)
+      color var(--color-brand-text)
+      border-color var(--color-brand-bg)
+      &:hover:not(:disabled), &:focus-visible:not(:disabled)
+        background var(--color-brand-bg)
+        filter brightness(1.1)

@@ -39,16 +39,27 @@ func (h *Handler) RegisterTeamRoutes(public, protected *gin.RouterGroup) {
 	// POST /api/team-join-requests：需登录，通过团队编号或邀请提交加入申请。
 	protected.POST("/team-join-requests", h.teamJoinRequestCreate)
 	// GET/HEAD /api/team-join-requests：需登录，查看本人提交的团队加入申请。
-	protected.Match([]string{http.MethodGet, http.MethodHead}, "/team-join-requests", h.teamJoinRequestsMine)
+	protected.Match(
+		[]string{http.MethodGet, http.MethodHead},
+		"/team-join-requests",
+		h.teamJoinRequestsMine,
+	)
 	// GET/HEAD /api/teams/:key/join-requests：需所有者或管理员，查看团队待审申请。
-	protected.Match([]string{http.MethodGet, http.MethodHead}, "/teams/:key/join-requests", h.teamJoinRequests)
+	protected.Match(
+		[]string{http.MethodGet, http.MethodHead},
+		"/teams/:key/join-requests",
+		h.teamJoinRequests,
+	)
 	// PATCH /api/teams/:key/join-requests/:id：需所有者或管理员，通过或拒绝申请。
 	protected.PATCH("/teams/:key/join-requests/:id", h.teamJoinRequestReview)
 }
 
 func (h *Handler) teamInviteInspect(c *gin.Context) {
 	h.Limiter.Limit(c.Request, "team-invite", 60, time.Minute)
-	c.JSON(http.StatusOK, h.Service.InspectTeamInvite(c.Request.Context(), transport.Body(c)["token"]))
+	c.JSON(
+		http.StatusOK,
+		h.Service.InspectTeamInvite(c.Request.Context(), transport.Body(c)["token"]),
+	)
 }
 
 func (h *Handler) teamList(c *gin.Context) {
@@ -64,7 +75,10 @@ func (h *Handler) teamGet(c *gin.Context) {
 }
 
 func (h *Handler) teamUpdate(c *gin.Context) {
-	c.JSON(http.StatusOK, h.Service.UpdateTeam(c.Request.Context(), c.Param("key"), transport.Body(c)["name"]))
+	c.JSON(
+		http.StatusOK,
+		h.Service.UpdateTeam(c.Request.Context(), c.Param("key"), transport.Body(c)["name"]),
+	)
 }
 
 func (h *Handler) teamDelete(c *gin.Context) {
@@ -82,7 +96,12 @@ func (h *Handler) teamMembers(c *gin.Context) {
 }
 
 func (h *Handler) teamMemberUpdate(c *gin.Context) {
-	h.Service.UpdateTeamMember(c.Request.Context(), c.Param("key"), c.Param("userId"), transport.Body(c)["role"])
+	h.Service.UpdateTeamMember(
+		c.Request.Context(),
+		c.Param("key"),
+		c.Param("userId"),
+		transport.Body(c)["role"],
+	)
 	c.JSON(http.StatusOK, shared.Row{"success": true})
 }
 
@@ -118,5 +137,13 @@ func (h *Handler) teamJoinRequests(c *gin.Context) {
 }
 
 func (h *Handler) teamJoinRequestReview(c *gin.Context) {
-	c.JSON(http.StatusOK, h.Service.ReviewTeamJoinRequest(c.Request.Context(), c.Param("key"), c.Param("id"), transport.Body(c)["status"]))
+	c.JSON(
+		http.StatusOK,
+		h.Service.ReviewTeamJoinRequest(
+			c.Request.Context(),
+			c.Param("key"),
+			c.Param("id"),
+			transport.Body(c)["status"],
+		),
+	)
 }

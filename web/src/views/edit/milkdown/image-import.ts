@@ -40,6 +40,7 @@ export interface ImageImportOptions {
   documentKey: () => string;
   importFiles: (files: File[]) => Promise<FileInfo[]>;
   loadImage: (hash: string, signal: AbortSignal, documentKey?: string) => Promise<Blob>;
+  loadRemoteImage: (url: string, signal: AbortSignal) => Promise<Blob>;
 }
 
 export function createImageImport(options: ImageImportOptions) {
@@ -54,14 +55,24 @@ export function createImageImport(options: ImageImportOptions) {
     if (disposed || options.readonly()) return [];
     if (files.some((file) => !file.type.startsWith('image/'))) throw new Error('请选择图片文件');
     const current = epoch;
+    const documentKey = options.documentKey();
     const imported = await options.importFiles(files);
-    if (disposed || options.readonly() || current !== epoch || view.isDestroyed) return [];
+    if (
+      disposed ||
+      options.readonly() ||
+      current !== epoch ||
+      documentKey !== options.documentKey() ||
+      view.isDestroyed
+    )
+      return [];
     if (!imported.length) throw new Error('图片导入失败，请重试');
-    return imported.map((file) => createImportedImage(view, file, options.documentKey()));
+    return imported.map((file) => createImportedImage(view, file, documentKey));
   }
 
   async function importSource(view: EditorView, node: ProseMirrorNode): Promise<ProseMirrorNode> {
     if (disposed || options.readonly()) throw new Error('图片导入已取消');
+    const current = epoch;
+    const documentKey = options.documentKey();
     const src = String(node.attrs.src ?? '');
     const hash = imageAttachmentHash(src);
     // 当前文档已有的附件直接复用，仍应用本次插入的默认尺寸。
@@ -80,11 +91,15 @@ export function createImageImport(options: ImageImportOptions) {
       throw new Error('不支持的图片地址，请复制图片文件后重试');
     const request = new AbortController();
     requests.add(request);
-    const timer = setTimeout(() => request.abort(), 30000);
+    // 后端抓取由 API 在实际发出请求时计时，排队等待不消耗下载超时。
+    const remote = !reference && (url.protocol === 'https:' || url.protocol === 'http:');
+    const timer = remote ? undefined : setTimeout(() => request.abort(), 30000);
     try {
       let blob: Blob;
       if (reference) {
         blob = await options.loadImage(reference.hash, request.signal, reference.documentKey);
+      } else if (url.protocol === 'https:' || url.protocol === 'http:') {
+        blob = await options.loadRemoteImage(url.href, request.signal);
       } else {
         const response = await fetch(url, { signal: request.signal, credentials: 'omit' });
         if (!response.ok) throw new Error('图片下载失败，请复制图片文件后重试');
@@ -92,7 +107,14 @@ export function createImageImport(options: ImageImportOptions) {
       }
       clearTimeout(timer);
       if (!blob.type.startsWith('image/')) throw new Error('图片地址未返回可用的图片');
-      if (disposed || request.signal.aborted || options.readonly())
+      if (
+        disposed ||
+        request.signal.aborted ||
+        options.readonly() ||
+        current !== epoch ||
+        documentKey !== options.documentKey() ||
+        view.isDestroyed
+      )
         throw new Error('图片导入已取消');
       const filename = reference
         ? node.attrs.alt || 'image'

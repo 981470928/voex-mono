@@ -1,0 +1,59 @@
+{
+  "id": "noto-serif-sc",
+  "label": "思源宋体",
+  "group": "中文",
+  "languages": "中 / EN",
+  "family": "Noto Serif SC",
+  "version": "full-f8d157532fbf",
+  "license": "OFL-1.1",
+  "sourceCommit": "f8d157532fbfaeda587e826d4cd5b21a49186f7c",
+  "variants": [
+    {
+      "file": "Regular.woff2",
+      "weights": [
+        "Regular"
+      ],
+      "cssWeight": "400",
+      "bytes": 8441536,
+      "characters": 30928,
+      "glyphs": 31058,
+      "axes": {},
+      "sha256": "2cb53d0409973f85455f5934f7aa680ba31c009ba8f592a3e0641337698080ae",
+      "source": "https://raw.githubusercontent.com/notofonts/noto-cjk/f8d157532fbfaeda587e826d4cd5b21a49186f7c/Serif/SubsetOTF/SC/NotoSerifSC-Regular.otf",
+      "sourceGitSha": "be55fbdf3fe53bfc99779389f3f0b875707bf496",
+      "sourceSha256": "e8f396decc1f0963a016a989c3d8852e863d1350996f573860a80767c83a1cd3"
+    },
+    {
+      "file": "Medium.woff2",
+      "weights": [
+        "Medium"
+      ],
+      "cssWeight": "500",
+      "bytes": 8585860,
+      "characters": 30928,
+      "glyphs": 31058,
+      "axes": {},
+      "sha256": "926e52b18715edcee9d8053c8aeaa53d6d534a67737bf5860e0ad9ad4736efdc",
+      "source": "https://raw.githubusercontent.com/notofonts/noto-cjk/f8d157532fbfaeda587e826d4cd5b21a49186f7c/Serif/SubsetOTF/SC/NotoSerifSC-Medium.otf",
+      "sourceGitSha": "490a57d8e5e94cb01402fed126dc009561baf585",
+      "sourceSha256": "e4e9beb5aaeb951e101aa8f122e2a6801ea9e48ac9f9b6bdfeef2436b55bc8ee"
+    },
+    {
+      "file": "Bold.woff2",
+      "weights": [
+        "Bold"
+      ],
+      "cssWeight": "700",
+      "bytes": 9025304,
+      "characters": 30928,
+      "glyphs": 31058,
+      "axes": {},
+      "sha256": "870c80dc28313eaa2ef665bb825a714534a33d2592523a7a45e50ceaaad1d2df",
+      "source": "https://raw.githubusercontent.com/notofonts/noto-cjk/f8d157532fbfaeda587e826d4cd5b21a49186f7c/Serif/SubsetOTF/SC/NotoSerifSC-Bold.otf",
+      "sourceGitSha": "7d1928abb3f71b0a4a233cce96211d18f878bdf7",
+      "sourceSha256": "24693d48bdb9152f0a06b02af625638a1097abd6de4010ebba027f6e82710527"
+    }
+  ],
+  "woff2Files": 3,
+  "bytes": 26052700
+}

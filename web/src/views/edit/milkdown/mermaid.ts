@@ -162,10 +162,12 @@ export function createMermaidExtension(options: MermaidOptions) {
         return;
       }
       if (selected.$from.parent.type.spec.code) throw new Error('请将光标移到正文后插入流程图');
-      const transaction = state.tr.replaceSelectionWith(
-        mermaidNode.type(ctx).create({ code }),
-        false
-      );
+      const node = mermaidNode.type(ctx).create({ code });
+      const insertAfter = selected instanceof NodeSelection && selected.node.isBlock;
+      const transaction = insertAfter
+        ? state.tr.insert(selected.to, node)
+        : state.tr.replaceSelectionWith(node, false);
+      if (insertAfter) transaction.setSelection(NodeSelection.create(transaction.doc, selected.to));
       const after = transaction.selection.to;
       if (after === transaction.doc.content.size) {
         const paragraph = state.schema.nodes.paragraph;

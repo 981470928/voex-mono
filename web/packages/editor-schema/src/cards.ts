@@ -33,7 +33,8 @@ export function createCardSchema() {
   const cardText = $node(CARD_TEXT, () =>
     withRichInlineSerialization({
       content: 'text*',
-      marks: 'strong emphasis strike_through inlineCode link textColor highlight fontSize',
+      marks:
+        'strong emphasis strike_through inlineCode link textColor highlight fontSize fontFamily',
       defining: true,
       parseDOM: [{ tag: `p[data-type="${CARD_TEXT}"]` }],
       toDOM: () => [

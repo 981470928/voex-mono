@@ -67,6 +67,7 @@ export function createFontSizeSchema() {
           return;
         }
         // Nested spans override their parent size only for their own content.
+        // 嵌套 span 仅对自身内容覆盖父元素的字号。
         const sizes = activeSizes.get(state) ?? [];
         sizes.push(size);
         activeSizes.set(state, sizes);
