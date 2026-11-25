@@ -6,7 +6,7 @@ Go 服务通过 GORM / `gorm.io/driver/mysql` 访问 MySQL 8，驱动版本固�
 
 ## 初始化与连接
 
-服务默认运行 `serve`，使用内嵌的 `internal/database/schema.sql` 自动创建缺失数据库和表，并幂等补上 `workspace_state.id=1` 的工作区锁记录。也可单独执行 `voex-server init-db` 初始化并检查配置；两条一键启动脚本在正常启动前调用此命令。`voex-server check-config` 和脚本的 `--check` 不执行数据库初始化。
+服务默认运行 `serve`，使用内嵌的 `internal/database/schema.sql` 自动创建缺失数据库和表，并幂等补上 `workspace_state.id=1` 的工作区锁记录。在 `server/` 构建后，也可单独执行 `./voex-server init-db` 初始化并检查配置，或执行 `./voex-server check-config` 只检查已有环境。
 
 初始化按外键依赖顺序补齐缺表，使用同一 MySQL 会话的数据库命名锁串行执行；创建语句采用 `IF NOT EXISTS`，中断后可以重试。已有表跳过创建，已有记录不覆盖；该逻辑不修改已有列、不自动运行历史数据迁移。结构变化仍由开发者显式维护，并同步更新初始化 SQL；没有迁移账本。新建 documents 表已直接包含 content_mode，已有 documents 表缺少此列时仍需显式协同迁移。
 

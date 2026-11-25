@@ -1,5 +1,5 @@
 import { requestAIChat } from '@/service/api/ai-api';
-import type { AIModel, ModelMessage, ToolCall, ToolDefinition } from './types';
+import type { AgentContext, AIModel, ModelMessage, ToolCall, ToolDefinition } from './types';
 
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value))
@@ -83,8 +83,7 @@ export async function completeModel(
   system: string,
   history: ModelMessage[],
   tools: ToolDefinition[],
-  signal: AbortSignal,
-  webSearchEngine: string
+  { signal, webSearchEngine, sessionId, document }: AgentContext
 ): Promise<Extract<ModelMessage, { role: 'assistant' }>> {
   const anthropic = model.protocol === 'anthropic';
   const body = anthropic
@@ -102,7 +101,16 @@ export async function completeModel(
         tools: tools.map((tool) => ({ type: 'function', function: tool })),
       };
   const data = record(
-    await requestAIChat(model.id, { ...body, web_search_engine: webSearchEngine }, signal)
+    await requestAIChat(
+      model.id,
+      {
+        ...body,
+        session_id: sessionId,
+        file_key: document.file_key,
+        web_search_engine: webSearchEngine,
+      },
+      signal
+    )
   );
   signal.throwIfAborted();
   if (data.error) throw new Error('模型服务返回错误，请检查模型配置');

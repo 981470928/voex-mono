@@ -122,7 +122,7 @@ func (s *Service) expandAIAttachmentMessages(
 				if item.Kind != "image" || !strings.HasPrefix(item.MIME, "image/") {
 					shared.Fail(http.StatusBadRequest, shared.MsgAIAttachmentTypeInvalid)
 				}
-				label := shared.Row{"type": "text", "text": "用户上传的图片：" + item.Name}
+				label := shared.Row{"type": "text", "text": "User-uploaded image: " + item.Name}
 				if model["protocol"] == "anthropic" {
 					return []any{
 						label,

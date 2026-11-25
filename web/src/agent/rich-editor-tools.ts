@@ -67,21 +67,23 @@ const schema = (properties: ToolSchema['properties'], required: string[]): ToolS
   additionalProperties: false,
 });
 const fileKeyProperty = {
-  file_key: string('省略表示当前文件；仅可指定当前文件 ID 或本轮新建文件的 draft ID。'),
+  file_key: string(
+    'Defaults to the current file. Alternatively use a draft ID created in this turn.'
+  ),
 };
 const layoutProperty: ToolProperty = {
   type: 'string',
   enum: ['horizontal', 'vertical'],
   description:
-    'horizontal：横向，每行最多 4 项、超出换行、space-between；vertical：纵向左图右文。总项数不限。',
+    'Horizontal wraps after four cards per row with space between them. Vertical places the image to the left of the text. Either layout accepts any number of cards.',
 };
 const imageHeightProperty = integer(
-  '整组卡片统一的图片高度（像素），40–640；插入时省略为100。',
+  'Image height for the entire card list, 40–640 px. Defaults to 100 on insertion.',
   MIN_CARD_IMAGE_HEIGHT,
   MAX_CARD_IMAGE_HEIGHT
 );
 const imageSizeProperty = integer(
-  '整组卡片统一的图片宽度（像素），80–320；插入时省略为 160。',
+  'Image width for the entire card list, 80–320 px. Defaults to 160 on insertion.',
   MIN_CARD_IMAGE_SIZE,
   MAX_CARD_IMAGE_SIZE
 );
@@ -102,7 +104,7 @@ function components(doc: ProseNode) {
 function numbered<T>(items: T[], index: number, label: string): T {
   const item = items[index - 1];
   if (!Number.isSafeInteger(index) || index < 1 || !item)
-    throw new Error(`${label}编号不存在，请重新调用 read_editor_components 获取当前编号`);
+    throw new Error(`Unknown ${label} index. Call read_editor_components for current indices.`);
   return item;
 }
 
@@ -111,7 +113,7 @@ function numbered<T>(items: T[], index: number, label: string): T {
 // Separate runs at non-text components, so a match cannot jump across an image or attachment.
 // 在非文本组件处分隔文本片段，避免匹配跨越图片或附件。
 function textRanges(doc: ProseNode, search: string): TextRange[] {
-  if (!search) throw new Error('目标文字不能为空');
+  if (!search) throw new Error('The target text cannot be empty.');
   const matches: TextRange[] = [];
   const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
   doc.descendants((block, position) => {
@@ -169,25 +171,27 @@ function textRanges(doc: ProseNode, search: string): TextRange[] {
 function selectedTextRanges(doc: ProseNode, search: string, occurrence?: number): TextRange[] {
   const matches = textRanges(doc, search);
   if (!matches.length)
-    throw new Error('未找到目标文字；请读取草稿并提供同一段内的可见文字，代码块不参与文字定位');
+    throw new Error(
+      'Text not found. Read the draft and supply visible text within one paragraph outside code blocks.'
+    );
   if (occurrence === 0) return matches;
   if (occurrence !== undefined) {
     const match = matches[occurrence - 1];
-    if (!match) throw new Error(`目标文字共匹配 ${matches.length} 处，occurrence 超出范围`);
+    if (!match) throw new Error(`Found ${matches.length} matches. The occurrence is out of range.`);
     return [match];
   }
   if (matches.length !== 1)
     throw new Error(
-      `目标文字匹配 ${matches.length} 处，请用 occurrence 指定第几处；仅明确要求全部时使用 0`
+      `Found ${matches.length} matches. Specify the occurrence, or use 0 only if the user explicitly requested all matches.`
     );
   return matches;
 }
 
 function colorValue(value: unknown): string | null {
-  if (typeof value !== 'string') throw new Error('颜色必须是 HEX 字符串，或用 none 清除');
+  if (typeof value !== 'string') throw new Error('Supply a HEX color or none to clear it.');
   if (value.trim().toLowerCase() === 'none') return null;
   const color = normalizeHexColor(value);
-  if (!color) throw new Error('颜色仅支持 #RGB、#RRGGBB，或用 none 清除');
+  if (!color) throw new Error('Use #RGB, #RRGGBB or none.');
   return color;
 }
 
@@ -202,9 +206,10 @@ function createCard(schema: Schema, input: CardInput, images: LocatedNode[]): Pr
     for (const line of input.text.split(/\r\n|\r|\n/))
       paragraphs.push(textType.create(null, line ? schema.text(line) : undefined));
   const original =
-    input.image_index === undefined ? null : numbered(images, input.image_index, '正文图片').node;
+    input.image_index === undefined ? null : numbered(images, input.image_index, 'body image').node;
   const src = original ? safeCardImage(original.attrs.src) : '';
-  if (original && !src) throw new Error('该图片地址不能保存到卡片，请先将图片导入文档附件');
+  if (original && !src)
+    throw new Error('Import this image as an attachment before reusing it in a card.');
   return schema.nodes[CARD_ITEM]!.create(
     {
       src,
@@ -218,7 +223,7 @@ export function registerRichEditorTools(registry: AgentToolRegistry, draft: Agen
   let sequence = 0;
   const snapshots = new Map<string, { content: string; version: string }>();
   const componentsVersionProperty = string(
-    'read_editor_components 返回的 components_version；必须与当前草稿一致，内容修改后重新读取。'
+    'Use the components_version returned by read_editor_components for this draft. Refresh after content edits.'
   );
   function componentVersion(current: DraftDocument): string {
     const existing = snapshots.get(current.fileKey);
@@ -235,7 +240,7 @@ export function registerRichEditorTools(registry: AgentToolRegistry, draft: Agen
       snapshot.content !== current.content
     )
       throw new Error(
-        '组件编号未读取或已经过期，请重新调用 read_editor_components 并使用新的 components_version'
+        'Component indices are unavailable or stale. Call read_editor_components and use the new components_version.'
       );
   }
   async function load(
@@ -255,14 +260,17 @@ export function registerRichEditorTools(registry: AgentToolRegistry, draft: Agen
     // Validate the persisted representation before touching the draft. No live editor or API writes.
     // 修改草稿前先校验持久化表示，不写入实时编辑器，也不调用 API 写入。
     const restored = current.codec.parse(markdown);
-    if (!restored.eq(next)) throw new Error('富文本保存后无法完整恢复，已取消本次草稿修改');
+    if (!restored.eq(next))
+      throw new Error(
+        'The rich text could not be serialized without loss. The draft was left intact.'
+      );
     return draft.write(markdown, current.fileKey);
   }
   const tools: AgentTool[] = [
     {
       name: 'read_editor_components',
       description:
-        '读取最新草稿中的正文图片和卡片列表编号、内容与布局。编号从 1 开始，只对本次草稿有效；插入/删除/替换内容后重新读取。images 不包含卡片内图片；卡片内图片尺寸由整组控制。',
+        'List body images and card lists with their content, layout and one-based indices in the latest draft. Refresh after content changes. The images collection excludes card images, whose size is shared by the entire list.',
       parameters: schema(fileKeyProperty, []),
       execute: async (input, context) => {
         const current = await load(input, context);
@@ -307,7 +315,7 @@ export function registerRichEditorTools(registry: AgentToolRegistry, draft: Agen
     {
       name: 'insert_card_list',
       description:
-        '在草稿插入横向或纵向卡片列表，总项数不限。每项仅含纯文字，title 自动加粗，text 支持换行。可通过 image_index 和最新 components_version 复用当前草稿的正文图片（保留原图），省略则留空图片位；本工具不生成或上传图片。after_text 为唯一可见文字片段，在其所在顶层块之后插入；省略则追加末尾。',
+        'Insert a horizontal or vertical card list of any length. Items contain plain text, with bold titles and multiline bodies. To reuse an existing body image, supply its image_index and current components_version. Omit the index for an empty image slot. Insert after the top-level block containing after_text, or append by default.',
       parameters: schema(
         {
           ...fileKeyProperty,
@@ -316,21 +324,23 @@ export function registerRichEditorTools(registry: AgentToolRegistry, draft: Agen
           image_height: imageHeightProperty,
           components_version: componentsVersionProperty,
           after_text: string(
-            '可选；当前草稿同一段内的唯一可见文字。在其所在顶层块之后插入，不插入卡片文字内部。'
+            'Optional unique visible text in one paragraph. Insert after its containing top-level block.'
           ),
           items: {
             type: 'array',
             minItems: 1,
-            description: '卡片数组，允许超过 4 项。',
+            description: 'Cards to insert. More than four are supported.',
             items: schema(
               {
-                title: string('可选的纯文字标题，自动加粗。'),
-                text: string('纯文字正文，可换行；空字符串表示空文字区，不解析为其他组件。'),
+                title: string('Optional plain-text title rendered in bold.'),
+                text: string(
+                  'Plain text with optional line breaks. An empty string leaves the text area empty.'
+                ),
                 image_index: integer(
-                  '可选；read_editor_components 返回的当前草稿正文图片编号，仅 reusable_in_card 为 true 的图片可引用（安全 HTTP/HTTPS 外链或附件）。省略保留空图片位。',
+                  'Optional body image index from read_editor_components. Only images marked reusable_in_card qualify, including supported HTTP(S) and attachment URLs. Omit for an empty slot.',
                   1
                 ),
-                image_alt: string('可选的图片说明；省略时保留原图片说明。'),
+                image_alt: string('Optional image description. Defaults to the original alt text.'),
               },
               ['text']
             ),
@@ -365,11 +375,11 @@ export function registerRichEditorTools(registry: AgentToolRegistry, draft: Agen
     {
       name: 'update_card_list_layout',
       description:
-        '按最新组件清单中的 list_index 修改卡片横/纵布局或整组图片宽高。保留所有卡片、图片与文字格式。横向每行最多 4 项并自动换行；超过 4 项仍可切换横向。卡片图片不能单独改尺寸或对齐。只改待审阅草稿。',
+        'Change layout or image dimensions for an entire card list using its current list_index. Preserve all cards, images and formatting. Horizontal lists wrap after four items. Card images share their size and alignment.',
       parameters: schema(
         {
           ...fileKeyProperty,
-          list_index: integer('卡片列表编号，从 1 开始。', 1),
+          list_index: integer('One-based card list index.', 1),
           components_version: componentsVersionProperty,
           layout: layoutProperty,
           image_size: imageSizeProperty,
@@ -383,13 +393,13 @@ export function registerRichEditorTools(registry: AgentToolRegistry, draft: Agen
           input.image_size === undefined &&
           input.image_height === undefined
         )
-          throw new Error('请至少提供 layout、image_size 或 image_height');
+          throw new Error('Supply at least one of layout, image_size or image_height.');
         const current = await load(input, context);
         requireCurrentComponents(input, current);
         const { node, pos } = numbered(
           components(current.doc).cardLists,
           Number(input.list_index),
-          '卡片列表'
+          'card list'
         );
         return save(
           current,
@@ -410,28 +420,33 @@ export function registerRichEditorTools(registry: AgentToolRegistry, draft: Agen
     {
       name: 'set_text_style',
       description:
-        '对草稿中的可见文字设置/清除字体、字号、文字颜色和背景色，支持普通正文、标题、列表、表格与卡片文字，保留粗体/链接等其他格式。text 为同一段内的可见文字，不含 Markdown 标记。代码块和行内代码不应用这些样式；字体和字号只修改文字节点。默认要求唯一匹配；occurrence 指定第几处，0 表示全部，仅在用户要求全部时使用。字体 font_family 只接受注册字体 ID，none 仅清除字体并恢复默认；字号 font_size 支持 8–96px、0.5px 步长，0 清除局部字号。颜色支持 #RGB/#RRGGBB，none 清除对应颜色。',
+        'Apply or clear font family, font size, foreground or background color on visible text within one paragraph, including headings, lists, tables and cards. Preserve other marks such as links and bold. Code is excluded, and font family and size affect only text nodes. Provide a unique match or specify occurrence.',
       parameters: schema(
         {
           ...fileKeyProperty,
           text: string(
-            '要设置样式的可见文字，不能为空；可跨同一段内的加粗/链接片段，不能跨图片等组件。'
+            'Visible text within one paragraph. It may cross bold or link marks, but cannot cross images or other components.'
           ),
-          occurrence: integer('可选；从 1 开始指定匹配项，0 表示全部；省略时必须唯一。', 0),
+          occurrence: integer(
+            'Optional one-based match index. Omit for a unique match. Use 0 only when the user explicitly requests all occurrences.',
+            0
+          ),
           font_family: {
             type: 'string',
             enum: [...FONT_FAMILIES.map((font) => font.id), 'none'],
-            description: `可选；使用已注册字体 ID：${FONT_FAMILIES.map((font) => `${font.id}（${font.label}，${font.group}）`).join('、')}。none 仅清除字体并恢复默认，保留字号、颜色、粗体和链接等格式。不接受任意字体名称、CSS 或字体 URL。`,
+            description: `Registered font IDs and display names: ${FONT_FAMILIES.map((font) => `${font.id} (${font.label})`).join(', ')}. Use none to restore the default family while preserving other formatting. Only registered IDs are accepted.`,
           },
           font_size: {
             type: 'number',
             minimum: 0,
             maximum: 96,
             description:
-              '可选；字号以 px 为单位，8–96、步长 0.5，例如 24 或 18.5；0 仅清除局部字号并恢复默认，保留颜色等其他格式。',
+              'Optional size in pixels from 8 to 96 in steps of 0.5. Use 0 to restore the default size while preserving other formatting.',
           },
-          text_color: string('可选；文字 HEX 颜色，例如 #F00、#FF0000；none 清除文字颜色。'),
-          background_color: string('可选；背景 HEX 颜色，例如 #FFF59D；none 清除背景色。'),
+          text_color: string('Optional HEX text color, e.g. #F00 or #FF0000. Use none to clear.'),
+          background_color: string(
+            'Optional HEX background color, e.g. #FFF59D. Use none to clear.'
+          ),
         },
         ['text']
       ),
@@ -452,17 +467,21 @@ export function registerRichEditorTools(registry: AgentToolRegistry, draft: Agen
           const family =
             input.font_family === 'none' ? null : normalizeFontFamily(input.font_family);
           if (input.font_family !== 'none' && family === null)
-            throw new Error('字体仅支持 font_family 枚举中的注册字体 ID，或用 none 恢复默认字体');
+            throw new Error('Supply a registered font_family ID or none to restore the default.');
           styles.push({ kind: 'fontFamily', attrs: family === null ? null : { family } });
         }
         if (input.font_size !== undefined) {
           const size = input.font_size === 0 ? null : normalizeFontSize(input.font_size);
           if (input.font_size !== 0 && size === null)
-            throw new Error('字号须为 8–96px，步长为 0.5px；0 表示恢复默认字号');
+            throw new Error(
+              'Font size must be 8–96 px in steps of 0.5, or 0 to restore the default.'
+            );
           styles.push({ kind: 'fontSize', attrs: size === null ? null : { size } });
         }
         if (!styles.length)
-          throw new Error('请至少提供 font_family、font_size、text_color 或 background_color');
+          throw new Error(
+            'Supply at least one of font_family, font_size, text_color or background_color.'
+          );
         const current = await load(input, context);
         const ranges = selectedTextRanges(
           current.doc,
@@ -491,48 +510,54 @@ export function registerRichEditorTools(registry: AgentToolRegistry, draft: Agen
             });
           }
         if (!applicable)
-          throw new Error('目标范围没有可设置文字样式的文字，代码和独立组件不支持此操作');
+          throw new Error(
+            'The range contains no styleable text. Code and standalone components cannot be styled.'
+          );
         return { ...save(current, tr.doc), matched: ranges.length };
       },
     },
     {
       name: 'set_image_layout',
       description:
-        '修改草稿中已有正文图片的宽度和左/中/右对齐，保留地址、说明、标题和其他格式；不生成、上传或替换图片。先读取组件清单，image_index 从 1 开始，0 表示全部正文图片（仅用户明确要求全部时使用）。卡片内图片请用 update_card_list_layout 统一调整。width=0 恢复原始尺寸，alignment=inline 清除独占一行的对齐。',
+        'Change body image width or alignment while preserving the URL, alt text, title and other formatting. Read component indices first. Use 0 only for an explicit request to change all body images. Use update_card_list_layout for card images.',
       parameters: schema(
         {
           ...fileKeyProperty,
-          image_index: integer('正文图片编号，0 表示全部正文图片。', 0),
+          image_index: integer('One-based body image index, or 0 for all body images.', 0),
           components_version: componentsVersionProperty,
           width: integer(
-            `可选；宽度 ${MIN_WIDTH}–${MAX_WIDTH} 整数像素；0 清除设置、恢复原始尺寸，高度始终等比例。`,
+            `Optional integer width of ${MIN_WIDTH}–${MAX_WIDTH} px. Use 0 for the original size. Height stays proportional.`,
             0,
             MAX_WIDTH
           ),
           alignment: {
             type: 'string',
             enum: ['left', 'center', 'right', 'inline'],
-            description: '可选；left 左对齐、center 居中、right 右对齐、inline 清除对齐。',
+            description: 'Optional alignment. Use inline to clear block alignment.',
           },
         },
         ['image_index', 'components_version']
       ),
       execute: async (input, context) => {
         if (input.width === undefined && input.alignment === undefined)
-          throw new Error('请至少提供 width 或 alignment');
+          throw new Error('Supply width or alignment.');
         const width =
           input.width === undefined || input.width === 0 ? null : parseWidth(input.width);
         if (input.width !== undefined && input.width !== 0 && width === null)
-          throw new Error(`图片宽度须为 ${MIN_WIDTH}–${MAX_WIDTH} 的整数，或用 0 恢复原始尺寸`);
+          throw new Error(
+            `Width must be an integer from ${MIN_WIDTH} to ${MAX_WIDTH}, or 0 for the original size.`
+          );
         const current = await load(input, context);
         requireCurrentComponents(input, current);
         const { images } = components(current.doc);
         if (!images.length)
-          throw new Error('草稿中没有正文图片；卡片内图片使用 update_card_list_layout');
+          throw new Error(
+            'The draft has no body images. Use update_card_list_layout for card images.'
+          );
         const targets =
           input.image_index === 0
             ? images
-            : [numbered(images, Number(input.image_index), '正文图片')];
+            : [numbered(images, Number(input.image_index), 'body image')];
         const tr = new Transform(current.doc);
         for (const { node, pos } of targets)
           tr.setNodeMarkup(

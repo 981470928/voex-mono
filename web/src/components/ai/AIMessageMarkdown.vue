@@ -4,29 +4,19 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import type { AIMessageRenderer } from './message-markdown';
-
-const props = defineProps<{ content: string; renderer?: AIMessageRenderer }>();
+import { aIMessageRendererPromise } from './message-markdown';
+const props = defineProps<{ content: string }>();
 const emit = defineEmits<{ rendered: [] }>();
 const root = ref<HTMLElement>();
 const plain = ref(true);
 
 watch(
-  [root, () => props.content, () => props.renderer],
-  ([element, content, renderer]) => {
+  [root, () => props.content],
+  async ([element, content]) => {
     if (!element) return;
-    try {
-      if (renderer) {
-        element.replaceChildren(renderer.render(content));
-        plain.value = false;
-      } else {
-        element.textContent = content;
-        plain.value = true;
-      }
-    } catch {
-      element.textContent = content;
-      plain.value = true;
-    }
+    const markdownRender = await aIMessageRendererPromise;
+    element.replaceChildren(markdownRender.render(content));
+    plain.value = false;
     emit('rendered');
   },
   { immediate: true, flush: 'post' }

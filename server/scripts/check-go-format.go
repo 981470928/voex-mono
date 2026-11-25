@@ -19,7 +19,7 @@ const (
 func main() {
 	roots := os.Args[1:]
 	if len(roots) == 0 {
-		roots = []string{"cmd", "internal", "scripts"}
+		roots = []string{"main.go", "internal", "scripts"}
 	}
 	files, failures := 0, 0
 	for _, root := range roots {

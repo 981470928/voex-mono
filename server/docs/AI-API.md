@@ -29,13 +29,15 @@ PUT 请求字段：`name`、`protocol`（`openai` / `anthropic`）、`base_url`�
 
 Key 使用 AES-GCM 加密，随机 nonce，AAD 绑定账号和配置 ID；加密密钥由已有服务端 JWT secret 通过独立用途的 HMAC-SHA256 派生。备份或迁移必须保留原 `JWT_SECRET_FILE`；更换该密钥后旧配置需重新录入 Key。Key 不进入 URL、日志、列表响应或浏览器持久存储。修改时空 Key 保留旧密钥；更换地址或协议必须重填。每账号最多 30 个配置，最多一个进行中的模型请求。
 
+使用 OpenCode Go 时，前端在每轮 chat 请求传入同一对话的 `session_id` 和所在文档的 `file_key`。服务端根据账号、文档和会话生成稳定的 `x-opencode-session`，并以 `Voex/1.0` 标识客户端。该请求头仅发送到 `opencode.ai/inference/go/`。
+
 Chat 请求接受 `messages`、`tools` 及 Claude 的 `system`。模型 ID、鉴权、目标地址、输出参数取自服务端保存的配置，不能由 chat 请求覆盖。上游模型继续使用 `stream: false` 完成每轮工具调用；未请求 SSE 的客户端仍收到对应协议原始 JSON。OpenAI 使用 `tools` / `tool_calls` / `tool` 消息；Claude 使用 `input_schema` / `tool_use` / `tool_result`。上游错误统一转换为 HTTP 502 和“网络异常，请稍后重试”，详细原因仅记日志，见 [错误处理规范](ERROR-HANDLING.md)。
 
 ## 独立联网工具
 
-联网搜索位于输入框工具栏的独立图标中，展开后选择引擎（默认“无”表示关闭），按当前面板控制，不再作为模型配置保存。模型 DTO 和保存接口不再包含 `web_search_enabled`；旧数据库保留该历史列但不再读写，无需执行删除列迁移。新建数据库不再创建该列。旧客户端传来的原生 `web_search` / `web_search_*` 工具始终过滤，不请求模型服务商的联网插件。
+联网搜索位于输入框工具栏的独立图标中，展开后选择引擎（默认“无”表示关闭），在[用户配置](USER-CONFIG-API.md)中按账号保存模型选择和搜索引擎。模型 DTO 和保存接口不再包含 `web_search_enabled`；旧数据库保留该历史列但不再读写，无需执行删除列迁移。新建数据库不再创建该列。旧客户端传来的原生 `web_search` / `web_search_*` 工具始终过滤，不请求模型服务商的联网插件。
 
-在根目录 `voex.config.json` 配置 `"web_search_key": { "tavily": "tvly-...", "querit": "querit-sk-..." }`，启动脚本校验后以服务端环境变量 `VOEX_WEB_SEARCH_KEYS` 加载。各引擎 Key 非空时显示对应的 Tavily / Querit，留空或省略则隐藏；Bing RSS 永远可选且无需配置 Key。配置更改后重新启动服务生效。Key 不返回前端、不进入请求 URL 或错误日志。当前适配 Tavily、Querit 与 Bing RSS，新增引擎需同时扩展配置校验和服务端适配器。
+在 `server/.env` 中填写 `VOEX_WEB_SEARCH_KEYS={"tavily":"tvly-...","querit":"querit-sk-..."}`。各引擎 Key 非空时显示对应的 Tavily / Querit，留空或省略则隐藏；Bing RSS 永远可选且无需配置 Key。配置更改后重新启动服务生效。Key 不返回前端、不进入请求 URL 或错误日志。当前适配 Tavily、Querit 与 Bing RSS，新增引擎需同时扩展配置校验和服务端适配器。
 
 - `GET /ai/web/engines` 返回 `{"engines":[{"id":"tavily","name":"Tavily"},{"id":"querit","name":"Querit"},{"id":"bing","name":"Bing RSS"}]}`，不含凭据。
 - `POST /ai/web/search` 接受 `{"engine":"tavily","query":"搜索词","max_results":5}`；搜索词 1–500 字，数量 1–8（默认 5）。返回 `{"engine":"tavily","query":"搜索词","results":[{"title":"标题","url":"https://example.com/","content":"摘要"}]}`。Tavily 固定 basic 搜索，不自动升级深度；Querit 使用 `POST https://api.querit.ai/v1/search`，将数量映射为 `count`、`results.result[].snippet` 映射为摘要，检查 HTTP 状态和响应 `error_code`，不请求正文或高亮扩展；Bing 使用公开 RSS，服务可用性和结果相关性由 Bing 决定，遇到验证或限流返回明确错误，不伪装结果。

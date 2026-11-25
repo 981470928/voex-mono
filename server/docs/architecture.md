@@ -3,8 +3,8 @@
 ## 目录与进程
 
 ```text
-voex-server/
-├── cmd/voex-server/          # HTTP 服务入口
+server/
+├── main.go                  # HTTP 服务入口
 ├── internal/
 │   ├── app/、config/         # 服务生命周期、配置读取与依赖组装
 │   ├── database/            # MySQL 连接与空库初始化 SQL
@@ -16,7 +16,7 @@ voex-server/
 │   ├── filestore/           # 本地不可变文件、暂存、图片校验与 Range
 │   └── shared/              # 校验、标识及业务错误
 ├── docs/                    # 架构、路由、数据库与业务接口
-└── bin/                    # 不入 Git 的构建产物
+└── voex-server              # go build 生成的本机可执行文件
 ```
 
 ## 请求与依赖方向
@@ -31,7 +31,7 @@ Filestore 由 Service 在授权后调用：`store.go` 解析上传、校验图�
 
 ## 数据库生命周期
 
-服务只连接已初始化的 MySQL 数据库，不自动建库、建表或修改结构。当前完整表结构保存在 `internal/database/schema.sql`，仅供新空库手动初始化，包含 `workspace_state.id=1` 的初始锁记录。已有数据库由开发者显式维护，详见 [db.md](db.md)。
+服务启动时按内嵌的 `internal/database/schema.sql` 创建缺失的数据库、表和 `workspace_state.id=1` 锁记录。已有表的列结构变更和历史数据迁移由开发者显式执行，详见 [db.md](db.md)。
 
 健康检查保留 `/api/health/live` 与 `/api/health/ready`；就绪检查核对数据库连接与文件存储目录，不依赖迁移版本或账本。
 
@@ -52,4 +52,4 @@ Filestore 由 Service 在授权后调用：`store.go` 解析上传、校验图�
 
 业务校验通过 `shared.HTTPError` 终止请求；Recovery 和 AI SSE 共用 `shared.PublicError`，JSON 返回 `{error: ...}`。错误分类、集中式文案与日志约定遵循 [错误处理规范](ERROR-HANDLING.md)。存储缺失返回 404，本地 I/O 故障返回 502；响应已开始后读取失败中止 HTTP 传输，避免把截断下载当成功。日志不输出 SQL 参数、密码、token、查询字符串或物理存储路径。
 
-新增业务接口沿用 Repository → Service → Handler 分层，开发阶段结构变化同步维护空库初始化 SQL；同时维护路由、数据库及领域文档。验证使用 `make fmt`、`make check`、`make build` 和隔离环境 HTTP / 浏览器检查，不生成、修改或运行单元测试。本文记录实现和操作约定。
+新增业务接口沿用 Repository → Service → Handler 分层，开发阶段结构变化同步维护空库初始化 SQL；同时维护路由、数据库及领域文档。验证使用 `make fmt`、`make check`、`go build` 和隔离环境 HTTP / 浏览器检查，不生成、修改或运行单元测试。本文记录实现和操作约定。

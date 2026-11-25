@@ -2,17 +2,24 @@
 
 This private Node service runs alongside Go. Go owns authorization and MySQL; Node owns live Yjs documents and the shared editor schema. Node does not connect to MySQL.
 
-## Build
+## Build and run
 
-Install frontend dependencies from its lockfile first, then run:
+Install the frontend dependencies in `web/` first. The collaboration service uses the shared editor schema from that directory. From the repository root, run:
 
-    cd /path/to/voex-monorepo/server/collab
-    pnpm install --frozen-lockfile --ignore-scripts
-    pnpm type-check
-    pnpm build
-    node --env-file=.env dist/server.js
+```sh
+cd server/collab
+pnpm install --frozen-lockfile
+npm run build
+cp -n .env.example .env
+```
 
-dist/server.js is a self-contained ESM bundle. Production needs Node 22.18+ and a package.json declaring type: module; no runtime node_modules are needed. dist/editor-schema.js contains the standalone codec used by the service. VOEX_COLLAB_SCHEMA_SOURCE overrides the build-time default web/packages/editor-schema/src/index.ts, resolved relative to this repository rather than the current working directory.
+Set `VOEX_COLLAB_SECRET_FILE` in `.env` to the same absolute path as the Go API. With Go running, start the collaboration service from this directory:
+
+```sh
+node --env-file=.env dist/server.js
+```
+
+The build produces the ESM bundles in `dist/`. For database prerequisites and the Go settings, see the [collaboration guide](../docs/COLLABORATION.md).
 
 ## Runtime configuration
 

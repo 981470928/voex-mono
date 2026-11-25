@@ -5,7 +5,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 
 const require = createRequire(import.meta.url);
-const schemaSource = process.env.VOEX_COLLAB_SCHEMA_SOURCE || fileURLToPath(new URL('../../web/packages/editor-schema/src/index.ts', import.meta.url));
+const schemaSource = fileURLToPath(new URL('../../web/packages/editor-schema/src/index.ts', import.meta.url));
 if (!fs.existsSync(schemaSource)) throw new Error('Shared editor schema source not found');
 const frontRoot = path.resolve(path.dirname(schemaSource), '../../..');
 const resolvePM = createRequire(require.resolve('y-prosemirror'));

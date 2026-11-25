@@ -12,7 +12,7 @@ export interface AIMessageRenderer {
 // 每个面板使用一个未挂载的只读 Milkdown 实例提供解析器和 schema。
 // Messages receive static DOM, without an EditorView or editor plugins of their own.
 // 消息只接收静态 DOM，不单独创建 EditorView 或编辑器插件。
-export async function createAIMessageRenderer(): Promise<AIMessageRenderer> {
+async function createAIMessageRenderer(): Promise<AIMessageRenderer> {
   const root = document.createElement('div');
   const editor = Editor.make()
     .config((ctx) => {
@@ -28,9 +28,11 @@ export async function createAIMessageRenderer(): Promise<AIMessageRenderer> {
     const serializer = new DOMSerializer(
       {
         ...base.nodes,
-        // Chat only needs text formatting; do not request model-supplied image URLs.
-        // 聊天仅需要文本格式，不请求模型提供的图片 URL。
-        image: (node) => ['span', {}, node.attrs.alt || node.attrs.title || '图片'],
+        image: (node) => [
+          'img',
+          { src: node.attrs.src, width: '100%' },
+          node.attrs.alt || node.attrs.title || '图片',
+        ],
         // Avoid duplicate document heading IDs across independent messages.
         // 避免独立消息中的文档标题 ID 重复。
         heading: (node) => [`h${node.attrs.level}`, 0],
@@ -93,3 +95,5 @@ export async function createAIMessageRenderer(): Promise<AIMessageRenderer> {
     },
   };
 }
+
+export const aIMessageRendererPromise = createAIMessageRenderer();

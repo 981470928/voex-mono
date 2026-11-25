@@ -1,16 +1,16 @@
 import type { AgentContext, AgentTool, ToolCall, ToolDefinition, ToolProperty } from './types';
 
 function validateParameter(value: unknown, property: ToolProperty, path: string): void {
-  const invalid = () => new Error(`参数类型不正确：${path}`);
+  const invalid = () => new Error(`Invalid parameter type at ${path}.`);
   if (property.type === 'object') {
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw invalid();
     const input = value as Record<string, unknown>;
     for (const name of property.required ?? [])
-      if (!Object.hasOwn(input, name)) throw new Error(`缺少参数：${path}.${name}`);
+      if (!Object.hasOwn(input, name)) throw new Error(`Missing parameter: ${path}.${name}.`);
     for (const [name, item] of Object.entries(input)) {
       const child = property.properties?.[name];
       if (!child || !Object.hasOwn(property.properties ?? {}, name))
-        throw new Error(`不支持的参数：${path}.${name}`);
+        throw new Error(`Unsupported parameter: ${path}.${name}.`);
       validateParameter(item, child, `${path}.${name}`);
     }
     return;
@@ -18,8 +18,8 @@ function validateParameter(value: unknown, property: ToolProperty, path: string)
   if (property.type === 'array') {
     if (!Array.isArray(value)) throw invalid();
     if (property.minItems !== undefined && value.length < property.minItems)
-      throw new Error(`参数 ${path} 至少需要 ${property.minItems} 项`);
-    if (!property.items) throw new Error(`参数 ${path} 缺少数组元素定义`);
+      throw new Error(`${path} requires at least ${property.minItems} items.`);
+    if (!property.items) throw new Error(`Missing item schema for ${path}.`);
     value.forEach((item, index) => validateParameter(item, property.items!, `${path}[${index}]`));
     return;
   }
@@ -34,12 +34,12 @@ function validateParameter(value: unknown, property: ToolProperty, path: string)
       (property.minimum !== undefined && value < property.minimum) ||
       (property.maximum !== undefined && value > property.maximum)
     )
-      throw new Error(`参数 ${path} 超出允许范围`);
+      throw new Error(`${path} is outside the allowed range.`);
     return;
   }
   if (typeof value !== property.type) throw invalid();
   if (property.enum && !property.enum.includes(String(value)))
-    throw new Error(`参数值不正确：${path}`);
+    throw new Error(`Invalid value for ${path}.`);
 }
 
 /** Registration is the only way to grant an Agent a host capability. No eval or arbitrary HTTP. / 只能通过注册向 Agent 授予宿主能力，不允许 eval 或任意 HTTP 请求。 */
@@ -48,7 +48,7 @@ export class AgentToolRegistry {
 
   register(tool: AgentTool): () => void {
     if (!/^[a-zA-Z0-9_-]{1,64}$/.test(tool.name) || this.tools.has(tool.name))
-      throw new Error(`工具名称无效或重复：${tool.name}`);
+      throw new Error(`Invalid or duplicate tool name: ${tool.name}.`);
     this.tools.set(tool.name, tool);
     return () => {
       if (this.tools.get(tool.name) === tool) this.tools.delete(tool.name);
@@ -66,11 +66,11 @@ export class AgentToolRegistry {
   async execute(call: ToolCall, context: AgentContext): Promise<unknown> {
     context.signal.throwIfAborted();
     const tool = this.tools.get(call.name);
-    if (!tool) throw new Error(`未注册该能力：${call.name}`);
+    if (!tool) throw new Error(`Unregistered tool: ${call.name}.`);
     const input: unknown = JSON.parse(call.arguments);
     if (!input || typeof input !== 'object' || Array.isArray(input))
-      throw new Error('工具参数必须是 JSON 对象');
-    validateParameter(input, tool.parameters, '参数');
+      throw new Error('Tool arguments must be a JSON object.');
+    validateParameter(input, tool.parameters, 'arguments');
     const args = input as Record<string, unknown>;
     return tool.execute(args, context);
   }

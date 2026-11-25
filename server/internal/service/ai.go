@@ -366,6 +366,18 @@ func (s *Service) AIChat(ctx context.Context, id string, body shared.Row) json.R
 	shared.Must(err)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept", "application/json")
+	if strings.EqualFold(request.URL.Hostname(), "opencode.ai") &&
+		strings.HasPrefix(request.URL.Path, "/inference/go/") {
+		session, _ := body["session_id"].(string)
+		if !aiHistoryID.MatchString(session) {
+			shared.Fail(http.StatusBadRequest, shared.InvalidFormatMessage("会话标识"))
+		}
+		// 历史文档可共用会话名 default，按账号和文档隔离上游会话。
+		fileKey, _ := body["file_key"].(string)
+		sessionKey := shared.Digest(user + "\x00" + fileKey + "\x00" + session)
+		request.Header.Set("x-opencode-session", sessionKey)
+		request.Header.Set("User-Agent", "Voex/1.0")
+	}
 	if anthropic {
 		request.Header.Set("x-api-key", string(key))
 		request.Header.Set("anthropic-version", "2023-06-01")

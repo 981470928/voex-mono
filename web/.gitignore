@@ -28,7 +28,9 @@ coverage
 
 public/file-viewer
 public/wasm
-public/vendor
+public/vendor/*
+!public/vendor/tex-svg.js
+!public/vendor/mathjax-LICENSE.txt
 public/flyfish-viewer-assets.json
 
 .github

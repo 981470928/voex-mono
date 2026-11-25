@@ -3,7 +3,7 @@
 ## 框架与核心
 
 - **Vue 3.5** + **TypeScript 6.0**
-- **Vite 8** 构建，base 路径 `/test/`
+- **Vite 8** 构建，默认 base 路径 `/app/`，可在 `.env` 中设置 `VITE_BASE_PATH`
 - **Node.js** `^22.18.0 || >=24.12.0`
 - 包管理器：**pnpm**
 

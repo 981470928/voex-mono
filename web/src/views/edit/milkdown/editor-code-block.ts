@@ -35,10 +35,7 @@ import { DOMSerializer } from '@milkdown/kit/prose/model';
 import { codeBlockSchema } from '@milkdown/kit/preset/commonmark';
 import { $view } from '@milkdown/kit/utils';
 import { prism } from '@milkdown/plugin-prism';
-import pageIcon from '@/assets/svg/page.svg?raw';
-import searchIcon from '@/assets/svg/search.svg?raw';
-import closeIcon from '@/assets/svg/close.svg?raw';
-import chevronIcon from '@/assets/svg/chevron-right.svg?raw';
+import { editorIcon } from './editor-icon';
 
 const plainText = LanguageDescription.of({
   name: 'Text',
@@ -166,7 +163,7 @@ export function createEditorCodeBlock(options: {
           button.className = 'milkdown-editor__code-search';
           button.title = '查找代码（Ctrl/Cmd + F）';
           button.setAttribute('aria-label', '查找代码');
-          button.innerHTML = searchIcon;
+          button.innerHTML = editorIcon('search');
           button.addEventListener(
             'click',
             () => {
@@ -284,10 +281,10 @@ export function createEditorCodeBlock(options: {
         ...config,
         languages: codeLanguages,
         copyText: '复制',
-        copyIcon: pageIcon,
-        expandIcon: chevronIcon,
-        searchIcon,
-        clearSearchIcon: closeIcon,
+        copyIcon: editorIcon('page'),
+        expandIcon: editorIcon('chevron-right'),
+        searchIcon: editorIcon('search'),
+        clearSearchIcon: editorIcon('close'),
         searchPlaceholder: '搜索语言',
         noResultText: '没有匹配的语言',
         previewLabel: '预览',

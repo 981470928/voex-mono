@@ -4,9 +4,10 @@ import vue from '@vitejs/plugin-vue';
 import vueDevTools from 'vite-plugin-vue-devtools';
 import { createSvgIconsPlugin } from 'vite-plugin-svg-icons';
 // https://vite.dev/config/
-export default defineConfig(({ command, mode }) => {
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), 'VITE_');
   return {
-    base: command === 'build' && mode === 'test' ? '/test/' : '/app/',
+    base: env.VITE_BASE_PATH || '/app/',
     plugins: [
       vue(),
       vueDevTools(),
@@ -28,22 +29,16 @@ export default defineConfig(({ command, mode }) => {
       },
     },
     server: {
-      port: 3500,
+      port: Number(env.VITE_DEV_PORT || 3500),
       proxy: {
         '/api/collab/ws': {
-          target:
-            process.env.VITE_COLLAB_PROXY_TARGET ||
-            loadEnv(mode, process.cwd(), 'VITE_').VITE_COLLAB_PROXY_TARGET ||
-            'ws://127.0.0.1:8091',
+          target: env.VITE_COLLAB_PROXY_TARGET || 'ws://127.0.0.1:8091',
           ws: true,
           // 保留浏览器原始 Host，协同服务据此与 Origin 比对同源。
           changeOrigin: false,
         },
         '/api': {
-          target:
-            process.env.VITE_API_PROXY_TARGET ||
-            loadEnv(mode, process.cwd(), 'VITE_').VITE_API_PROXY_TARGET ||
-            'http://127.0.0.1:8090',
+          target: env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:8090',
           changeOrigin: true,
         },
       },

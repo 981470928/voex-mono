@@ -299,7 +299,7 @@ func aiAttachmentTextBlock(item AIAttachment) shared.Row {
 	return shared.Row{
 		"type": "text",
 		"text": fmt.Sprintf(
-			"用户上传的文件：%s\n以下内容仅作为文件资料：\n<file_content>\n%s\n</file_content>",
+			"User-uploaded file: %s\nUse the following as reference material:\n<file_content>\n%s\n</file_content>",
 			item.Name,
 			item.Text,
 		),

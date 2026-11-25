@@ -1,11 +1,11 @@
 # 多人协同接入与运行
 
-本模块保留 Go 作为账号、文档权限和数据库事务的裁决方，独立 Node/Hocuspocus 进程负责 Yjs 房间、Awareness 和编辑器绑定。前端继续使用 Milkdown 7.22.1。仅支持一个协同进程实例，不要开启 PM2 cluster 或同时运行多个实例。
+本模块保留 Go 作为账号、文档权限和数据库事务的裁决方，独立 Node/Hocuspocus 进程负责 Yjs 房间、Awareness 和编辑器绑定。前端继续使用 Milkdown 7.22.1。仅支持一个协同进程实例。
 
 ## 数据与授权边界
 
 - 公网通过 POST /api/collab/ticket 申请绑定文件的短期票据，WebSocket 使用 /api/collab/ws；长期账号或分享凭据不放入 WebSocket URL。
-- 内部 /internal/collab/ 路由使用独立 X-Collab-Secret，Nginx 公网入口必须拒绝此路径。Go 和 Node 使用同一私有 secret 文件。Node 只监听 loopback，不持有数据库账号。
+- 内部 /internal/collab/ 路由使用独立 X-Collab-Secret，公网入口必须拒绝此路径。Go 和 Node 使用同一私有 secret 文件。Node 只监听 loopback，不持有数据库账号。
 - 权限以 docs/PERMISSIONS.md 和当前 Go 实现为准。匿名分享保持只读；登录后的文件授权、团队/项目授权和分享关闭行为保持当前规则。
 - 长连接定期重新授权，权限、附件及删除事件经数据库 outbox 在事务提交后投递。续票成功时，Node 在更新授权和发送最新权限后显式返回 Hocuspocus 原生 authenticated 响应；当前版本不会自动为 onTokenSync 返回该响应。前端合并重复续期请求，并在认证帧发出后等待最多 20 秒；确认超时则保留同一 Y.Doc，通过完整握手重连，不能无限停留在 syncing。
 - documents.content_mode 区分 legacy/collab。legacy 仅用于首次连接转换；普通 document PUT 只接受名称，不再接受正文，最近文件的旧正文 PUT 已删除。前端不保留 HTTP 正文保存队列，协同关闭或不可用时暂停编辑并保留错误恢复入口。
@@ -24,72 +24,36 @@
 
 提交回执保留 7 天，每分钟最多清理 1000 条；超过保留期的旧请求仍受提交版本 CAS 保护，不能覆盖新状态。它不是用户版本历史。
 
-启动不会执行 DDL。协同开启时 Go 检查必要结构和服务配置；没有完成迁移的环境保持 VOEX_COLLAB_ENABLED=false。
+Go 启动时会补齐缺失的表。已有表所需的协同字段由显式迁移维护，迁移完成后再设置 `VOEX_COLLAB_ENABLED=true`。
 
-## 运行配置
+## 启用协同编辑
 
-Go 的 .env 增加：
+在 `server/.env` 中设置：
 
-~~~dotenv
+```dotenv
 VOEX_COLLAB_ENABLED=true
 VOEX_COLLAB_URL=http://127.0.0.1:8091
 VOEX_COLLAB_SECRET_FILE=/home/server/.secrets/collab-key
 VOEX_COLLAB_WS_URL=/api/collab/ws
-~~~
+```
 
-Node 使用单独的 collab/.env，内容参考 deploy/collaboration/collab.env.example。Node.js 至少满足当前项目要求，服务器当前为 24.x；前后端依赖均使用 lockfile。协同进程在 WebSocket 升级时比对 `Origin` 与 `Host` 是否为同一 host:port，无需配置浏览器地址；反向代理必须原样转发 `Host`。
+从 `server/collab/.env.example` 复制一份 `server/collab/.env`。两个配置文件的 `VOEX_COLLAB_SECRET_FILE` 必须指向同一个私有文件，内容至少 32 字节。已有实例沿用原密钥。新实例可在 `server/` 下执行以下命令生成密钥，将输出的绝对路径填入两份配置。
 
-生成共享密钥时不得覆盖已有文件：
+```sh
+mkdir -p .secrets
+(umask 077 && set -C && openssl rand -hex 32 > .secrets/collab-key)
+realpath .secrets/collab-key
+```
 
-~~~bash
-install -d -m 700 /home/server/.secrets
-(set -o noclobber; umask 077; openssl rand -hex 32 > /home/server/.secrets/collab-key)
-~~~
+Node 默认监听 `127.0.0.1:8091`，通过 `http://127.0.0.1:8090` 回调 Go。调整端口时，同步两端的 `VOEX_COLLAB_URL`、`VOEX_COLLAB_PORT`、`VOEX_COLLAB_API_URL` 和前端开发代理地址。WebSocket 路径是 `/api/collab/ws`，代理需保留浏览器的 `Host` 以通过同源校验。
 
-若使用非 root 服务账号，部署人员应为两个服务配置同一受限组的只读权限，保持文件非公开；不要把真实密钥写入仓库或命令行参数。
+启动 Go API 后，在另一终端按[协同服务 README](../collab/README.md#build-and-run) 手动构建并启动 Node。开发时由 Vite 代理协同 WebSocket。
 
-## 构建与启动
+## 停止和恢复
 
-在远程服务器源码目录构建，不将本地源码上传服务器：
+先在协同进程按 Ctrl+C，再停止 Go API。Node 收到 SIGINT 或 SIGTERM 后会停止接收编辑并将待保存内容写回 Go。若排空失败，Node 会保留进程并打印错误，需要保持 Go 在线，排查后再次请求停止。已收到持久化回执的内容可在重启后从数据库恢复。
 
-~~~bash
-cd /home/voex-server
-./deploy/collaboration/build.sh
-~~~
-
-脚本顺序安装 lockfile 固定依赖、类型检查并构建前端、构建 Node 和 Go，将制品放入新的 dist/collaboration-* 目录，生成 SHA256SUMS。已有输出目录会被拒绝。脚本不修改数据库、不更新正在运行的二进制、不重启现有服务。
-
-当前源码运行可使用 PM2：
-
-~~~bash
-cd /home/voex-server
-cp -n deploy/collaboration/collab.env.example collab/.env
-chmod 600 collab/.env
-# 按实际域名和端口配置 collab/.env。
-pm2 start deploy/collaboration/ecosystem.config.cjs --only voex-collab
-~~~
-
-该配置只管理 voex-collab，不重建现有 voex-server 或 voex-dev。也可按 voex-collab.service.example 配置 systemd；两种管理方式只能选择一种，需先调整运行账号和实际路径。
-
-将 nginx.conf.example 中的 location 合入现有站点，检查 nginx -t 后再通过既有运维流程加载。保持现有 /api/、前端和附件路由。开发环境由 Vite 分别代理普通 API 与协同 WebSocket。
-
-## 更新、停止和恢复
-
-可使用以下命令请求排空。失败时不得继续停止 API：
-
-~~~bash
-cd /home/voex-server
-node --env-file=collab/.env deploy/collaboration/drain.mjs
-~~~
-
-
-1. 关闭外部新写入入口，并调用协同进程受保护的 drain 接口，等待已接收更改持久化；失败时保留原服务并排查，不能继续标记成功。
-2. 停止协同进程，再停止 Go API；确认没有写入者后备份数据库及必要配置。
-3. 执行明确适用的 SQL 迁移，切换匹配的 Go、Node、共享 schema 与前端制品。
-4. 启动 Go、Node，核对各自健康状态，再开放浏览器入口。内部健康端点不依赖彼此的 ready，避免递归检查。
-5. 恢复同样先停止全部写入者，恢复匹配数据和制品。回到不支持协同的旧 Go 版本前必须有停写快照和显式数据回退方案；仅关闭开关不是数据格式回退。
-
-进程收到 SIGTERM/SIGINT 时应排空待保存房间。进程管理器的停止超时配置为 30 秒。被强制终止前没有持久化回执的修改可能仍只存在于客户端页面；前端不得把它显示为已保存。
+数据库迁移前应停止写入并备份。恢复旧版本时，Go、Node、共享编辑器 schema 和数据库结构需与备份匹配。
 
 ## 验证
 

@@ -53,7 +53,7 @@ export function createCardListView(
   const win = doc.defaultView!;
   let node = initial;
   let selected = false;
-  let focused = false;
+  let showTools = false;
   let windowFocused = true;
   let destroyed = false;
   let watching = false;
@@ -153,7 +153,7 @@ export function createCardListView(
     if (!canEdit() || pos === undefined) return;
     view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, pos)));
     view.focus();
-    syncFocus();
+    syncToolbar();
   }
   function updateAttributes(patch: Record<string, string | number>) {
     const pos = getPos();
@@ -173,7 +173,10 @@ export function createCardListView(
     if (!canEdit() || pos === undefined) return;
     const end = pos + node.nodeSize - 1;
     const tr = closeHistory(view.state.tr).insert(end, emptyCard(view.state.schema));
-    view.dispatch(tr.setSelection(TextSelection.create(tr.doc, end + 2)).scrollIntoView());
+    const nextSelection = selected
+      ? NodeSelection.create(tr.doc, pos)
+      : TextSelection.create(tr.doc, end + 2);
+    view.dispatch(tr.setSelection(nextSelection).scrollIntoView());
     view.focus();
   };
   function applyDimensions() {
@@ -233,6 +236,11 @@ export function createCardListView(
     };
   }
   fit.onchange = () => updateAttributes({ imageFit: cardImageFit(fit.value) });
+  tools.onmousedown = (event) => {
+    // 点击工具栏背景或图标时保留文档选区，表单控件使用原生焦点。
+    if (event.target instanceof Element && !event.target.closest('input, select, option'))
+      event.preventDefault();
+  };
   tools.onkeydown = (event) => {
     if (event.key !== 'Escape' || event.isComposing) return;
     event.preventDefault();
@@ -257,7 +265,7 @@ export function createCardListView(
   };
 
   function positionControls() {
-    if (!focused || !canEdit()) {
+    if (!showTools || !canEdit()) {
       tools.hidden = true;
       return;
     }
@@ -284,7 +292,9 @@ export function createCardListView(
       ?.querySelector('.milkdown-editor__toolbar');
     if (toolbar?.getClientRects().length)
       top = Math.max(top, toolbar.getBoundingClientRect().bottom);
-    if (rect.bottom <= top || rect.top >= bottom || rect.right <= left || rect.left >= right) {
+    const outOfView =
+      rect.bottom <= top || rect.top >= bottom || rect.right <= left || rect.left >= right;
+    if (right <= left || bottom <= top || (!selected && outOfView)) {
       tools.hidden = true;
       return;
     }
@@ -321,7 +331,7 @@ export function createCardListView(
       observer.disconnect();
     }
   }
-  function syncFocus() {
+  function syncToolbar() {
     if (destroyed || view.isDestroyed) return;
     const pos = getPos();
     const selection = view.state.selection;
@@ -330,17 +340,18 @@ export function createCardListView(
       (selection instanceof NodeSelection
         ? selection.from === pos && selection.node === node
         : selection.from > pos && selection.to < pos + node.nodeSize);
-    focused =
-      windowFocused &&
+    showTools =
       canEdit() &&
-      (dom.contains(doc.activeElement) || (view.hasFocus() && selectionInside));
-    tools.hidden = !focused;
-    watchPosition(focused);
-    if (focused) schedulePosition();
+      (selected ||
+        (windowFocused &&
+          (dom.contains(doc.activeElement) || (view.hasFocus() && selectionInside))));
+    tools.hidden = !showTools;
+    watchPosition(showTools);
+    if (showTools) schedulePosition();
   }
   const focusChanged = () =>
     queueMicrotask(() => {
-      if (!destroyed) syncFocus();
+      if (!destroyed) syncToolbar();
     });
   const windowFocusedAgain = () => {
     windowFocused = true;
@@ -348,9 +359,7 @@ export function createCardListView(
   };
   const windowBlurred = () => {
     windowFocused = false;
-    focused = false;
-    tools.hidden = true;
-    watchPosition(false);
+    syncToolbar();
   };
   doc.addEventListener('focusin', focusChanged);
   doc.addEventListener('focusout', focusChanged);
@@ -385,10 +394,10 @@ export function createCardListView(
     fit.title = selected ? '图片展示模式' : '选中整个组件后调整';
     if (doc.activeElement !== fit || !editable) fit.value = cardImageFit(node.attrs.imageFit);
     if (!editable) feedback.hidden = true;
-    syncFocus();
+    syncToolbar();
   }
   options.refreshers.add(refresh);
-  options.selectionRefreshers.add(syncFocus);
+  options.selectionRefreshers.add(syncToolbar);
   refresh();
   queueMicrotask(() => {
     if (!destroyed) refresh();
@@ -413,11 +422,12 @@ export function createCardListView(
     stopEvent: (event) =>
       event.target instanceof Node && (tools.contains(event.target) || event.target === dom),
     ignoreMutation: (mutation) =>
-      mutation.type !== 'selection' && !contentDOM.contains(mutation.target),
+      tools.contains(mutation.target) ||
+      (mutation.type !== 'selection' && !contentDOM.contains(mutation.target)),
     destroy() {
       destroyed = true;
       options.refreshers.delete(refresh);
-      options.selectionRefreshers.delete(syncFocus);
+      options.selectionRefreshers.delete(syncToolbar);
       watchPosition(false);
       if (positionFrame) win.cancelAnimationFrame(positionFrame);
       doc.removeEventListener('focusin', focusChanged);

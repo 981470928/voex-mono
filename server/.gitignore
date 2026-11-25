@@ -1,5 +1,6 @@
 bin/
 /voex-server
+/voex-server.exe
 .env
 logs/
 *.log

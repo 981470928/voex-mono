@@ -1,13 +1,18 @@
 <template>
   <main class="desktop">
     <header class="desktop__toolbar">
-      <RouterLink
-        class="desktop__project-link"
-        :to="desktopLocation(projectKey)"
-        :title="projectName"
-        :aria-label="'返回项目：' + projectName"
-        >{{ projectName }}</RouterLink
-      >
+      <nav class="desktop__breadcrumbs" aria-label="目录路径">
+        <template v-if="folderKey">
+          <RouterLink
+            class="desktop__crumb desktop__project-link"
+            :to="desktopLocation(projectKey)"
+            :title="projectName"
+            >{{ projectName }}</RouterLink
+          >
+          <SvgIcon class="desktop__separator" name="chevron-right" :size="12" />
+        </template>
+        <span class="desktop__crumb" aria-current="page" :title="title">{{ title }}</span>
+      </nav>
       <button
         v-if="permission.project(tree?.project).manage"
         class="desktop__button"
@@ -40,57 +45,26 @@
       @page="setPage"
       @action="selectEntryMenu"
     >
-      <template #navigation>
-        <nav class="desktop__breadcrumbs" aria-label="文件夹路径">
-          <ol class="desktop__breadcrumb-list">
-            <li
-              v-for="(folder, index) in path"
-              :key="folder.folder_key"
-              class="desktop__breadcrumb-item"
-            >
-              <SvgIcon
-                v-if="index"
-                class="desktop__breadcrumb-separator"
-                name="chevron-right"
-                :size="12"
-              />
-              <span
-                v-if="folder.folder_key === folderKey"
-                class="desktop__breadcrumb desktop__breadcrumb--current"
-                aria-current="page"
-                ><SvgIcon v-if="!index" name="folder" :size="13" />{{ folder.name }}</span
-              >
-              <RouterLink
-                v-else
-                class="desktop__breadcrumb"
-                :to="desktopLocation(projectKey, folder.folder_key)"
-                ><SvgIcon v-if="!index" name="folder" :size="13" />{{ folder.name }}</RouterLink
-              >
-            </li>
-          </ol>
-        </nav>
-      </template>
-      <template #actions>
-        <button
-          v-if="canWrite && folderKey"
-          class="desktop__button"
-          type="button"
-          :disabled="loading || busy || creating"
-          @click="openImport"
-        >
-          <SvgIcon name="cloud-upload" :size="14" />导入文件
-        </button>
-        <button
-          v-if="canWrite"
-          class="desktop__create"
-          type="button"
-          :title="folderKey ? '创建文件' : '创建文件夹'"
-          :aria-label="folderKey ? '创建文件' : '创建文件夹'"
-          :disabled="loading || busy || creating || !canWrite"
-          @click="folderKey ? createFile() : createDirectory()"
-        >
-          <SvgIcon :name="folderKey ? 'page' : 'add'" :size="folderKey ? 14 : 18" />
-        </button>
+      <template v-if="canWrite" #navigation>
+        <div class="desktop__file-actions">
+          <button
+            class="desktop__button"
+            type="button"
+            :disabled="loading || busy || creating"
+            @click="folderKey ? createFile() : createDirectory()"
+          >
+            <SvgIcon name="add" :size="14" />{{ folderKey ? '创建文件' : '创建文件夹' }}
+          </button>
+          <button
+            v-if="folderKey"
+            class="desktop__button"
+            type="button"
+            :disabled="loading || busy || creating"
+            @click="openImport"
+          >
+            <SvgIcon name="cloud-upload" :size="14" />导入文件
+          </button>
+        </div>
       </template>
       <template #error-actions>
         <RouterLink
@@ -137,7 +111,7 @@ import { updateDocument, deleteDocument } from '@/service/api/document-api';
 import FileList from '@/components/files/FileList.vue';
 import type { FileListEntry } from '@/components/files/types';
 import { usePermissionStore, type ResourcePermissions } from '@/stores/permission';
-import { desktopLocation as workspaceLocation, folderAncestors } from '@/utils/workspace';
+import { desktopLocation as workspaceLocation } from '@/utils/workspace';
 import { errorMessage } from '@/utils/error';
 import { useConfirm } from '@/composables/useConfirm';
 import { useDialog } from '@/composables/useDialog';
@@ -204,18 +178,19 @@ const projectKey = computed(() =>
 const folderKey = computed(() =>
   typeof route.params.folderId === 'string' ? route.params.folderId || undefined : undefined
 );
+const currentFolder = computed(() =>
+  tree.value?.folders.find((folder) => folder.folder_key === folderKey.value)
+);
 const error = computed(() => {
   if (loadError.value) return loadError.value;
   if (loading.value || !folderKey.value) return '';
   if (!projectKey.value) return '目录地址缺少所属项目，请返回最近文件';
-  if (tree.value && !tree.value.folders.some((folder) => folder.folder_key === folderKey.value))
-    return '文件夹不存在或已被删除，请返回项目';
+  if (tree.value && !currentFolder.value) return '文件夹不存在或已被删除，请返回项目';
   return '';
 });
-const path = computed(() => folderAncestors(tree.value?.folders ?? [], folderKey.value));
 const projectName = computed(() => tree.value?.project.name || '项目');
 const title = computed(() =>
-  folderKey.value ? path.value.at(-1)?.name || '文件夹' : projectName.value
+  folderKey.value ? currentFolder.value?.name || '文件夹' : projectName.value
 );
 const canWrite = computed(() => !error.value && permission.folder(tree.value?.project).write);
 const importOpen = ref(false);
@@ -253,7 +228,7 @@ function openImport() {
   importTarget.value = {
     projectKey: projectKey.value,
     folderKey: folderKey.value,
-    name: [projectName.value, ...path.value.map((folder) => folder.name)].join(' / '),
+    name: `${projectName.value} / ${title.value}`,
   };
   importOpen.value = true;
 }
@@ -551,70 +526,38 @@ onBeforeUnmount(() => {
   padding 0 12px
   border-bottom 1px solid var(--color-border-translucent)
 
-.desktop__project-link
+.desktop__breadcrumbs
+  display flex
+  flex 1
+  align-items center
+  gap 4px
+  min-width 0
+
+.desktop__crumb
   min-width 0
   padding 4px 6px
   overflow hidden
-  border-radius var(--border-radius-item-s)
   color var(--color-text-secondary)
   font-size 12px
   font-weight 600
-  text-decoration none
   text-overflow ellipsis
   white-space nowrap
 
-.desktop__project-link:hover
-  background var(--color-bg-translucent)
-  color var(--color-text-primary)
+.desktop__project-link
+  border-radius var(--border-radius-item-s)
+  color var(--color-text-tertiary)
+  text-decoration none
+  &:hover
+    background var(--color-bg-translucent)
+    color var(--color-text-primary)
 
-.desktop__breadcrumbs
-  flex 1
-  min-width 0
-  min-height 28px
-  max-height 112px
-  overflow-y auto
-
-.desktop__breadcrumb-list
-  display flex
-  flex-wrap wrap
-  align-items center
-  gap 4px
-  margin 0
-  padding 0
-  list-style none
-
-.desktop__breadcrumb-item
-  display flex
-  align-items center
-  gap 4px
-  min-width 0
-  max-width 100%
-
-.desktop__breadcrumb-separator
+.desktop__separator
   color var(--color-text-quaternary)
 
-.desktop__breadcrumb
-  display inline-flex
-  align-items center
+.desktop__file-actions
+  display flex
+  flex-wrap wrap
   gap 6px
-  min-width 0
-  padding 3px 10px
-  border 1px solid var(--color-border-translucent)
-  border-radius 20px
-  color var(--color-text-tertiary)
-  font-size 12px
-  line-height 20px
-  overflow-wrap anywhere
-  text-decoration none
-
-.desktop__breadcrumb:hover
-  background var(--color-bg-translucent)
-  color var(--color-text-secondary)
-
-.desktop__breadcrumb--current
-  background var(--color-bg-translucent)
-  color var(--color-text-secondary)
-  font-weight 600
 
 .desktop__button
   display inline-flex
@@ -642,26 +585,4 @@ onBeforeUnmount(() => {
 .desktop__button:disabled
   cursor not-allowed
   opacity .4
-
-
-.desktop__create
-  display inline-flex
-  align-items center
-  justify-content center
-  flex-shrink 0
-  width 28px
-  height 28px
-  border 1px solid var(--color-border-translucent-strong)
-  border-radius 50%
-  background var(--color-bg-translucent)
-  color var(--color-text-secondary)
-  cursor pointer
-  &:hover:not(:disabled)
-    background var(--color-bg-quaternary)
-    color var(--color-text-primary)
-  &:active:not(:disabled)
-    filter brightness(.94)
-  &:disabled
-    cursor not-allowed
-    opacity .4
 </style>

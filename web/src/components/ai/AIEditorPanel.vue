@@ -1,11 +1,5 @@
 <template>
-  <aside
-    class="ai-panel"
-    aria-label="AI 文档助手"
-    :aria-busy="
-      pending.size > 0 || conversationList.loading || history.loading || running || applying
-    "
-  >
+  <aside class="ai-panel">
     <header class="ai-panel__header">
       <span class="ai-panel__heading">
         <SvgIcon name="ai" :size="18" />
@@ -25,113 +19,31 @@
         >
           <SvgIcon name="add" :size="18" />
         </button>
-        <VoexTrigger
-          v-model:popup-visible="conversationMenuOpen"
-          trigger="click"
-          position="bottom-end"
-          strategy="fixed"
-          :popup-offset="8"
-          content-class="ai-panel__history-popup"
-          role="dialog"
-          aria-label="历史对话"
-          @show="focusSelectedConversation"
-        >
-          <button
-            ref="conversationTrigger"
-            class="ai-panel__header-button"
-            type="button"
-            title="历史对话"
-            aria-label="历史对话"
-            aria-haspopup="dialog"
-            @keydown.down.prevent="conversationMenuOpen = true"
-            @keydown.up.prevent="conversationMenuOpen = true"
-          >
-            <SvgIcon name="conversation" :size="18" />
-          </button>
-          <template #content>
-            <div
-              ref="conversationMenu"
-              class="ai-panel__history-menu"
-              tabindex="-1"
-              @keydown.tab="onConversationMenuTab"
-            >
-              <p
-                v-if="!conversationList.loading && !conversations.length && !conversationList.error"
-                class="ai-panel__history-status"
-              >
-                尚无对话
-              </p>
-              <ul v-if="conversations.length" class="ai-panel__history-list">
-                <li
-                  v-for="session in conversations"
-                  :key="session.id"
-                  class="ai-panel__history-row"
-                >
-                  <button
-                    class="ai-panel__history-item"
-                    type="button"
-                    :title="conversationLabel(session)"
-                    :aria-current="conversationId === session.id ? 'true' : undefined"
-                    :disabled="conversationLocked"
-                    @click="switchConversation(session.id)"
-                  >
-                    <strong>{{ session.title }}</strong>
-                    <small>{{ conversationDate(session) }}</small>
-                  </button>
-                  <button
-                    class="ai-panel__history-delete"
-                    type="button"
-                    :title="
-                      hasPendingResponse(session.id) ? '请先保存此对话中尚未保存的回复' : '删除对话'
-                    "
-                    :aria-label="'删除对话：' + session.title"
-                    :disabled="conversationLocked || hasPendingResponse(session.id)"
-                    @click="deleteConversation(session)"
-                  >
-                    <SvgIcon name="trash" :size="16" />
-                  </button>
-                </li>
-              </ul>
-              <button
-                v-if="conversationList.error"
-                class="ai-button ai-panel__history-more"
-                type="button"
-                :disabled="conversationList.loading"
-                @click="loadConversations()"
-              >
-                重新加载对话
-              </button>
-              <button
-                v-if="conversationList.nextCursor"
-                class="ai-button ai-panel__history-more"
-                type="button"
-                :disabled="conversationLocked"
-                @click="loadConversations(true)"
-              >
-                加载更多对话
-              </button>
-            </div>
-          </template>
-        </VoexTrigger>
+        <AIConversationHistory
+          ref="conversationHistory"
+          v-model:open="conversationMenuOpen"
+          :conversation-list="conversationList"
+          :conversations="conversations"
+          :conversation-id="conversationId"
+          :conversation-locked="conversationLocked"
+          :has-pending-response="hasPendingResponse"
+          @select="switchConversation"
+          @delete="deleteConversation"
+          @load="loadConversations"
+          @tab-next="focusAfterConversationHistory"
+        />
         <button
           ref="closeButton"
           class="ai-panel__header-button ai-panel__close"
           type="button"
           title="关闭 AI 助手"
-          aria-label="关闭 AI 助手"
           @click="emit('close')"
         >
           <SvgIcon name="close" :size="18" />
         </button>
       </div>
     </header>
-    <div
-      ref="scroller"
-      class="ai-panel__messages"
-      tabindex="0"
-      aria-label="对话记录"
-      @scroll="onScroll"
-    >
+    <div ref="scroller" class="ai-panel__messages" @scroll="onScroll">
       <button
         v-if="history.error"
         type="button"
@@ -169,7 +81,6 @@
             <AIMessageMarkdown
               v-if="message.reasoning"
               :content="message.reasoning"
-              :renderer="markdownRenderer"
               @rendered="scrollEnd"
             />
             <p v-else role="status">正在等待模型返回思考内容…</p>
@@ -179,7 +90,6 @@
           v-if="message.role === 'assistant' && message.text"
           class="ai-panel__text ai-panel__text--markdown"
           :content="message.text"
-          :renderer="markdownRenderer"
           @rendered="scrollEnd"
         />
         <p v-else-if="message.text" class="ai-panel__text">{{ message.text }}</p>
@@ -310,101 +220,17 @@
           @keydown="onInputKeydown"
         />
         <div class="ai-panel__toolbar">
-          <VoexTrigger
-            v-model:popup-visible="modelMenuOpen"
-            trigger="click"
-            position="top-start"
-            strategy="fixed"
-            :popup-offset="8"
-            :disabled="running || applying || pending.has('models')"
-            auto-fit-popup-width
-            content-class="ai-panel__model-popup"
-            role="dialog"
-            aria-label="选择 AI 模型"
-            @show="focusSelectedModel"
-          >
-            <button
-              ref="modelTrigger"
-              class="ai-panel__control ai-panel__model-trigger"
-              type="button"
-              :title="selectedModel ? selectedModel.name + ' · ' + selectedModel.model : '选择模型'"
-              :aria-label="selectedModel ? '当前模型：' + selectedModel.name : '选择模型'"
-              aria-haspopup="dialog"
-              :disabled="running || applying || pending.has('models')"
-              @keydown.down.prevent="modelMenuOpen = true"
-              @keydown.up.prevent="modelMenuOpen = true"
-            >
-              <span>{{ selectedModel?.name || '选择模型' }}</span>
-              <small v-if="selectedModel?.multimodal_enabled" class="ai-panel__multimodal"
-                >多模态</small
-              >
-              <SvgIcon
-                name="chevron-right"
-                :size="14"
-                class="ai-panel__model-chevron"
-                :class="{ 'ai-panel__model-chevron--open': modelMenuOpen }"
-              />
-            </button>
-            <template #content>
-              <div ref="modelMenu" class="ai-panel__model-menu" @keydown.tab="onModelMenuTab">
-                <fieldset v-if="models.length" class="ai-panel__model-options">
-                  <legend class="ai-panel__sr-only">可用模型</legend>
-                  <div v-for="model in models" :key="model.id" class="ai-panel__model-row">
-                    <label
-                      class="ai-panel__model-option"
-                      :class="{ 'ai-panel__model-option--selected': selectedId === model.id }"
-                    >
-                      <input
-                        v-model="selectedId"
-                        type="radio"
-                        :name="modelGroupName"
-                        :value="model.id"
-                        @click="selectModel(model.id)"
-                        @keydown.enter.prevent="selectModel(model.id)"
-                      />
-                      <span>
-                        <strong class="ai-panel__model-name"
-                          >{{ model.name
-                          }}<span v-if="model.multimodal_enabled" class="ai-panel__multimodal"
-                            >多模态</span
-                          ></strong
-                        >
-                        <small>{{ model.model }}</small>
-                      </span>
-                    </label>
-                    <button
-                      type="button"
-                      class="ai-panel__control ai-panel__model-edit"
-                      :aria-label="'编辑模型：' + model.name"
-                      :title="'编辑模型：' + model.name"
-                      @click="openModelSettings(model)"
-                    >
-                      <SvgIcon name="write" :size="16" />
-                    </button>
-                  </div>
-                </fieldset>
-                <p v-else class="ai-panel__model-empty">暂无模型，请先配置</p>
-                <button
-                  v-if="!models.length"
-                  class="ai-panel__control ai-panel__model-settings"
-                  type="button"
-                  :disabled="pending.has('models')"
-                  @click="loadModels"
-                >
-                  重新加载模型
-                </button>
-                <button
-                  ref="modelSettingsButton"
-                  class="ai-panel__control ai-panel__model-settings"
-                  type="button"
-                  @click="openModelSettings()"
-                >
-                  <SvgIcon name="add" :size="16" />
-                  新增模型
-                </button>
-              </div>
-            </template>
-          </VoexTrigger>
+          <AIModelSelect
+            ref="modelSelect"
+            v-model="selectedId"
+            v-model:open="modelMenuOpen"
+            :models="models"
+            :disabled="running || applying || pending.has('deleteModel') || !userConfig.canChange"
+            :loading="pending.has('models')"
+            @edit="openModelSettings"
+            @delete="removeModel"
+            @tab-next="focusAfterModelSelect"
+          />
           <input
             ref="attachmentInput"
             type="file"
@@ -416,109 +242,18 @@
             @change="selectAttachments"
           />
           <div class="ai-panel__toolbar-actions">
-            <VoexTrigger
-              v-model:popup-visible="webMenuOpen"
-              trigger="click"
-              position="top-end"
-              strategy="fixed"
-              :popup-offset="8"
-              :disabled="running || applying"
-              content-class="ai-panel__web-popup"
-              role="dialog"
-              aria-label="选择搜索引擎"
-              @show="focusSelectedWebEngine"
-            >
-              <button
-                ref="webTrigger"
-                class="ai-panel__control ai-panel__icon-button"
-                type="button"
-                :aria-label="webSearchLabel"
-                :title="webSearchLabel"
-                aria-haspopup="dialog"
-                :disabled="running || applying"
-                @keydown.down.prevent="webMenuOpen = true"
-                @keydown.up.prevent="webMenuOpen = true"
-              >
-                <SvgIcon
-                  name="world"
-                  :size="18"
-                  :color="webSearchEnabled ? 'var(--color-brand-bg)' : undefined"
-                />
-              </button>
-              <template #content>
-                <div
-                  ref="webMenu"
-                  class="ai-panel__web-menu"
-                  tabindex="-1"
-                  @keydown.tab="onWebMenuTab"
-                >
-                  <div class="ai-panel__web-heading">
-                    <span>搜索引擎</span>
-                    <VoexTooltip
-                      content="选择引擎后可搜索并读取公开网页；搜索词会发送给该引擎，网页内容会提供给当前模型。选择“无”关闭联网。Bing RSS 无需 Key，可用性可能波动。"
-                    >
-                      <button
-                        type="button"
-                        class="ai-panel__control ai-panel__web-help"
-                        aria-label="联网搜索与网页读取说明"
-                      >
-                        <SvgIcon name="question-mark" :size="16" />
-                      </button>
-                    </VoexTooltip>
-                  </div>
-                  <fieldset class="ai-panel__web-options" :aria-describedby="webStatusId">
-                    <legend class="ai-panel__sr-only">可用搜索引擎</legend>
-                    <label
-                      v-for="engine in webEngineOptions"
-                      :key="engine.id"
-                      class="ai-panel__web-option"
-                      :class="{
-                        'ai-panel__web-option--selected': selectedWebEngineId === engine.id,
-                      }"
-                    >
-                      <input
-                        v-model="selectedWebEngineId"
-                        type="radio"
-                        :name="webGroupName"
-                        :value="engine.id"
-                        :disabled="running || applying || (!!engine.id && webEnginesLoading)"
-                        @change="webEngineError = ''"
-                        @click="selectWebEngine(engine.id)"
-                        @keydown.enter.prevent="selectWebEngine(engine.id)"
-                      />
-                      <span>{{ engine.name }}</span>
-                      <small v-if="!engine.id">不开启搜索</small>
-                    </label>
-                  </fieldset>
-                  <p
-                    :id="webStatusId"
-                    class="ai-panel__web-status"
-                    :class="{ 'ai-error': webEngineError }"
-                    role="status"
-                  >
-                    {{
-                      webEnginesLoading
-                        ? '正在加载搜索引擎…'
-                        : webEngineError ||
-                          (!webEngines.length
-                            ? '暂无可用搜索引擎，请稍后重试。'
-                            : webSearchEnabled
-                              ? '已开启搜索和网页读取'
-                              : '联网搜索已关闭')
-                    }}
-                  </p>
-                  <button
-                    v-if="webEngineError || (!webEnginesLoading && !webEngines.length)"
-                    type="button"
-                    class="ai-panel__control ai-panel__web-retry"
-                    :disabled="running || applying || webEnginesLoading"
-                    @click="loadWebEngines()"
-                  >
-                    重新加载搜索引擎
-                  </button>
-                </div>
-              </template>
-            </VoexTrigger>
+            <AIWebEngineSelect
+              ref="webEngineSelect"
+              v-model="selectedWebEngineId"
+              v-model:open="webMenuOpen"
+              :web-engines="webEngines"
+              :web-engines-loading="webEnginesLoading"
+              :web-engine-error="webEngineError"
+              :disabled="running || applying || !userConfig.canChange"
+              @change="webEngineError = ''"
+              @reload="loadWebEngines()"
+              @tab-next="focusAfterWebEngineSelect"
+            />
             <button
               v-if="selectedModel?.multimodal_enabled"
               ref="attachmentButton"
@@ -560,28 +295,19 @@
 </template>
 
 <script setup lang="ts">
-import {
-  computed,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  reactive,
-  ref,
-  shallowRef,
-  useId,
-  watch,
-} from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, reactive, shallowRef, watch } from 'vue';
 import SvgIcon from '@/components/SvgIcon.vue';
+import AIConversationHistory from './AIConversationHistory.vue';
+import AIModelSelect from './AIModelSelect.vue';
+import AIWebEngineSelect from './AIWebEngineSelect.vue';
 import AIMessageMarkdown from './AIMessageMarkdown.vue';
-import { createAIMessageRenderer, type AIMessageRenderer } from './message-markdown';
 import { useMessageBox } from '@/composables/useMessageBox';
-import { VoexTrigger } from '@/plugins/trigger';
-import { VoexTooltip } from '@/plugins/tooltip';
 import { useDialog } from '@/composables/useDialog';
 import { useConfirm } from '@/composables/useConfirm';
 import { MessageType } from '@/constant/status';
 import { ModalType } from '@/stores/modal';
 import {
+  deleteAIModel,
   getAIReview,
   listAIModels,
   listAIWebEngines,
@@ -597,6 +323,7 @@ import {
 } from '@/agent/attachments';
 import { authUser } from '@/service/auth-session';
 import { useAgentStore } from '@/stores/agent';
+import { useUserConfigStore } from '@/stores/user-config';
 import { errorMessage } from '@/utils/error';
 import { AgentDraft } from '@/agent/draft';
 import { AgentToolRegistry } from '@/agent/registry';
@@ -631,40 +358,44 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ close: [] }>();
 const models = ref<AIModel[]>([]);
-const selectedId = ref('');
+const userConfig = useUserConfigStore();
+const selectedModel = computed(() =>
+  userConfig.loaded
+    ? (models.value.find((item) => item.id === userConfig.aiModelId) ?? models.value[0])
+    : undefined
+);
+const selectedId = computed({
+  get: () => selectedModel.value?.id ?? '',
+  set: (id: string) => {
+    void userConfig.setAIPreference('aiModelId', id);
+  },
+});
 const webEngines = ref<AIWebEngine[]>([]);
-const selectedWebEngineId = ref('');
+const selectedWebEngineId = computed({
+  get: () => userConfig.aiWebEngineId,
+  set: (id: string) => {
+    void userConfig.setAIPreference('aiWebEngineId', id);
+  },
+});
 const webSearchEnabled = computed(() => selectedWebEngineId.value !== '');
-const webEngineOptions = computed(() => [{ id: '', name: '无' }, ...webEngines.value]);
 const webMenuOpen = ref(false);
-const webTrigger = ref<HTMLButtonElement>();
-const webMenu = ref<HTMLElement>();
-const webGroupName = useId() + '-web-engine';
+const webEngineSelect = ref<InstanceType<typeof AIWebEngineSelect>>();
 const webEnginesLoading = ref(false);
 const webEngineError = ref('');
-const webStatusId = useId() + '-web-status';
 const selectedWebEngine = computed(() =>
   webEngines.value.find((engine) => engine.id === selectedWebEngineId.value)
 );
-const webSearchLabel = computed(() =>
-  webSearchEnabled.value ? `联网搜索：${selectedWebEngine.value?.name || '已开启'}` : '联网搜索：无'
-);
-const selectedModel = computed(() => models.value.find((model) => model.id === selectedId.value));
 const messageBox = useMessageBox();
 const { confirm } = useConfirm();
 const modelMessages = useMessageBox();
-const pending = reactive(new Set<'models' | 'review' | 'delete'>());
+const pending = reactive(new Set<'models' | 'review' | 'delete' | 'deleteModel'>());
 const settingsOpen = ref(false);
 const editingModel = shallowRef<AIModel | null>(null);
 const modelMenuOpen = ref(false);
+const modelSelect = ref<InstanceType<typeof AIModelSelect>>();
 const conversationMenuOpen = ref(false);
-const conversationTrigger = ref<HTMLButtonElement>();
-const conversationMenu = ref<HTMLElement>();
+const conversationHistory = ref<InstanceType<typeof AIConversationHistory>>();
 const closeButton = ref<HTMLButtonElement>();
-const modelGroupName = useId() + '-ai-model';
-const modelTrigger = ref<HTMLButtonElement>();
-const modelMenu = ref<HTMLElement>();
-const modelSettingsButton = ref<HTMLButtonElement>();
 const attachmentInput = ref<HTMLInputElement>();
 const attachmentButton = ref<HTMLButtonElement>();
 const attachmentError = ref('');
@@ -732,16 +463,7 @@ let modelController: AbortController | undefined;
 let webEngineController: AbortController | undefined;
 let reviewController: AbortController | undefined;
 let disposed = false;
-const markdownRenderer = shallowRef<AIMessageRenderer>();
-onMounted(async () => {
-  try {
-    const renderer = await createAIMessageRenderer();
-    if (disposed) await renderer.destroy();
-    else markdownRenderer.value = renderer;
-  } catch {
-    if (!disposed) messageBox.error('对话排版加载失败，已显示原文。', { key: 'markdown' });
-  }
-});
+
 const conversationLocked = computed(
   () =>
     running.value ||
@@ -756,10 +478,12 @@ const conversationLocked = computed(
 );
 const canUpload = computed(
   () =>
+    userConfig.canChange &&
     !!selectedModel.value?.multimodal_enabled &&
     !conversationLocked.value &&
     !props.busy &&
     !pending.has('models') &&
+    !pending.has('deleteModel') &&
     !settingsOpen.value
 );
 const canSend = computed(
@@ -767,7 +491,9 @@ const canSend = computed(
     (!!prompt.value.trim() || draftAttachments.value.length > 0) &&
     draftAttachments.value.every((item) => item.status === 'ready') &&
     (!draftAttachments.value.length || !!selectedModel.value?.multimodal_enabled) &&
+    userConfig.canChange &&
     !!selectedModel.value &&
+    !pending.has('deleteModel') &&
     (!webSearchEnabled.value ||
       (!webEnginesLoading.value && !webEngineError.value && !!selectedWebEngine.value)) &&
     !!props.documentKey &&
@@ -795,40 +521,10 @@ useDialog(ModalType.AI_REVIEW_DIALOG, {
   }),
   onClose: closeReview,
 });
-function conversationDate(session: AIConversationSession) {
-  return new Date(session.createdAt).toLocaleString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  });
-}
-function conversationLabel(session: AIConversationSession) {
-  return `${session.title} · ${conversationDate(session)}`;
-}
-function focusSelectedConversation() {
-  if (!conversationMenuOpen.value) return;
-  const menu = conversationMenu.value;
-  const selected = menu?.querySelector<HTMLButtonElement>('button[aria-current="true"]:enabled');
-  (selected ?? menu?.querySelector<HTMLButtonElement>('button:enabled') ?? menu)?.focus({
+function focusAfterConversationHistory() {
+  (closeButton.value?.getClientRects().length ? closeButton.value : input.value)?.focus({
     preventScroll: true,
   });
-}
-function onConversationMenuTab(event: KeyboardEvent) {
-  const buttons = conversationMenu.value?.querySelectorAll<HTMLButtonElement>('button:enabled');
-  if (!buttons?.length || (event.shiftKey && event.target === buttons[0])) {
-    event.preventDefault();
-    conversationMenuOpen.value = false;
-    conversationTrigger.value?.focus({ preventScroll: true });
-  } else if (!event.shiftKey && event.target === buttons[buttons.length - 1]) {
-    event.preventDefault();
-    conversationMenuOpen.value = false;
-    (closeButton.value?.getClientRects().length ? closeButton.value : input.value)?.focus({
-      preventScroll: true,
-    });
-  }
 }
 function captureContext(sessionId?: string) {
   const key = props.documentKey;
@@ -899,7 +595,7 @@ async function newConversation() {
 async function switchConversation(id: string) {
   if (conversationLocked.value) return;
   conversationMenuOpen.value = false;
-  conversationTrigger.value?.focus({ preventScroll: true });
+  conversationHistory.value?.focusTrigger();
   const current = captureContext();
   messageBox.clear();
   agentStore.selectConversation(props.documentKey, id);
@@ -992,8 +688,6 @@ async function loadModels() {
       return;
     }
     models.value = result;
-    if (!result.some((model) => model.id === selectedId.value))
-      selectedId.value = result[0]?.id ?? '';
     notice.close();
   } catch (cause) {
     if (!request.signal.aborted && !disposed && user === authUser.value?.id)
@@ -1031,7 +725,6 @@ async function loadWebEngines(signal?: AbortSignal): Promise<AIWebEngine[] | und
   } catch (cause) {
     if (!request.signal.aborted && !disposed && user === authUser.value?.id) {
       webEngines.value = [];
-      selectedWebEngineId.value = '';
       webEngineError.value = errorMessage(cause, '搜索引擎加载失败，请重试');
     }
   } finally {
@@ -1042,6 +735,39 @@ async function loadWebEngines(signal?: AbortSignal): Promise<AIWebEngine[] | und
     }
   }
 }
+watch(
+  () => authUser.value?.id,
+  (user) => {
+    modelController?.abort();
+    webEngineController?.abort();
+    models.value = [];
+    webEngines.value = [];
+    webEngineError.value = '';
+    modelMenuOpen.value = false;
+    webMenuOpen.value = false;
+    if (user) void loadModels();
+  },
+  { immediate: true }
+);
+watch(
+  () => userConfig.loaded,
+  (loaded) => {
+    if (loaded && userConfig.aiWebEngineId) void loadWebEngines();
+  },
+  { immediate: true }
+);
+watch(
+  () => userConfig.loadError || userConfig.aiSaveError,
+  (error) => {
+    if (error)
+      modelMessages.error(error, {
+        key: 'aiPreferences',
+        retry: userConfig.loadError ? userConfig.load : userConfig.retrySave,
+      });
+    else modelMessages.clear('aiPreferences');
+  },
+  { immediate: true }
+);
 watch(modelMenuOpen, (open) => {
   if (open) webMenuOpen.value = false;
 });
@@ -1050,72 +776,57 @@ watch(webMenuOpen, (open) => {
   modelMenuOpen.value = false;
   if (!running.value && !applying.value) void loadWebEngines();
 });
-function focusSelectedWebEngine() {
-  if (!webMenuOpen.value) return;
-  const selected = webMenu.value?.querySelector<HTMLInputElement>('input:checked:not(:disabled)');
-  (selected ?? webMenu.value)?.focus({ preventScroll: true });
-}
-function selectWebEngine(id: string) {
-  if (running.value || applying.value) return;
-  if (id && (webEnginesLoading.value || !webEngines.value.some((engine) => engine.id === id)))
-    return;
-  selectedWebEngineId.value = id;
-  webEngineError.value = '';
-  webMenuOpen.value = false;
-  webTrigger.value?.focus({ preventScroll: true });
-}
-function onWebMenuTab(event: KeyboardEvent) {
-  const controls = webMenu.value?.querySelectorAll<HTMLElement>(
-    'button:enabled, input:checked:not(:disabled)'
-  );
-  if (!controls?.length) return;
-  if (event.shiftKey && event.target === controls[0]) {
-    event.preventDefault();
-    webMenuOpen.value = false;
-    webTrigger.value?.focus({ preventScroll: true });
-  } else if (!event.shiftKey && event.target === controls[controls.length - 1]) {
-    event.preventDefault();
-    webMenuOpen.value = false;
-    const nextControl = attachmentButton.value;
-    (nextControl && !nextControl.disabled ? nextControl : input.value)?.focus({
-      preventScroll: true,
-    });
-  }
+function focusAfterWebEngineSelect() {
+  const nextControl = attachmentButton.value;
+  (nextControl && !nextControl.disabled ? nextControl : input.value)?.focus({
+    preventScroll: true,
+  });
 }
 function modelSaved(model: AIModel) {
   models.value = [...models.value.filter((item) => item.id !== model.id), model];
   selectedId.value = model.id;
 }
-function focusSelectedModel() {
-  if (!modelMenuOpen.value) return;
-  const selected = modelMenu.value?.querySelector<HTMLInputElement>('input:checked');
-  (selected ?? modelSettingsButton.value)?.focus({ preventScroll: true });
-}
-function selectModel(id: string) {
-  if (running.value || applying.value) return;
-  selectedId.value = id;
+async function removeModel(model: AIModel) {
+  if (running.value || applying.value || pending.has('deleteModel') || pending.has('models'))
+    return;
+  const user = authUser.value?.id;
+  const current = captureContext();
+  pending.add('deleteModel');
   modelMenuOpen.value = false;
-  modelTrigger.value?.focus({ preventScroll: true });
+  try {
+    await nextTick();
+    const accepted = await confirm({
+      type: MessageType.WARNING,
+      title: '删除模型',
+      content: `确定删除“${model.name}”的模型配置吗？`,
+      confirmText: '删除模型',
+      cancelText: '取消',
+    });
+    if (!accepted || !current()) return;
+    await deleteAIModel(model.id);
+    if (disposed || user !== authUser.value?.id) return;
+    const wasSelected = selectedId.value === model.id;
+    models.value = models.value.filter((item) => item.id !== model.id);
+    if (wasSelected) selectedId.value = models.value[0]?.id ?? '';
+    modelMessages.info('模型配置已删除', { key: 'deleteModel' });
+  } catch (cause) {
+    if (current())
+      modelMessages.error(errorMessage(cause, '删除模型失败，请重试'), { key: 'deleteModel' });
+  } finally {
+    pending.delete('deleteModel');
+    if (current()) modelMenuOpen.value = true;
+  }
 }
 async function openModelSettings(model: AIModel | null = null) {
   editingModel.value = model;
   modelMenuOpen.value = false;
-  modelTrigger.value?.focus({ preventScroll: true });
+  modelSelect.value?.focusTrigger();
   await nextTick();
   settingsOpen.value = true;
 }
-function onModelMenuTab(event: KeyboardEvent) {
-  const firstControl = modelMenu.value?.querySelector('input:checked, button:enabled');
-  const atStart = event.target === firstControl;
-  if (event.shiftKey && atStart) {
-    event.preventDefault();
-    modelMenuOpen.value = false;
-    modelTrigger.value?.focus({ preventScroll: true });
-  } else if (!event.shiftKey && event.target === modelSettingsButton.value) {
-    event.preventDefault();
-    modelMenuOpen.value = false;
-    (webTrigger.value ?? input.value)?.focus({ preventScroll: true });
-  }
+function focusAfterModelSelect() {
+  if (webEngineSelect.value) webEngineSelect.value.focusTrigger();
+  else input.value?.focus({ preventScroll: true });
 }
 async function selectAttachments(event: Event) {
   const target = event.target as HTMLInputElement;
@@ -1295,7 +1006,7 @@ async function send() {
   const submittedAttachments = submittedItems.flatMap((item) =>
     item.attachment ? [item.attachment] : []
   );
-  const text = submittedDraft.trim() || '请分析上传的文件。';
+  const text = submittedDraft.trim() || 'Analyze the uploaded files.';
   try {
     if (webEngine) {
       notice.update('正在检查搜索引擎…');
@@ -1348,7 +1059,7 @@ async function send() {
     void scrollEnd();
     draft = new AgentDraft(source);
     const registry = new AgentToolRegistry();
-    registerEditorTools(
+    const documents = registerEditorTools(
       registry,
       draft,
       getComputedStyle(document.documentElement).getPropertyValue('--color-text-primary').trim()
@@ -1356,9 +1067,11 @@ async function send() {
     registerFileTools(registry, draft, props.capabilities);
     registerWebTools(registry, webEngine);
     await runAgent({
+      documents,
       model,
       registry,
       context: {
+        sessionId,
         document: source,
         userRequest: text,
         webSearchEngine: webEngine,
@@ -1379,7 +1092,6 @@ async function send() {
         void scrollEnd();
       },
     });
-    if (!assistant.text) assistant.text = '本轮操作已完成，请查看修改建议。';
   } catch (cause) {
     const message = request.signal.aborted
       ? '已停止；完成的草稿仍可审阅。'
@@ -1513,37 +1225,9 @@ watch(conversationId, () => {
   followScroll = true;
   void scrollEnd();
 });
+
 watch(
-  () => authUser.value?.id,
-  (id) => {
-    messageBox.clear();
-    modelMessages.clear();
-    cancelAttachmentUploads();
-    attachmentError.value = '';
-    stop();
-    modelController?.abort();
-    webEngineController?.abort();
-    webEngines.value = [];
-    selectedWebEngineId.value = '';
-    webEngineError.value = '';
-    webEnginesLoading.value = false;
-    reviewController?.abort();
-    models.value = [];
-    selectedId.value = '';
-    settingsOpen.value = false;
-    modelMenuOpen.value = false;
-    webMenuOpen.value = false;
-    conversationMenuOpen.value = false;
-    review.value = null;
-    if (id) {
-      void loadModels();
-      void loadWebEngines();
-    }
-  },
-  { immediate: true }
-);
-watch(
-  [() => props.documentKey, () => authUser.value?.id],
+  () => props.documentKey,
   ([key, id]) => {
     if (key && id) void loadConversations();
   },
@@ -1552,7 +1236,6 @@ watch(
 onBeforeUnmount(() => {
   disposed = true;
   cancelAttachmentUploads();
-  void markdownRenderer.value?.destroy();
   stop();
   modelController?.abort();
   webEngineController?.abort();
@@ -1628,84 +1311,6 @@ onBeforeUnmount(() => {
     &:disabled
       opacity .4
       cursor not-allowed
-  &__history-popup
-    border 1px solid var(--color-border-secondary)
-    max-height unquote('min(280px, var(--voex-trigger-available-height, 280px))')
-  &__history-menu
-    box-sizing border-box
-    width 280px
-    max-width unquote('min(calc(100vw - 18px), var(--voex-trigger-available-width, 280px))')
-    padding 4px
-  &__history-list
-    margin 0
-    padding 0
-    list-style none
-  &__history-row
-    display flex
-    align-items center
-    gap 4px
-  &__history-delete
-    display inline-flex
-    align-items center
-    justify-content center
-    flex-shrink 0
-    width 28px
-    height 28px
-    padding 0
-    border 0
-    border-radius var(--border-radius-item-s, 6px)
-    background transparent
-    color var(--color-text-tertiary)
-    cursor pointer
-    &:hover:not(:disabled)
-      background var(--color-bg-tertiary)
-      color var(--color-red)
-    &:active:not(:disabled)
-      background var(--color-selection-dim)
-    &:disabled
-      opacity .4
-      cursor not-allowed
-  &__history-item
-    display block
-    flex 1
-    min-width 0
-    padding 9px 8px
-    border 0
-    border-radius var(--border-radius-item-s, 6px)
-    background transparent
-    color var(--color-text-primary)
-    font inherit
-    text-align left
-    cursor pointer
-    &:hover:not(:disabled)
-      background var(--color-bg-tertiary)
-    &:active:not(:disabled)
-      background var(--color-selection-bg)
-    &[aria-current='true']
-      background var(--color-selection-dim)
-    &:disabled
-      opacity .5
-      cursor not-allowed
-    strong, small
-      display block
-    strong
-      overflow hidden
-      text-overflow ellipsis
-      white-space nowrap
-      font-size 13px
-      font-weight 500
-    small
-      margin-top 3px
-      color var(--color-text-tertiary)
-      font-size 11px
-  &__history-status
-    margin 0
-    padding 12px 8px
-    color var(--color-text-secondary)
-    font-size 12px
-  &__history-more
-    width 100%
-    margin-top 4px
   &__messages
     min-height 0
     flex 1
@@ -1765,21 +1370,6 @@ onBeforeUnmount(() => {
     width 100%
     text-align left
     border-color var(--color-accent)
-  &__multimodal
-    display inline-block
-    flex-shrink 0
-    padding 1px 4px
-    border 1px solid var(--color-border-secondary)
-    border-radius 4px
-    color var(--color-accent)
-    font-size 10px
-    font-weight 400
-    line-height 1.4
-    white-space nowrap
-  &__model-option strong.ai-panel__model-name
-    display flex
-    align-items center
-    gap 6px
   &__sent-files, &__files
     list-style none
     margin 6px 0
@@ -1898,166 +1488,6 @@ onBeforeUnmount(() => {
     &:disabled
       opacity .4
       cursor not-allowed
-  &__model-trigger
-    justify-content space-between
-    gap 6px
-    padding-inline 8px
-    span
-      flex 1
-      min-width 0
-      text-align left
-      overflow hidden
-      text-overflow ellipsis
-      white-space nowrap
-  &__model-chevron
-    flex-shrink 0
-    transform rotate(-90deg)
-    &--open
-      transform rotate(90deg)
-  &__model-popup
-    border 1px solid var(--color-border-secondary)
-    min-width unquote('min(280px, calc(100vw - 24px))')
-  &__model-menu
-    display flex
-    flex-direction column
-    max-height unquote('min(320px, var(--voex-trigger-available-height, 320px))')
-    padding 4px
-    overflow-y auto
-    overscroll-behavior contain
-  &__model-options
-    flex-shrink 0
-    min-width 0
-    min-height 0
-    margin 0
-    padding 0
-    border 0
-  &__model-row
-    display flex
-    align-items center
-    gap 4px
-  &__model-edit
-    flex-shrink 0
-    width 32px
-    height 32px
-    padding 6px
-  &__model-option
-    flex 1
-    min-width 0
-    display flex
-    align-items center
-    gap 8px
-    padding 9px 8px
-    border-radius var(--border-radius-item-s, 6px)
-    cursor pointer
-    &:hover
-      background var(--color-bg-tertiary)
-
-    &:active
-      background var(--color-bg-tertiary)
-    &--selected
-      background var(--color-selection-dim)
-    input
-      flex-shrink 0
-      width 14px
-      height 14px
-      margin 0
-      accent-color var(--color-accent)
-      cursor pointer
-    span
-      min-width 0
-      overflow-wrap anywhere
-    strong, small
-      display block
-    strong
-      color var(--color-text-primary)
-      font-size 12px
-      font-weight 500
-    small
-      margin-top 3px
-      color var(--color-text-tertiary)
-      font-size 11px
-  &__model-empty
-    margin 0
-    padding 12px 8px
-    color var(--color-text-tertiary)
-    font-size 12px
-  &__web-popup
-    width unquote('min(240px, calc(100vw - 24px))')
-    border 1px solid var(--color-border-secondary)
-  &__web-menu
-    box-sizing border-box
-    max-height unquote('min(320px, var(--voex-trigger-available-height, 320px))')
-    padding 8px
-    overflow-y auto
-    overscroll-behavior contain
-  &__web-heading
-    display flex
-    align-items center
-    gap 4px
-    padding 0 4px 4px
-    color var(--color-text-primary)
-    font-size 12px
-    font-weight 500
-  &__web-help
-    width 28px
-    min-height 28px
-    padding 4px
-  &__web-options
-    margin 0
-    padding 0
-    border 0
-    min-width 0
-  &__web-option
-    display flex
-    align-items center
-    gap 8px
-    min-height 36px
-    padding 8px
-    border-radius var(--border-radius-item-s, 6px)
-    color var(--color-text-primary)
-    font-size 12px
-    cursor pointer
-    &:hover:not(:has(input:disabled))
-      background var(--color-bg-tertiary)
-
-    &:active:not(:has(input:disabled))
-      background var(--color-selection-dim)
-    &--selected
-      background var(--color-selection-dim)
-    &:has(input:disabled)
-      opacity .5
-      cursor not-allowed
-    input
-      flex-shrink 0
-      margin 0
-      width 14px
-      height 14px
-      accent-color var(--color-accent)
-      cursor inherit
-    span
-      overflow-wrap anywhere
-    small
-      color var(--color-text-tertiary)
-      font-size 11px
-  &__web-retry
-    margin-top 4px
-  &__web-status
-    min-height 18px
-    margin 6px 0 0
-    color var(--color-text-tertiary)
-    font-size 11px
-    line-height 1.6
-    overflow-wrap anywhere
-    &.ai-error
-      color var(--color-red)
-  &__model-settings
-    flex-shrink 0
-    justify-content flex-start
-    gap 8px
-    width 100%
-    margin-top 4px
-    padding 10px 8px
-    border-top 1px solid var(--color-border-secondary)
   &__icon-button
     flex-shrink 0
     width 28px

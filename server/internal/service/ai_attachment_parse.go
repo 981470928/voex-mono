@@ -336,7 +336,7 @@ func aiOpenXMLText(extension string, data []byte) string {
 			if strings.TrimSpace(text) != "" {
 				hasText = true
 			}
-			fmt.Fprintf(&output, "幻灯片 %d\n%s\n", count, text)
+			fmt.Fprintf(&output, "Slide %d\n%s\n", count, text)
 			if output.Len() > aiAttachmentTextSize {
 				shared.Fail(http.StatusRequestEntityTooLarge, shared.MsgOfficeTextTooLarge)
 			}
@@ -441,7 +441,7 @@ func (archive aiXMLArchive) spreadsheetText() string {
 				title = attribute.Value
 			}
 		}
-		fmt.Fprintf(&output, "工作表：%s\n", title)
+		fmt.Fprintf(&output, "Worksheet: %s\n", title)
 		sheet := aiXMLDecoder(archive.read(name, true))
 		count++
 		for {

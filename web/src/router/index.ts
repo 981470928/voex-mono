@@ -1,3 +1,5 @@
+import { defineAsyncComponent, defineComponent, h, type AsyncComponentLoader } from 'vue';
+import DocumentRouteState from '@/components/files/DocumentRouteState.vue';
 import { createRouter, createWebHistory } from 'vue-router';
 import {
   authenticated,
@@ -10,6 +12,20 @@ import { refreshSession } from '@/service/api/https';
 import { safeReturnPath } from '@/utils/auth';
 
 const base = import.meta.env.BASE_URL;
+
+// Resolve the route immediately; load the document view inside the committed route.
+function documentRoute(loader: AsyncComponentLoader) {
+  const view = defineAsyncComponent({
+    loader,
+    delay: 0,
+    loadingComponent: DocumentRouteState,
+    errorComponent: DocumentRouteState,
+  });
+  return defineComponent({
+    name: 'DocumentRoute',
+    setup: () => () => h(view),
+  });
+}
 
 const router = createRouter({
   history: createWebHistory(base),
@@ -73,12 +89,12 @@ const router = createRouter({
     {
       path: '/recent/:file_key',
       name: 'recent-file',
-      component: () => import('@/views/share/SharedFilePage.vue'),
+      component: documentRoute(() => import('@/views/share/SharedFilePage.vue')),
     },
     {
       path: '/edit/:file_key',
       name: 'edit',
-      component: () => import('@/views/edit/EditPage.vue'),
+      component: documentRoute(() => import('@/views/edit/EditPage.vue')),
     },
     { path: '/:pathMatch(.*)*', redirect: '/home/recent' },
   ],
@@ -113,6 +129,14 @@ router.beforeEach(async (to, from) => {
     return { name: to.name, hash: from.hash, replace: true };
   }
   if (to.meta.public) return true;
+  // 已登录工作台先显示文件页，正文请求仍由 HTTP 拦截器等待续期和鉴权。
+  if (
+    sessionInitialized.value &&
+    authenticated.value &&
+    (to.name === 'edit' || to.name === 'recent-file') &&
+    from.matched.some((record) => record.name === 'home')
+  )
+    return true;
   if (
     !sessionInitialized.value ||
     (authenticated.value && accessExpiresAt.value < Date.now() + 30000)

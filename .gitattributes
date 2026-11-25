@@ -1,3 +1,0 @@
-# Generated quick-deployment artifacts (see scripts/package.mjs).
-# 快速部署的生成产物（参见 scripts/package.mjs）。
-prebuilt/** -text -diff

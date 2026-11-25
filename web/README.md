@@ -23,23 +23,24 @@ TypeScript cannot handle type information for `.vue` imports by default, so we r
 
 See [Vite Configuration Reference](https://vite.dev/config/).
 
-## Project Setup
+## 本地开发与手动打包
+
+在 `web/` 目录执行。首次安装依赖并创建前端配置：
 
 ```sh
-pnpm install
+pnpm install --frozen-lockfile
+cp -n .env.example .env
 ```
 
-### Compile and Hot-Reload for Development
+编辑 `.env`。默认访问路径是 `/app/`，开发服务端口是 `3500`。Go API 或协同服务使用其他地址时，填写对应的开发代理地址。生产前端通过同源的 `/api` 访问后端。
+
+开发时运行 `npm run dev`。手动打包：
 
 ```sh
-pnpm dev
+npm run build
 ```
 
-### Type-Check, Compile and Minify for Production
-
-```sh
-pnpm build
-```
+静态文件输出到 `dist/`。更改前端构建配置后，重新运行此命令。
 
 ## 许可证
 

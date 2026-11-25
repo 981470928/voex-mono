@@ -13,9 +13,7 @@ import { linkAttr, linkSchema, sanitizeLinkHref } from '@milkdown/kit/preset/com
 import type { Mark, Node as ProseNode } from '@milkdown/kit/prose/model';
 import type { PluginView } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import linkIcon from '@/assets/svg/editor-link.svg?raw';
-import editIcon from '@/assets/svg/write.svg?raw';
-import removeIcon from '@/assets/svg/eraser.svg?raw';
+import { editorIcon } from './editor-icon';
 import {
   createFileReferencePlugin,
   fileReferenceAt,
@@ -140,9 +138,9 @@ export function createEditorLinks(options: {
       }));
       ctx.update(linkTooltipConfig.key, (config) => ({
         ...config,
-        linkIcon: iconButton('复制链接', linkIcon),
-        editButton: iconButton('编辑链接', editIcon),
-        removeButton: iconButton('移除链接', removeIcon),
+        linkIcon: iconButton('复制链接', editorIcon('editor-link')),
+        editButton: iconButton('编辑链接', editorIcon('write')),
+        removeButton: iconButton('移除链接', editorIcon('eraser')),
         confirmButton: iconButton('应用链接', '应用'),
         inputPlaceholder: '输入网页、邮件、电话链接或文件路径',
       }));

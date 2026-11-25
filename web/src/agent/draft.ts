@@ -11,14 +11,14 @@ export class AgentDraft {
     const change = this.changes.get(key);
     if (change) return change.after_content;
     if (key === this.source.file_key) return this.source.content;
-    throw new Error('只能操作当前文档或本轮新建的文档');
+    throw new Error('Only the current document or a draft created in this turn is available.');
   }
 
   private current(key: string): DocumentChange {
     const existing = this.changes.get(key);
     if (existing) return existing;
     if (key !== this.source.file_key || !this.source.writable)
-      throw new Error('当前文档没有编辑权限');
+      throw new Error('This document is read-only.');
     const change: DocumentChange = {
       kind: 'update',
       file_key: key,
@@ -36,7 +36,7 @@ export class AgentDraft {
 
   write(content: string, key = this.source.file_key) {
     if (new TextEncoder().encode(content).length > 1024 * 1024)
-      throw new Error('单个文档不能超过 1 MiB');
+      throw new Error('A document cannot exceed 1 MiB.');
     this.current(key).after_content = content;
     return { status: 'pending_review', file_key: key };
   }
@@ -45,7 +45,9 @@ export class AgentDraft {
     const content = this.read(key);
     const index = content.indexOf(search);
     if (!search || index < 0 || content.indexOf(search, index + 1) >= 0)
-      throw new Error('待替换内容必须非空且只匹配一次，请读取当前草稿并扩大匹配上下文');
+      throw new Error(
+        'The search fragment must be nonempty and match exactly once. Read the draft and supply more surrounding text.'
+      );
     return this.write(
       content.slice(0, index) + replacement + content.slice(index + search.length),
       key
@@ -54,10 +56,10 @@ export class AgentDraft {
 
   create(name: string, content: string): { status: string; file_key: string } {
     if (!name.trim() || Array.from(name.trim()).length > 255)
-      throw new Error('文件名称需为 1–255 个字符');
-    if (this.changes.size >= 20) throw new Error('一次最多修改 20 个文件');
+      throw new Error('File names must contain 1–255 characters.');
+    if (this.changes.size >= 20) throw new Error('At most 20 files can be changed in one turn.');
     if (new TextEncoder().encode(content).length > 1024 * 1024)
-      throw new Error('单个文档不能超过 1 MiB');
+      throw new Error('A document cannot exceed 1 MiB.');
     const key = `draft-${randomUUID()}`;
     this.changes.set(key, {
       kind: 'create',
@@ -75,7 +77,7 @@ export class AgentDraft {
 
   rename(name: string, key = this.source.file_key) {
     if (!name.trim() || Array.from(name.trim()).length > 255)
-      throw new Error('文件名称需为 1–255 个字符');
+      throw new Error('File names must contain 1–255 characters.');
     this.current(key).after_name = name.trim();
     return { status: 'pending_review', file_key: key };
   }

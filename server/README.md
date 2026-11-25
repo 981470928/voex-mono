@@ -4,34 +4,34 @@ Gin + GORM HTTP 服务：账号认证、团队与项目权限、单层目录、M
 
 当前文件后端为主机本地 `/home/static`。通过原生 Go 二进制运行服务，数据库与文件存储由开发环境自行配置。
 
-## 源码环境与运行
+## 手动构建与运行
 
-- Go 1.27.1，版本依赖固定在 `go.mod` / `go.sum`。服务器已安装的 `go` / `gofmt` 位于 `/usr/local/bin`。
-- Make、MySQL 8；图片校验使用 Go 标准库与 `golang.org/x/image/webp`，无需 libvips。
-- 服务用户须能读写专用绝对路径 `VOEX_STORAGE_ROOT`，默认 `/home/static`；目录不得通过符号链接逃逸到其他位置。
-- 原生 Go API 不依赖 Node.js；前端在独立仓库使用 pnpm 构建。
-
-以下命令仅用于已明确指定的开发数据库；新环境填写 `.env`，已有配置应保留。正常启动会自动创建配置指定的缺失数据库、表和工作区锁记录；缺失对象需要相应 `CREATE` / `REFERENCES` 权限，已有表的列结构变化仍使用显式迁移。
+准备 Go 1.27.1 和 MySQL 8。在仓库根目录执行以下命令：
 
 ```sh
-cd /home/voex-server
+cd server
+go build
 cp -n .env.example .env
 chmod 600 .env
-# 编辑 .env，设置开发 MySQL、VOEX_STORAGE_ROOT 和 JWT_SECRET_FILE。
-make build
-make check
-./bin/voex-server serve
 ```
 
-可单独执行 `./bin/voex-server init-db` 完成初始化与配置检查；`./bin/voex-server check-config` 只检查，不修改数据库。数据库初始化、表结构与业务一致性约定见 [数据库](docs/db.md)。
+填写 `.env` 中的 `MYSQL_*` 数据库连接参数。将 `VOEX_STORAGE_ROOT` 指向专用存储目录，将 `JWT_SECRET_FILE` 和 `SHARE_SECRET_FILE` 分别指向登录与分享签名密钥。使用当前服务账号可读写的绝对路径。首次启动会创建缺失的目录和签名密钥。已有实例应填入原有数据库、存储目录和密钥路径，以继续访问文件并保留登录会话与分享链接。
 
-`.env` 自动加载，进程环境变量优先；`VOEX_ENV_FILE` 可指定其他配置文件。默认模块代理不可达时可使用 `GOPROXY=https://goproxy.cn,direct go mod download`，保持 Go checksum 校验。`make build` 原子替换 `bin/voex-server`；`make fmt` 格式化 `cmd` 和 `internal`；`make check` 执行 `go vet` 与 `go mod verify`，不运行单元测试。
+在同一目录运行：
+
+```sh
+./voex-server
+```
+
+服务会从当前工作目录读取 `.env`，也可用 `VOEX_ENV_FILE` 指定路径。进程环境变量优先。修改配置后重启服务即可。默认监听 `127.0.0.1:8090`。
+
+启动会创建缺失的数据库、表和工作区锁记录。首次初始化账号需要相应的 `CREATE` / `REFERENCES` 权限。已有表的列结构变化需显式迁移。环境已就绪时，`./voex-server check-config` 可检查存储、密钥及数据库结构，`./voex-server init-db` 可单独初始化数据库。详见[数据库说明](docs/db.md)。
 
 ## 项目结构
 
 | 目录                                                        | 职责                                                     |
 | ----------------------------------------------------------- | -------------------------------------------------------- |
-| `cmd/voex-server`                                           | HTTP 服务入口（默认运行 `serve`）             |
+| `main.go`                                                   | HTTP 服务入口（默认运行 `serve`）             |
 | `internal/app`、`internal/config`                           | 依赖组装、服务生命周期和环境配置                         |
 | `internal/router`、`internal/middleware`                    | Gin 路由、登录、CORS 与日志                     |
 | `internal/handler`、`internal/transport`                    | 参数解析、HTTP / JSON / Cookie                |
@@ -78,22 +78,11 @@ VOEX_STORAGE_ROOT=/home/static
 
 本次框架改写已保留全部 54 个业务路由及 GET 对应的 HEAD 行为。验证覆盖团队/工作区 159 项、文件/分享/HEAD/Range 94 项、认证互通 45 项，以及现有数据只读对比和 HEAD 30 项；不执行单元测试。
 
-框架改写前的 Go 源码、二进制、环境配置和验证记录保存于 `.gin-backup-path` 指向的仓库外目录。以下为旧 Gin/GORM 改写的历史回滚记录。旧二进制必须与目标数据库结构匹配；核对数据库结构及备份后，历史 PM2 环境的二进制切回方式为：
-
-```sh
-cd /home/voex-server
-backup=$(cat .gin-backup-path)
-install -m 755 "$backup/voex-server" bin/voex-server.rollback
-mv bin/voex-server.rollback bin/voex-server
-pm2 restart voex-server
-pm2 save
-```
-
-该操作保留现有数据库、上传内容和登录密钥；源码恢复需另行核对归档或 Git 版本。
+框架改写前的 Go 源码、二进制、环境配置和验证记录保存于 `.gin-backup-path` 指向的仓库外目录。恢复历史版本前须核对二进制与数据库结构是否匹配。
 
 ## 多人协同
 
-协同能力通过独立 Node/Hocuspocus 进程接入，Go 保留权限与 MySQL 事务；默认关闭。开启前需显式执行协同 SQL 并配置服务间密钥和浏览器 Origin。构建、原生进程配置、Nginx 与更新恢复步骤见 [多人协同](docs/COLLABORATION.md)。
+协同能力通过独立 Node/Hocuspocus 进程接入，Go 保留权限与 MySQL 事务；默认关闭。需要协同编辑正文时，确认数据库结构，配置共享密钥，并单独启动协同服务。详见[多人协同](docs/COLLABORATION.md)。
 
 ## 许可证
 

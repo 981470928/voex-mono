@@ -161,6 +161,7 @@ export interface ToolDefinition {
 }
 
 export interface AgentContext {
+  sessionId: string;
   document: DocumentSnapshot;
   userRequest: string;
   webSearchEngine: string;

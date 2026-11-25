@@ -13,12 +13,7 @@ import { CellSelection, TableMap } from '@milkdown/kit/prose/tables';
 import { columnResizingPluginKey, updateColumnsOnResize } from '@milkdown/kit/prose/tables';
 import { $view } from '@milkdown/kit/utils';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import addIcon from '@/assets/svg/add.svg?raw';
-import moreIcon from '@/assets/svg/more-16.svg?raw';
-import trashIcon from '@/assets/svg/trash.svg?raw';
-import alignLeftIcon from '@/assets/svg/editor-align-left.svg?raw';
-import alignCenterIcon from '@/assets/svg/editor-align-center.svg?raw';
-import alignRightIcon from '@/assets/svg/editor-align-right.svg?raw';
+import { editorIcon } from './editor-icon';
 import {
   applyTableWidths,
   fitTableWidths,
@@ -389,12 +384,12 @@ export function createEditorTables(options: {
       ctx.update(tableBlockConfig.key, (config) => ({
         ...config,
         renderButton: (action) => {
-          if (action.startsWith('add_')) return addIcon;
-          if (action.startsWith('delete_')) return trashIcon;
-          if (action.endsWith('drag_handle')) return moreIcon;
-          if (action === 'align_col_left') return alignLeftIcon;
-          if (action === 'align_col_center') return alignCenterIcon;
-          if (action === 'align_col_right') return alignRightIcon;
+          if (action.startsWith('add_')) return editorIcon('add', 14);
+          if (action.startsWith('delete_')) return editorIcon('trash');
+          if (action.endsWith('drag_handle')) return editorIcon('more-16');
+          if (action === 'align_col_left') return editorIcon('editor-align-left');
+          if (action === 'align_col_center') return editorIcon('editor-align-center');
+          if (action === 'align_col_right') return editorIcon('editor-align-right');
           return labels[action];
         },
       }));

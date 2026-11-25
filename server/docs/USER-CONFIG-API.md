@@ -60,6 +60,15 @@ API 前缀为 `/api`，沿用现有 Bearer access token / 登录 Cookie 鉴权�
 
 只传 `{"userConfig":{"theme":"light"}}` 时，已有 `editor` 会完整保留。
 
+## AI 面板偏好
+
+| 顶层字段 | 保存内容 | 尚未设置时 |
+| --- | --- | --- |
+| `aiModelId` | 当前账号选中的模型配置 ID | 选用模型列表第一项，列表为空时留空 |
+| `aiWebEngineId` | 搜索引擎 ID，空字符串表示关闭 | 关闭联网搜索 |
+
+两项偏好跨文档和登录会话共用。切换模型只 PATCH `aiModelId`，切换或关闭搜索只 PATCH `aiWebEngineId`。
+
 ## 错误与并发
 
 | 状态 | 条件 |

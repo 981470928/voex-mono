@@ -28,7 +28,7 @@ Browser links use /share#TOKEN or /join#TOKEN. Tokens are generated from 32 rand
 /shared-file GET/PUT uses X-Share-Token header and optional JWT. Any valid link holder can access that document only. Edit links allow anonymous content edits. Project edit rights override read links. Public PUT only accepts file_content and revision. No team/project/folder identifiers or contact details are exposed.
 /shared-file/attachments/:hash GET binds file_key+hash to the shared document. /shared-file/creator-avator is capability-scoped. Revocation takes effect on the next request. General /assets/upload and document /upload still require JWT; links never grant general upload or project access.
 
-Implementation: internal/handler/{teams,workspace,shares}.go, with service/repository counterparts. Configuration, build, deployment and verification are documented in README.md.
+Implementation: internal/handler/{teams,workspace,shares}.go, with service/repository counterparts. See the [server README](../README.md) for build and configuration instructions.
 
 ## 文件权限更新（2026-10-23）
 

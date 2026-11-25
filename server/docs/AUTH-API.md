@@ -2,7 +2,7 @@ Current team authorization supersedes creator-only isolation; see TEAM-API.md.
 
 # Voex authentication (experimental)
 
-API root: /api. The Go service listens on 127.0.0.1:8090 behind Nginx.
+API root: /api. The Go service listens on 127.0.0.1:8090 by default.
 
 POST /auth/account-availability {account} -> {available}
 POST /auth/register {account,password,name,email?,phone?} -> {accessToken,expiresIn:900,user}
@@ -34,4 +34,4 @@ General files <=200 MiB, avator <=5 MiB, thumbnail <=20 MiB. Images must be stat
 Images are checked for supported format, dimensions, static content and complete decoding using Go; no libvips dependency, resizing, re-encoding or metadata removal. PNG/JPEG/WebP assets and shared creator avatars are served inline with their actual MIME type.
 Document attachments use R2 keys attachments/{sha256}. Shared hash objects are retained after record deletion; no scheduled orphan cleanup is configured. Existing local files must be migrated before switching; see README.md. Local temporary files are used only to stage uploads for validation and R2 transfer.
 
-Implementation: internal/handler/auth.go and internal/handler/storage.go, with service/repository counterparts. Configuration, build, deployment and verification are documented in README.md.
+Implementation: internal/handler/auth.go and internal/handler/storage.go, with service/repository counterparts. See the [server README](../README.md) for build and configuration instructions.

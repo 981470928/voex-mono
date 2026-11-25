@@ -87,7 +87,7 @@ AI 对话按账号、文档和会话独立保存；面板顶部提供“当前�
 
 `*Dialog` 组件统一注册于 `src/stores/modal.ts`，由 App 全局宿主挂载，不在业务组件模板中单独声明。调用方通过 `useDialog` 将显示状态、业务参数与回调接入 store；调用方卸载时只关闭自己持有的会话。Confirm/Input 沿用 `showModal` 与 `useModal`，其他 Dialog 仅在显示期间挂载并在关闭时释放实例。
 
-`InputDialog` 是命名输入和异步提交的公共入口；`ConfirmDialog` 是删除/未保存确认入口；`VoexModal` 负责焦点、Escape、背景隔离和滚动锁；`VoexDrawer` 复用其 right 布局变体，编辑页 `activePanel` 管理互斥的 AI / 项目列表 / 附件，手机切换文档时保留项目文件列表、关闭其他面板，离开编辑页时关闭；`NotificationBar` 与 notification store 负责统一提示。创建文件统一通过 `useCreateDocument`：后台确定落点，展示实际路径 1000ms 后跳转。
+`InputDialog` 是命名输入和异步提交的公共入口；`ConfirmDialog` 是删除/未保存确认入口；`VoexModal` 负责焦点、Escape、背景隔离和滚动锁；`VoexDrawer` 复用其 right 布局变体，编辑页 `activePanel` 管理互斥的 AI / 项目列表 / 附件，手机切换文档时保留项目文件列表、关闭其他面板，离开编辑页时关闭；`NotificationBar` 与 notification store 负责统一提示。创建文件统一通过 `useCreateDocument`：后台确定落点，展示实际路径 500ms 后跳转。
 
 编辑器 `PexelsDialog` 复用 VoexModal，沿用工作台主题、系统字体和 6px 控件圆角。图片保持原始比例，以三列瀑布流展示，手机两列、极窄屏一列；筛选和署名固定在列表滚动区域外。方向和颜色使用有 label 的原生 select，接受平台选项弹层。点击图片直接插入，摄影师和 Pexels 来源链接始终可见。
 

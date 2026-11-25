@@ -4,6 +4,8 @@ import { authUser, sessionExpired } from '@/service/auth-session';
 import { getUserConfig, patchUserConfig, type UserConfig } from '@/service/api/user-config-api';
 import { errorMessage } from '@/utils/error';
 
+export type AIPreferenceKey = 'aiModelId' | 'aiWebEngineId';
+
 export type EditorPreferenceKey =
   | 'editorOutlineVisible'
   | 'editorMinimapVisible'
@@ -19,6 +21,16 @@ export const useUserConfigStore = defineStore('user-config', () => {
   const loadError = ref('');
   const saveError = ref('');
   const failedPatch = shallowRef<UserConfig | null>(null);
+  const aiModelId = computed(() =>
+    typeof config.value.aiModelId === 'string' ? config.value.aiModelId : ''
+  );
+  const aiWebEngineId = computed(() =>
+    typeof config.value.aiWebEngineId === 'string' ? config.value.aiWebEngineId : ''
+  );
+  const aiSaveError = computed(() => {
+    const patch = failedPatch.value;
+    return patch && ('aiModelId' in patch || 'aiWebEngineId' in patch) ? saveError.value : '';
+  });
   const showOutline = computed(() => config.value.editorOutlineVisible !== false);
   const showMinimap = computed(() => config.value.editorMinimapVisible !== false);
   const zenFullscreen = computed(() => config.value.editorZenFullscreen !== false);
@@ -28,6 +40,7 @@ export const useUserConfigStore = defineStore('user-config', () => {
       loaded.value && !loading.value && !saving.value && !sessionExpired.value && !!authUser.value
   );
   let generation = 0;
+  let activeSave: Promise<void> | undefined;
   let controller: AbortController | undefined;
 
   async function load() {
@@ -55,8 +68,24 @@ export const useUserConfigStore = defineStore('user-config', () => {
     if (!loaded.value) return load();
   }
 
-  async function save(patch: UserConfig) {
-    if (!canChange.value) return;
+  function save(patch: UserConfig): Promise<void> {
+    const current = generation;
+    if (activeSave)
+      return activeSave.then(() => {
+        if (current === generation) return save(patch);
+      });
+    if (
+      !canChange.value ||
+      Object.entries(patch).every(([key, value]) => config.value[key] === value)
+    )
+      return Promise.resolve();
+    activeSave = persist(patch).finally(() => {
+      if (generation === current) activeSave = undefined;
+    });
+    return activeSave;
+  }
+
+  async function persist(patch: UserConfig) {
     const current = generation;
     const previous = config.value;
     controller = new AbortController();
@@ -83,6 +112,10 @@ export const useUserConfigStore = defineStore('user-config', () => {
     }
   }
 
+  function setAIPreference(key: AIPreferenceKey, value: string) {
+    return save({ [key]: value });
+  }
+
   function setEditorPreference(key: EditorPreferenceKey, value: boolean) {
     return save({ [key]: value });
   }
@@ -95,6 +128,7 @@ export const useUserConfigStore = defineStore('user-config', () => {
     () => authUser.value?.id,
     () => {
       generation++;
+      activeSave = undefined;
       controller?.abort();
       controller = undefined;
       config.value = {};
@@ -111,6 +145,10 @@ export const useUserConfigStore = defineStore('user-config', () => {
   );
 
   return {
+    aiModelId,
+    aiWebEngineId,
+    aiSaveError,
+    setAIPreference,
     showOutline,
     showMinimap,
     zenFullscreen,
